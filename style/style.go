@@ -1,6 +1,7 @@
 package style
 
 import (
+	"fmt"
 	"image/color"
 
 	"golang.org/x/image/font"
@@ -25,34 +26,81 @@ type Insets struct {
 }
 
 // Mergeは2つのスタイルをマージします。
+// baseスタイルをベースに、overlayスタイルの値を上書きします。
+// overlayスタイルでゼロ値（nil, 0など）が指定されている場合は、baseスタイルの値を保持します。
 func Merge(base, overlay Style) Style {
 	result := base
+
+	// Background
 	if overlay.Background != nil {
 		result.Background = overlay.Background
 	}
+
+	// BorderColor
 	if overlay.BorderColor != nil {
 		result.BorderColor = overlay.BorderColor
 	}
+
+	// BorderWidth
 	if overlay.BorderWidth != 0 {
 		result.BorderWidth = overlay.BorderWidth
 	}
+
+	// Margin
 	if overlay.Margin != (Insets{}) {
 		result.Margin = overlay.Margin
 	}
+
+	// Padding
 	if overlay.Padding != (Insets{}) {
 		result.Padding = overlay.Padding
 	}
+
+	// Font
 	if overlay.Font != nil {
 		result.Font = overlay.Font
 	}
+
+	// TextColor
 	if overlay.TextColor != nil {
 		result.TextColor = overlay.TextColor
 	}
+
+	// BorderRadius
 	if overlay.BorderRadius != 0 {
 		result.BorderRadius = overlay.BorderRadius
 	}
+
+	// Opacity
 	if overlay.Opacity != 0 {
 		result.Opacity = overlay.Opacity
 	}
+
 	return result
+}
+
+// Validate はスタイルの値が有効かどうかを検証します。
+// 無効な値が見つかった場合はエラーを返します。
+func (s *Style) Validate() error {
+	if s.BorderWidth < 0 {
+		return fmt.Errorf("border width must be non-negative, got %f", s.BorderWidth)
+	}
+
+	if s.BorderRadius < 0 {
+		return fmt.Errorf("border radius must be non-negative, got %f", s.BorderRadius)
+	}
+
+	if s.Opacity < 0 || s.Opacity > 1 {
+		return fmt.Errorf("opacity must be between 0 and 1, got %f", s.Opacity)
+	}
+
+	if s.Margin.Top < 0 || s.Margin.Right < 0 || s.Margin.Bottom < 0 || s.Margin.Left < 0 {
+		return fmt.Errorf("margin values must be non-negative, got %v", s.Margin)
+	}
+
+	if s.Padding.Top < 0 || s.Padding.Right < 0 || s.Padding.Bottom < 0 || s.Padding.Left < 0 {
+		return fmt.Errorf("padding values must be non-negative, got %v", s.Padding)
+	}
+
+	return nil
 }
