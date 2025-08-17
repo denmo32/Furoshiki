@@ -49,8 +49,8 @@ func init() {
 }
 
 type Game struct {
-	root             component.Component
-	hoveredComponent component.Component
+	root             component.Widget
+	hoveredComponent component.Widget
 	width, height    int
 }
 
@@ -191,7 +191,7 @@ func createMainContent() (*container.Container, error) {
 		Build()
 }
 
-func createCard(title, mainText, subText string) (component.Component, error) {
+func createCard(title, mainText, subText string) (component.Widget, error) {
 	titleLabel, _ := component.NewLabelBuilder().Text(title).Style(style.Style{Font: mplusFontSmall, TextColor: color.Gray{Y: 100}}).Build()
 	mainLabel, _ := component.NewLabelBuilder().Text(mainText).Style(style.Style{Font: mplusFont, TextColor: color.Black}).Size(0, 40).Build()
 	subLabel, _ := component.NewLabelBuilder().Text(subText).Style(style.Style{Font: mplusFontSmall, TextColor: color.Gray{Y: 120}}).Build()

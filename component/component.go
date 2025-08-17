@@ -12,9 +12,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
-// --- Component Interface ---
-// Componentは全てのUIコンポーネントの核となるインターフェースです。
-type Component interface {
+// --- Widget Interface ---
+// Widgetは全てのUI要素の基本的な振る舞いを定義するインターフェースです。
+// これには位置、サイズ、スタイル、イベント処理などが含まれます。
+type Widget interface {
 	Update()
 	Draw(screen *ebiten.Image)
 	SetPosition(x, y int)
@@ -33,22 +34,30 @@ type Component interface {
 	HandleEvent(event event.Event)
 	SetFlex(flex int)
 	GetFlex() int
-	AddChild(child Component)
-	RemoveChild(child Component)
-	GetChildren() []Component
-	SetParent(parent Component)
-	GetParent() Component
-	HitTest(x, y int) Component
+	SetParent(parent Container) // 親はContainer型である必要があります
+	GetParent() Container
+	HitTest(x, y int) Widget
 	SetHovered(hovered bool)
 	IsHovered() bool
-	SetVisible(visible bool) // 可視性を設定するメソッドを追加
-	IsVisible() bool         // 可視性を取得するメソッドを追加
+	SetVisible(visible bool)
+	IsVisible() bool
 	SetRelayoutBoundary(isBoundary bool)
 }
 
-// --- LayoutableComponent ---
-// LayoutableComponentはレイアウト可能なコンポーネントの基底構造体です。
-type LayoutableComponent struct {
+// --- Container Interface ---
+// Containerは子Widgetを持つことができるWidgetです。
+// UIの階層構造を構築するために使用されます。
+type Container interface {
+	Widget // ContainerはWidgetのすべての振る舞いを継承します
+	AddChild(child Widget)
+	RemoveChild(child Widget)
+	GetChildren() []Widget
+}
+
+// --- LayoutableWidget ---
+// LayoutableWidgetは、Widgetインターフェースの基本的な実装を提供する構造体です。
+// 他の具体的なウィジェット（Button, Labelなど）は、この構造体を埋め込むことで基本的な機能を利用します。
+type LayoutableWidget struct {
 	x, y                int
 	width, height       int
 	minWidth, minHeight int
@@ -56,314 +65,287 @@ type LayoutableComponent struct {
 	style               style.Style
 	dirty               bool
 	eventHandlers       map[event.EventType]event.EventHandler
-	children            []Component
-	parent              Component
+	parent              Container // 親への参照
 	isHovered           bool
-	isVisible           bool // 可視性フラグを追加
+	isVisible           bool // 可視性フラグ
 	relayoutBoundary    bool // レイアウトの境界フラグ
 }
 
-// NewLayoutableComponent は、デフォルト値で LayoutableComponent を初期化します。
-// 特に isVisible を true に設定するために重要です。
-func NewLayoutableComponent() *LayoutableComponent {
-	return &LayoutableComponent{
-		isVisible: true,
+// NewLayoutableWidget は、デフォルト値で LayoutableWidget を初期化します。
+func NewLayoutableWidget() *LayoutableWidget {
+	return &LayoutableWidget{
+		isVisible: true, // デフォルトで表示状態にする
 	}
 }
 
-// --- LayoutableComponent Methods (Interface Implementation) ---
+// --- LayoutableWidget Methods (Interface Implementation) ---
 
-func (c *LayoutableComponent) Update() {
-	// 非表示のコンポーネントとその子孫は更新しない
-	if !c.isVisible {
+func (w *LayoutableWidget) Update() {
+	// この基本実装では何もしませんが、子を持つコンテナなどでオーバーライドされます。
+	// ダーティフラグのクリアは、レイアウト計算後に移動される可能性があります。
+	w.ClearDirty()
+}
+
+func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
+	// 非表示のウィジェットは描画しない
+	if !w.isVisible {
 		return
 	}
-	for _, child := range c.children {
-		child.Update()
-	}
-	c.ClearDirty()
+	// 背景と境界線の描画（フィールドへ直接アクセス）
+	drawStyledBackground(screen, w.x, w.y, w.width, w.height, w.style)
 }
 
-func (c *LayoutableComponent) Draw(screen *ebiten.Image) {
-	// 非表示のコンポーネントとその子孫は描画しない
-	if !c.isVisible {
-		return
-	}
-	style := c.GetStyle()
-	x, y := c.GetPosition()
-	width, height := c.GetSize()
-	drawStyledBackground(screen, x, y, width, height, *style)
-	for _, child := range c.children {
-		child.Draw(screen)
+func (w *LayoutableWidget) SetPosition(x, y int) {
+	if w.x != x || w.y != y {
+		w.x = x
+		w.y = y
+		w.MarkDirty()
 	}
 }
 
-func (c *LayoutableComponent) SetPosition(x, y int) {
-	if c.x != x || c.y != y {
-		c.x = x
-		c.y = y
-		c.MarkDirty()
+func (w *LayoutableWidget) GetPosition() (x, y int) {
+	return w.x, w.y
+}
+
+func (w *LayoutableWidget) SetSize(width, height int) {
+	if w.width != width || w.height != height {
+		w.width = width
+		w.height = height
+		w.MarkDirty()
 	}
 }
 
-func (c *LayoutableComponent) GetPosition() (x, y int) {
-	return c.x, c.y
+func (w *LayoutableWidget) GetSize() (width, height int) {
+	return w.width, w.height
 }
 
-func (c *LayoutableComponent) SetSize(width, height int) {
-	if c.width != width || c.height != height {
-		c.width = width
-		c.height = height
-		c.MarkDirty()
+func (w *LayoutableWidget) SetMinSize(width, height int) {
+	if w.minWidth != width || w.minHeight != height {
+		w.minWidth = width
+		w.minHeight = height
+		w.MarkDirty()
 	}
 }
 
-func (c *LayoutableComponent) GetSize() (width, height int) {
-	return c.width, c.height
+func (w *LayoutableWidget) GetMinSize() (width, height int) {
+	return w.minWidth, w.minHeight
 }
 
-func (c *LayoutableComponent) SetMinSize(width, height int) {
-	if c.minWidth != width || c.minHeight != height {
-		c.minWidth = width
-		c.minHeight = height
-		c.MarkDirty()
-	}
+func (w *LayoutableWidget) SetStyle(style style.Style) {
+	w.style = style
+	w.MarkDirty()
 }
 
-func (c *LayoutableComponent) GetMinSize() (width, height int) {
-	return c.minWidth, c.minHeight
+func (w *LayoutableWidget) GetStyle() *style.Style {
+	return &w.style
 }
 
-func (c *LayoutableComponent) SetStyle(style style.Style) {
-	c.style = style
-	c.MarkDirty()
-}
-
-func (c *LayoutableComponent) GetStyle() *style.Style {
-	return &c.style
-}
-
-func (c *LayoutableComponent) MarkDirty() {
-	if c.dirty {
+func (w *LayoutableWidget) MarkDirty() {
+	if w.dirty {
 		return // 既にdirtyなら何もしない
 	}
-	c.dirty = true
+	w.dirty = true
 
 	// 親が存在し、かつ自身がレイアウト境界でない場合にのみ、親へdirtyフラグを伝播させる
-	if c.parent != nil && !c.relayoutBoundary {
-		c.parent.MarkDirty()
+	if w.parent != nil && !w.relayoutBoundary {
+		w.parent.MarkDirty()
 	}
 }
 
-// SetRelayoutBoundary は、このコンポーネントがレイアウトの境界であるかを設定します。
-// 境界に設定されたコンポーネントは、自身の変更を親に伝播させなくなり、
-// レイアウトの再計算範囲を限定することができます。
-func (c *LayoutableComponent) SetRelayoutBoundary(isBoundary bool) {
-	c.relayoutBoundary = isBoundary
+func (w *LayoutableWidget) SetRelayoutBoundary(isBoundary bool) {
+	w.relayoutBoundary = isBoundary
 }
 
-func (c *LayoutableComponent) IsDirty() bool {
-	return c.dirty
+func (w *LayoutableWidget) IsDirty() bool {
+	return w.dirty
 }
 
-func (c *LayoutableComponent) ClearDirty() {
-	c.dirty = false
+func (w *LayoutableWidget) ClearDirty() {
+	w.dirty = false
 }
 
-func (c *LayoutableComponent) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
-	if c.eventHandlers == nil {
-		c.eventHandlers = make(map[event.EventType]event.EventHandler)
+func (w *LayoutableWidget) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
+	if w.eventHandlers == nil {
+		w.eventHandlers = make(map[event.EventType]event.EventHandler)
 	}
-	c.eventHandlers[eventType] = handler
+	w.eventHandlers[eventType] = handler
 }
 
-func (c *LayoutableComponent) RemoveEventHandler(eventType event.EventType) {
-	delete(c.eventHandlers, eventType)
+func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
+	delete(w.eventHandlers, eventType)
 }
 
-func (c *LayoutableComponent) HandleEvent(event event.Event) {
-	if handler, exists := c.eventHandlers[event.Type]; exists {
+func (w *LayoutableWidget) HandleEvent(event event.Event) {
+	if handler, exists := w.eventHandlers[event.Type]; exists {
 		handler(event)
 	}
 }
 
-func (c *LayoutableComponent) SetFlex(flex int) {
+func (w *LayoutableWidget) SetFlex(flex int) {
 	if flex < 0 {
 		flex = 0
 	}
-	if c.flex != flex {
-		c.flex = flex
-		c.MarkDirty()
+	if w.flex != flex {
+		w.flex = flex
+		w.MarkDirty()
 	}
 }
 
-func (c *LayoutableComponent) GetFlex() int {
-	return c.flex
+func (w *LayoutableWidget) GetFlex() int {
+	return w.flex
 }
 
-func (c *LayoutableComponent) AddChild(child Component) {
-	if child == nil {
-		return
-	}
-	child.SetParent(c)
-	c.children = append(c.children, child)
-	c.MarkDirty()
+func (w *LayoutableWidget) SetParent(parent Container) {
+	w.parent = parent
 }
 
-func (c *LayoutableComponent) RemoveChild(child Component) {
-	if child == nil {
-		return
-	}
-	for i, currentChild := range c.children {
-		if currentChild == child {
-			c.children = append(c.children[:i], c.children[i+1:]...)
-			child.SetParent(nil)
-			c.MarkDirty()
-			return
-		}
-	}
+func (w *LayoutableWidget) GetParent() Container {
+	return w.parent
 }
 
-func (c *LayoutableComponent) GetChildren() []Component {
-	return c.children
-}
-
-func (c *LayoutableComponent) SetParent(parent Component) {
-	c.parent = parent
-}
-
-func (c *LayoutableComponent) GetParent() Component {
-	return c.parent
-}
-
-func (c *LayoutableComponent) HitTest(x, y int) Component {
-	// 非表示のコンポーネントはヒットしない
-	if !c.isVisible {
+// HitTest は、指定された座標がウィジェットの範囲内にあるかをテストします。
+// この基本実装では、子要素を持たないため、自分自身のみをチェックします。
+func (w *LayoutableWidget) HitTest(x, y int) Widget {
+	if !w.isVisible {
 		return nil
 	}
-	cx, cy := c.GetPosition()
-	cw, ch := c.GetSize()
-	if !(image.Point{X: x, Y: y}.In(image.Rect(cx, cy, cx+cw, cy+ch))) {
+	if !(image.Point{X: x, Y: y}.In(image.Rect(w.x, w.y, w.x+w.width, w.y+w.height))) {
 		return nil
 	}
-	for i := len(c.children) - 1; i >= 0; i-- {
-		child := c.children[i]
-		if target := child.HitTest(x, y); target != nil {
-			return target
-		}
-	}
-	return c
+	return w
 }
 
-func (c *LayoutableComponent) SetHovered(hovered bool) {
-	if c.isHovered != hovered {
-		c.isHovered = hovered
-		// Hover状態の変更は通常レイアウトに影響しないため、MarkDirty()は呼び出さない。
-		// 再描画はEbitengineの毎フレームのDrawループに任せる。
+func (w *LayoutableWidget) SetHovered(hovered bool) {
+	if w.isHovered != hovered {
+		w.isHovered = hovered
 	}
 }
 
-func (c *LayoutableComponent) IsHovered() bool {
-	return c.isHovered
+func (w *LayoutableWidget) IsHovered() bool {
+	return w.isHovered
 }
 
-// SetVisible はコンポーネントの可視性を設定します。
-func (c *LayoutableComponent) SetVisible(visible bool) {
-	if c.isVisible != visible {
-		c.isVisible = visible
-		// 可視性の変更はレイアウトに直接影響するため、再計算を要求する
-		c.MarkDirty()
+func (w *LayoutableWidget) SetVisible(visible bool) {
+	if w.isVisible != visible {
+		w.isVisible = visible
+		w.MarkDirty()
 	}
 }
 
-// IsVisible はコンポーネントが可視状態であるかを返します。
-func (c *LayoutableComponent) IsVisible() bool {
-	return c.isVisible
+func (w *LayoutableWidget) IsVisible() bool {
+	return w.isVisible
 }
 
 // --- Drawing Helper ---
 
-// drawStyledBackground は、指定されたスタイルでコンポーネントの背景と境界線を描画します。
 func drawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.Style) {
 	if width <= 0 || height <= 0 {
 		return
 	}
-	// 背景色の描画
 	if s.Background != nil && s.Background != color.Transparent {
 		vector.DrawFilledRect(dst, float32(x), float32(y), float32(width), float32(height), s.Background, false)
 	}
-	// 境界線の描画
 	if s.BorderColor != nil && s.BorderWidth > 0 {
 		vector.StrokeRect(dst, float32(x), float32(y), float32(width), float32(height), s.BorderWidth, s.BorderColor, false)
 	}
 }
 
-// drawAlignedText は、指定された領域内にテキストを中央揃えで描画するヘルパー関数です。
-// Button や Label など、テキストを持つ複数のコンポーネントから利用されることを想定しています。
 func drawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
-	// テキストやフォントが空の場合は描画しない
 	if textContent == "" || s.Font == nil {
 		return
 	}
-
-	// パディングを適用した描画領域を計算
 	contentRect := image.Rect(
 		area.Min.X+s.Padding.Left,
 		area.Min.Y+s.Padding.Top,
 		area.Max.X-s.Padding.Right,
 		area.Max.Y-s.Padding.Bottom,
 	)
-	contentWidth := contentRect.Dx()
-	contentHeight := contentRect.Dy()
-
-	// 描画領域がなければ何もしない
-	if contentWidth <= 0 || contentHeight <= 0 {
+	if contentRect.Dx() <= 0 || contentRect.Dy() <= 0 {
 		return
 	}
-
-	// テキストの描画サイズを計算
 	bounds := text.BoundString(s.Font, textContent)
-	// テキストを中央に配置するための座標を計算
-	textX := contentRect.Min.X + (contentWidth-bounds.Dx())/2
-	textY := contentRect.Min.Y + (contentHeight+bounds.Dy())/2
-
-	// テキストカラーを設定（指定がなければ黒）
+	textX := contentRect.Min.X + (contentRect.Dx()-bounds.Dx())/2
+	textY := contentRect.Min.Y + (contentRect.Dy()+bounds.Dy())/2
 	var textColor color.Color = color.Black
 	if s.TextColor != nil {
 		textColor = s.TextColor
 	}
-
-	// テキストを描画
 	text.Draw(screen, textContent, s.Font, textX, textY, textColor)
+}
+
+// --- TextWidget ---
+// TextWidgetは、テキスト表示に関連する共通の機能（テキスト内容、スタイル、最小サイズ計算）を提供します。
+// ButtonやLabelなど、テキストを持つウィジェットはこれを埋め込みます。
+type TextWidget struct {
+	*LayoutableWidget
+	text string
+}
+
+// NewTextWidget は新しいTextWidgetを生成します。
+func NewTextWidget(text string) *TextWidget {
+	return &TextWidget{
+		LayoutableWidget: NewLayoutableWidget(),
+		text:             text,
+	}
+}
+
+// Text はウィジェットのテキストを取得します。
+func (t *TextWidget) Text() string {
+	return t.text
+}
+
+// SetText はウィジェットのテキストを設定し、ダーティフラグを立てます。
+func (t *TextWidget) SetText(text string) {
+	if t.text != text {
+		t.text = text
+		t.MarkDirty()
+	}
+}
+
+// Draw はTextWidgetを描画します。LayoutableWidgetのDrawをオーバーライドしてテキストを追加描画します。
+func (t *TextWidget) Draw(screen *ebiten.Image) {
+	if !t.isVisible {
+		return
+	}
+	// 背景描画は基本のDrawを呼び出す
+	t.LayoutableWidget.Draw(screen)
+	// テキストを描画（フィールドへ直接アクセス）
+	drawAlignedText(screen, t.text, image.Rect(t.x, t.y, t.x+t.width, t.y+t.height), t.style)
+}
+
+// calculateMinSize は、現在のテキストとスタイルに基づいて最小サイズを計算します。
+func (t *TextWidget) calculateMinSize() (int, int) {
+	style := t.GetStyle()
+	if t.text != "" && style.Font != nil {
+		bounds := text.BoundString(style.Font, t.text)
+		minWidth := bounds.Dx() + style.Padding.Left + style.Padding.Right
+		metrics := style.Font.Metrics()
+		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + style.Padding.Top + style.Padding.Bottom
+		return minWidth, minHeight
+	}
+	return 0, 0
 }
 
 // --- Button component ---
 type Button struct {
-	*LayoutableComponent
-	text string
-	// onClick フィールドを削除し、イベントハンドラに一本化
+	*TextWidget
 	hoverStyle *style.Style
 }
 
-func (b *Button) Update() {
-	b.LayoutableComponent.Update()
-}
-
+// Draw はButtonを描画します。TextWidgetのDrawをオーバーライドしてホバー効果を追加します。
 func (b *Button) Draw(screen *ebiten.Image) {
-	// isVisibleチェックは埋め込み元のDrawで既に行われている
-	width, height := b.GetSize()
-	x, y := b.GetPosition()
-	if width <= 0 || height <= 0 {
+	if !b.isVisible {
 		return
 	}
-	currentStyle := b.GetStyle()
-	if b.IsHovered() && b.hoverStyle != nil {
+	// 現在適用すべきスタイルを選択（通常時 or ホバー時）
+	currentStyle := &b.style
+	if b.isHovered && b.hoverStyle != nil {
 		currentStyle = b.hoverStyle
 	}
-	// 背景と境界線を描画
-	drawStyledBackground(screen, x, y, width, height, *currentStyle)
-	// 新しいヘルパー関数を使用してテキストを描画
-	drawAlignedText(screen, b.text, image.Rect(x, y, x+width, y+height), *currentStyle)
+	// 背景と境界線を描画（フィールドへ直接アクセス）
+	drawStyledBackground(screen, b.x, b.y, b.width, b.height, *currentStyle)
+	// テキストを描画（フィールドへ直接アクセス）
+	drawAlignedText(screen, b.text, image.Rect(b.x, b.y, b.x+b.width, b.y+b.height), *currentStyle)
 }
 
 // --- ButtonBuilder ---
@@ -381,7 +363,7 @@ func NewButtonBuilder() *ButtonBuilder {
 		Padding:     style.Insets{Top: 5, Right: 10, Bottom: 5, Left: 10},
 	}
 	button := &Button{
-		LayoutableComponent: NewLayoutableComponent(),
+		TextWidget: NewTextWidget(""),
 	}
 	button.width = 100
 	button.height = 40
@@ -392,29 +374,19 @@ func NewButtonBuilder() *ButtonBuilder {
 	}
 }
 
-// calculateMinSizeInternal は、現在のテキストとスタイルに基づいて最小サイズを計算し、設定します。
-// ユーザーが明示的に呼び出す必要がないように、内部的に使用されます。
 func (b *ButtonBuilder) calculateMinSizeInternal() {
-	style := b.button.GetStyle()
-	if b.button.text != "" && style.Font != nil {
-		bounds := text.BoundString(style.Font, b.button.text)
-		minWidth := bounds.Dx() + style.Padding.Left + style.Padding.Right
-		metrics := style.Font.Metrics()
-		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + style.Padding.Top + style.Padding.Bottom
-		b.button.SetMinSize(minWidth, minHeight)
-	}
+	minWidth, minHeight := b.button.calculateMinSize()
+	b.button.SetMinSize(minWidth, minHeight)
 }
 
-// CalculateMinSize は、手動で最小サイズの再計算をトリガーしたい場合に使用します。
-// 通常はText()やStyle()の設定時に自動で計算されます。
 func (b *ButtonBuilder) CalculateMinSize() *ButtonBuilder {
 	b.calculateMinSizeInternal()
 	return b
 }
 
 func (b *ButtonBuilder) Text(text string) *ButtonBuilder {
-	b.button.text = text
-	b.calculateMinSizeInternal() // テキストが変更されたら自動で最小サイズを再計算
+	b.button.SetText(text)
+	b.calculateMinSizeInternal()
 	return b
 }
 
@@ -426,7 +398,6 @@ func (b *ButtonBuilder) Size(width, height int) *ButtonBuilder {
 func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 	if onClick != nil {
 		b.button.AddEventHandler(event.EventClick, func(e event.Event) {
-			// e.MouseButton == ebiten.MouseButtonLeft などをチェックすることも可能
 			onClick()
 		})
 	}
@@ -436,7 +407,7 @@ func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
 	existingStyle := b.button.GetStyle()
 	b.button.SetStyle(style.Merge(*existingStyle, s))
-	b.calculateMinSizeInternal() // スタイル（フォントやパディング）が変更されたら再計算
+	b.calculateMinSizeInternal()
 	return b
 }
 
@@ -455,32 +426,20 @@ func (b *ButtonBuilder) Build() (*Button, error) {
 	if len(b.errors) > 0 {
 		return nil, fmt.Errorf("button build errors: %v", b.errors)
 	}
-	// Build時にも最終的な最小サイズを計算し、設定漏れを防ぐ
 	b.calculateMinSizeInternal()
 	return b.button, nil
 }
 
 // --- Label component ---
+// LabelはTextWidgetを直接埋め込みます。Label固有のロジックは今のところありません。
 type Label struct {
-	*LayoutableComponent
-	text string
+	*TextWidget
 }
 
-func (l *Label) Update() {
-	l.LayoutableComponent.Update()
-}
-
-func (l *Label) Draw(screen *ebiten.Image) {
-	// isVisibleチェックは埋め込み元のDrawで既に行われている
-	style := l.GetStyle()
-	width, height := l.GetSize()
-	x, y := l.GetPosition()
-
-	// 背景と境界線を描画
-	drawStyledBackground(screen, x, y, width, height, *style)
-	// 新しいヘルパー関数を使用してテキストを描画
-	drawAlignedText(screen, l.text, image.Rect(x, y, x+width, y+height), *style)
-}
+// Drawは埋め込まれたTextWidgetのDrawメソッドをそのまま利用します。
+// func (l *Label) Draw(screen *ebiten.Image) {
+// 	l.TextWidget.Draw(screen)
+// }
 
 // --- LabelBuilder ---
 type LabelBuilder struct {
@@ -490,7 +449,7 @@ type LabelBuilder struct {
 
 func NewLabelBuilder() *LabelBuilder {
 	label := &Label{
-		LayoutableComponent: NewLayoutableComponent(),
+		TextWidget: NewTextWidget(""),
 	}
 	label.width = 100
 	label.height = 30
@@ -506,26 +465,18 @@ func NewLabelBuilder() *LabelBuilder {
 	}
 }
 
-// calculateMinSizeInternal は、現在のテキストとスタイルに基づいて最小サイズを計算し、設定します。
 func (b *LabelBuilder) calculateMinSizeInternal() {
-	style := b.label.GetStyle()
-	if b.label.text != "" && style.Font != nil {
-		bounds := text.BoundString(style.Font, b.label.text)
-		minWidth := bounds.Dx() + style.Padding.Left + style.Padding.Right
-		metrics := style.Font.Metrics()
-		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + style.Padding.Top + style.Padding.Bottom
-		b.label.SetMinSize(minWidth, minHeight)
-	}
+	minWidth, minHeight := b.label.calculateMinSize()
+	b.label.SetMinSize(minWidth, minHeight)
 }
 
-// CalculateMinSize は、手動で最小サイズの再計算をトリガーしたい場合に使用します。
 func (b *LabelBuilder) CalculateMinSize() *LabelBuilder {
 	b.calculateMinSizeInternal()
 	return b
 }
 
 func (b *LabelBuilder) Text(text string) *LabelBuilder {
-	b.label.text = text
+	b.label.SetText(text)
 	b.calculateMinSizeInternal()
 	return b
 }

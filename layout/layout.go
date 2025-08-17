@@ -12,7 +12,7 @@ type Layout interface {
 type Container interface {
 	GetSize() (width, height int)
 	GetPosition() (x, y int)
-	GetChildren() []component.Component
+	GetChildren() []component.Widget
 	GetStyle() *style.Style
 }
 
@@ -73,7 +73,7 @@ func max(a, b int) int {
 func (l *FlexLayout) Layout(container Container) {
 	allChildren := container.GetChildren()
 	// レイアウト対象となるのは、表示されている子要素のみ
-	var children []component.Component
+	var children []component.Widget
 	for _, child := range allChildren {
 		if child.IsVisible() {
 			children = append(children, child)
@@ -110,7 +110,7 @@ func (l *FlexLayout) Layout(container Container) {
 	// - 固定サイズ要素の主軸方向の合計サイズ (Flexアイテムの最小サイズも含む)
 	var totalFixedMainSize int
 	var totalFlex float64
-	var flexibleChildren []component.Component
+	var flexibleChildren []component.Widget
 
 	for _, child := range children {
 		childStyle := child.GetStyle()
