@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"image/color"
 	"log"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 
@@ -49,9 +47,8 @@ func init() {
 }
 
 type Game struct {
-	root             component.Widget
-	hoveredComponent component.Widget
-	width, height    int
+	root          component.Widget
+	width, height int
 }
 
 func NewGame() *Game {
@@ -219,50 +216,21 @@ func createCard(title, mainText, subText string) (component.Widget, error) {
 }
 
 func (g *Game) Update() error {
+	// --- イベント処理 ---
+	// マウスカーソルの位置を取得
 	cx, cy := ebiten.CursorPosition()
+	// カーソル下のコンポーネントを特定
 	target := g.root.HitTest(cx, cy)
 
-	if target != g.hoveredComponent {
-		if g.hoveredComponent != nil {
-			g.hoveredComponent.SetHovered(false)
-			g.hoveredComponent.HandleEvent(event.Event{
-				Type:   event.MouseLeave,
-				Target: g.hoveredComponent,
-			})
-		}
-		if target != nil {
-			target.SetHovered(true)
-			target.HandleEvent(event.Event{
-				Type:   event.MouseEnter,
-				Target: target,
-			})
-		}
-		g.hoveredComponent = target
-	}
+	// マウスイベントをUIツリーにディスパッチ
+	event.GetDispatcher().Dispatch(target, cx, cy)
 
-	if g.hoveredComponent != nil {
-		g.hoveredComponent.HandleEvent(event.Event{
-			Type:   event.MouseMove,
-			Target: g.hoveredComponent,
-			X:      cx,
-			Y:      cy,
-		})
-	}
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		if g.hoveredComponent != nil {
-			g.hoveredComponent.HandleEvent(event.Event{
-				Type:        event.EventClick,
-				Target:      g.hoveredComponent,
-				X:           cx,
-				Y:           cy,
-				Timestamp:   time.Now().UnixNano(),
-				MouseButton: ebiten.MouseButtonLeft, // 押されたマウスボタンの情報をイベントに追加
-			})
-		}
-	}
-
+	// --- UIの更新 ---
+	// UIツリー全体の更新処理を呼び出す。
+	// これにより、ダーティフラグが立っているコンテナのレイアウトが再計算され、
+	// 必要に応じてウィジェットの状態が更新される。
 	g.root.Update()
+
 	return nil
 }
 

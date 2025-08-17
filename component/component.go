@@ -81,9 +81,10 @@ func NewLayoutableWidget() *LayoutableWidget {
 // --- LayoutableWidget Methods (Interface Implementation) ---
 
 func (w *LayoutableWidget) Update() {
-	// この基本実装では何もしませんが、子を持つコンテナなどでオーバーライドされます。
-	// ダーティフラグのクリアは、レイアウト計算後に移動される可能性があります。
-	w.ClearDirty()
+	// この基本実装は、具象ウィジェット（Button, Labelなど）で利用されます。
+	// Container型は自身のUpdateメソッドでこれをオーバーライドします。
+	// ダーティフラグのクリアは、レイアウト計算を行うContainerの責務であるため、
+	// ここでは何もしません。
 }
 
 func (w *LayoutableWidget) Draw(screen *ebiten.Image) {

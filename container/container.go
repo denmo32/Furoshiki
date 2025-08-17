@@ -26,20 +26,29 @@ var _ layout.Container = (*Container)(nil)
 
 // Updateはコンテナと子要素の状態を更新します。
 // component.LayoutableWidgetのUpdateをオーバーライドして、レイアウト計算と子の更新を追加します。
+// このメソッドはUIツリーのルートから毎フレーム再帰的に呼び出されます。
 func (c *Container) Update() {
 	if !c.IsVisible() {
 		return
 	}
-	// ダーティフラグが立っている場合、レイアウトを再計算
-	if c.IsDirty() && c.layout != nil {
-		c.layout.Layout(c)
+
+	// ダーティフラグが立っている場合、レイアウトを再計算します。
+	// レイアウトの変更は子ウィジェットのサイズや位置に影響を与える可能性があるため、
+	// 子のUpdate()を呼び出す前に実行する必要があります。
+	if c.IsDirty() {
+		if c.layout != nil {
+			c.layout.Layout(c)
+		}
+		// レイアウトが完了したので、ダーティフラグをクリアします。
+		// これにより、次のフレームで不要な再計算が行われるのを防ぎます。
+		c.ClearDirty()
 	}
-	// すべての子ウィジェットを更新
+
+	// すべての子ウィジェットのUpdateを再帰的に呼び出します。
+	// これにより、UIツリー内のダーティなコンポーネントがすべて更新されることが保証されます。
 	for _, child := range c.children {
 		child.Update()
 	}
-	// 最後に自身のダーティフラグをクリア
-	c.ClearDirty()
 }
 
 // Drawはコンテナ自身と、そのすべての子を描画します。
