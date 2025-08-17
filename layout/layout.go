@@ -70,10 +70,19 @@ func max(a, b int) int {
 	return b
 }
 
+// flexItemInfo は、レイアウト計算中に各子要素の情報を保持するための中間構造体です。
+// これにより、ループの回数を減らし、計算を効率化します。
+type flexItemInfo struct {
+	widget                  component.Widget
+	mainSize, crossSize     int // 最終的な主軸・交差軸サイズ
+	mainMargin, crossMargin int // 主軸・交差軸のマージン合計
+	mainMarginStart         int // 主軸の開始側マージン
+}
+
 func (l *FlexLayout) Layout(container Container) {
+	// --- ステップ 1: 初期設定と可視コンポーネントのフィルタリング ---
 	allChildren := container.GetChildren()
-	// レイアウト対象となるのは、表示されている子要素のみ
-	var children []component.Widget
+	children := make([]component.Widget, 0, len(allChildren))
 	for _, child := range allChildren {
 		if child.IsVisible() {
 			children = append(children, child)
@@ -88,7 +97,6 @@ func (l *FlexLayout) Layout(container Container) {
 	containerWidth, containerHeight := container.GetSize()
 	containerX, containerY := container.GetPosition()
 
-	// コンテナのPaddingを考慮した、子要素が利用可能な領域を計算
 	availableWidth := containerWidth - containerStyle.Padding.Left - containerStyle.Padding.Right
 	availableHeight := containerHeight - containerStyle.Padding.Top - containerStyle.Padding.Bottom
 
@@ -98,156 +106,118 @@ func (l *FlexLayout) Layout(container Container) {
 		mainSize, crossSize = availableHeight, availableWidth
 	}
 
-	// --- 1. サイズ計算フェーズ ---
-	// このフェーズでは、各子要素の最終的なサイズを決定します。
-	// Flexboxの計算は、主軸（Main Axis）と交差軸（Cross Axis）の2つの軸を基準に行われます。
-	// DirectionがRowなら主軸は水平方向、Columnなら垂直方向です。
-
-	// --- ステップ 1.1: レイアウト情報の収集 ---
-	// まず、すべての子要素をループし、以下の情報を収集します。
-	// - Flex値を持つ子要素（伸縮する要素）のリスト
-	// - Flex値の合計 (スペースを分配する際の比率として使用)
-	// - 固定サイズ要素の主軸方向の合計サイズ (Flexアイテムの最小サイズも含む)
+	// --- ステップ 2: レイアウト情報の収集と初期サイズ計算 (1回目のループ) ---
+	items := make([]flexItemInfo, len(children))
 	var totalFixedMainSize int
 	var totalFlex float64
-	var flexibleChildren []component.Widget
 
-	for _, child := range children {
-		childStyle := child.GetStyle()
+	for i, child := range children {
+		style := child.GetStyle()
 		minW, minH := child.GetMinSize()
-		childMarginMain := 0
+		w, h := child.GetSize()
+
+		var info flexItemInfo
+		info.widget = child
+
+		// 主軸と交差軸のマージンを計算
 		if isRow {
-			childMarginMain = childStyle.Margin.Left + childStyle.Margin.Right
+			info.mainMarginStart = style.Margin.Left
+			info.mainMargin = style.Margin.Left + style.Margin.Right
+			info.crossMargin = style.Margin.Top + style.Margin.Bottom
 		} else {
-			childMarginMain = childStyle.Margin.Top + childStyle.Margin.Bottom
+			info.mainMarginStart = style.Margin.Top
+			info.mainMargin = style.Margin.Top + style.Margin.Bottom
+			info.crossMargin = style.Margin.Left + style.Margin.Right
 		}
 
+		// 主軸の初期サイズを決定 (flexでない要素)
 		if child.GetFlex() > 0 {
 			totalFlex += float64(child.GetFlex())
-			flexibleChildren = append(flexibleChildren, child)
-			// flexアイテムでも、その最小サイズとマージンは固定サイズとして事前に確保する
+			// flexアイテムでも最小サイズは固定サイズとして確保
 			if isRow {
-				totalFixedMainSize += max(0, minW) + childMarginMain
+				info.mainSize = max(0, minW)
 			} else {
-				totalFixedMainSize += max(0, minH) + childMarginMain
+				info.mainSize = max(0, minH)
 			}
 		} else {
-			// 固定サイズアイテムのサイズ（最小サイズを考慮）とマージンを合計
 			if isRow {
-				w, _ := child.GetSize()
-				totalFixedMainSize += max(w, minW) + childMarginMain
+				info.mainSize = max(w, minW)
 			} else {
-				_, h := child.GetSize()
-				totalFixedMainSize += max(h, minH) + childMarginMain
+				info.mainSize = max(h, minH)
 			}
 		}
+		totalFixedMainSize += info.mainSize + info.mainMargin
+		items[i] = info
 	}
 
-	// --- ステップ 1.2: 伸縮可能スペースの計算 ---
-	// コンテナの利用可能サイズから、固定サイズの要素とGapが占めるスペースを引いて、
-	// 伸縮可能な要素（Flexアイテム）に分配できる残りのスペースを計算します。
+	// --- ステップ 3: 伸縮可能スペースの計算と分配 ---
 	totalGap := 0
 	if len(children) > 1 {
 		totalGap = (len(children) - 1) * l.Gap
 	}
-	remainingSpace := mainSize - totalFixedMainSize - totalGap // Gapの合計も考慮に入れる
+	remainingSpace := mainSize - totalFixedMainSize - totalGap
 
-	sizePerFlex := 0.0
 	if totalFlex > 0 && remainingSpace > 0 {
-		sizePerFlex = float64(remainingSpace) / totalFlex
-	}
-
-	// --- ステップ 1.3: Flexアイテムの主軸サイズを決定 ---
-	// 計算された残りのスペースを、各FlexアイテムのFlex値の比率に応じて分配します。
-	// 最終的なサイズは「最小サイズ + 分配されたスペース」となり、最小サイズが保証されます。
-	// これにより、コンテナが縮んでもアイテムが必要最低限のサイズを維持できます。
-	for _, child := range flexibleChildren {
-		flexSize := int(sizePerFlex * float64(child.GetFlex()))
-		minW, minH := child.GetMinSize()
-		if isRow {
-			_, h := child.GetSize()
-			// 最終的な幅 = 最小幅 + 追加のflexスペース
-			finalWidth := max(minW, minW+flexSize)
-			child.SetSize(finalWidth, h)
-		} else {
-			w, _ := child.GetSize()
-			// 最終的な高さ = 最小高 + 追加のflexスペース
-			finalHeight := max(minH, minH+flexSize)
-			child.SetSize(w, finalHeight)
-		}
-	}
-
-	// --- ステップ 1.4: 固定サイズアイテムの最小サイズを適用 ---
-	// Flex値を持たないアイテムにも、設定された最小サイズが適用されるようにします。
-	// ユーザーが指定したサイズが最小サイズより小さい場合、最小サイズが優先されます。
-	for _, child := range children {
-		if child.GetFlex() == 0 {
-			w, h := child.GetSize()
-			minW, minH := child.GetMinSize()
-			child.SetSize(max(w, minW), max(h, minH))
-		}
-	}
-
-	// --- ステップ 1.5: 交差軸のサイズを決定 (AlignStretch) ---
-	// AlignItemsプロパティがAlignStretchに設定されている場合、
-	// 子要素はコンテナの交差軸いっぱいに引き伸ばされます。
-	// ここでもマージンを考慮し、最小サイズが保証されます。
-	if l.AlignItems == AlignStretch {
-		for _, child := range children {
-			childStyle := child.GetStyle()
-			minW, minH := child.GetMinSize()
-
-			if isRow {
-				w, _ := child.GetSize()
-				childCrossMargin := childStyle.Margin.Top + childStyle.Margin.Bottom
-				finalHeight := max(minH, crossSize-childCrossMargin)
-				child.SetSize(w, finalHeight)
-			} else {
-				_, h := child.GetSize()
-				childCrossMargin := childStyle.Margin.Left + childStyle.Margin.Right
-				finalWidth := max(minW, crossSize-childCrossMargin)
-				child.SetSize(finalWidth, h)
+		sizePerFlex := float64(remainingSpace) / totalFlex
+		for i := range items {
+			if items[i].widget.GetFlex() > 0 {
+				flexSize := int(sizePerFlex * float64(items[i].widget.GetFlex()))
+				items[i].mainSize += flexSize
 			}
 		}
 	}
 
-	// --- 2. 位置計算フェーズ ---
-	// このフェーズでは、ステップ1で確定したサイズを持つ各子要素を、
-	// Justify (主軸方向の揃え) と AlignItems (交差軸方向の揃え) の設定に従って
-	// コンテナ内に実際に配置していきます。
-
-	// --- ステップ 2.1: 主軸方向の開始オフセットを計算 ---
-	// まず、配置後の全要素の合計サイズを再計算します。
-	var currentTotalMainSize int
-	for _, child := range children {
-		childStyle := child.GetStyle()
-		if isRow {
-			w, _ := child.GetSize()
-			currentTotalMainSize += w + childStyle.Margin.Left + childStyle.Margin.Right
-		} else {
-			_, h := child.GetSize()
-			currentTotalMainSize += h + childStyle.Margin.Top + childStyle.Margin.Bottom
+	// --- ステップ 4: 交差軸のサイズ計算 (AlignStretch) ---
+	if l.AlignItems == AlignStretch {
+		for i := range items {
+			minW, minH := items[i].widget.GetMinSize()
+			if isRow {
+				items[i].crossSize = max(minH, crossSize-items[i].crossMargin)
+			} else {
+				items[i].crossSize = max(minW, crossSize-items[i].crossMargin)
+			}
 		}
+	} else {
+		// Stretchでない場合は、ウィジェット本来のサイズを維持
+		for i := range items {
+			w, h := items[i].widget.GetSize()
+			minW, minH := items[i].widget.GetMinSize()
+			if isRow {
+				items[i].crossSize = max(h, minH)
+			} else {
+				items[i].crossSize = max(w, minW)
+			}
+		}
+	}
+
+	// --- ステップ 5: 最終的なサイズをウィジェットに設定 ---
+	for _, item := range items {
+		if isRow {
+			item.widget.SetSize(item.mainSize, item.crossSize)
+		} else {
+			item.widget.SetSize(item.crossSize, item.mainSize)
+		}
+	}
+
+	// --- ステップ 6: 位置計算と配置 (2回目のループ) ---
+	var currentTotalMainSize int
+	for _, item := range items {
+		currentTotalMainSize += item.mainSize + item.mainMargin
 	}
 	currentTotalMainSize += totalGap
 
-	// Justify設定に応じて、要素群全体の開始位置（オフセット）を決定します。
 	freeSpace := mainSize - currentTotalMainSize
 	mainOffset := 0
 	switch l.Justify {
-	case AlignStart:
-		mainOffset = 0
 	case AlignCenter:
 		mainOffset = freeSpace / 2
 	case AlignEnd:
 		mainOffset = freeSpace
 	}
-	if mainOffset < 0 { // コンテンツがはみ出す場合は、先頭から配置
+	if mainOffset < 0 {
 		mainOffset = 0
 	}
 
-	// --- ステップ 2.2: 各要素の位置を決定し配置 ---
-	// コンテナのPaddingと計算したオフセットを開始点として、各子要素を順番に配置します。
 	mainStart := containerStyle.Padding.Left
 	crossStart := containerStyle.Padding.Top
 	if !isRow {
@@ -256,44 +226,25 @@ func (l *FlexLayout) Layout(container Container) {
 	}
 	currentMain := mainStart + mainOffset
 
-	for _, child := range children {
-		childStyle := child.GetStyle()
-		var childMainSize, childCrossSize int
-		var childMarginMainStart, childMarginMainEnd, childMarginCrossStart, childMarginCrossEnd int
+	for _, item := range items {
+		currentMain += item.mainMarginStart
 
-		if isRow {
-			childMainSize, childCrossSize = child.GetSize()
-			childMarginMainStart, childMarginMainEnd = childStyle.Margin.Left, childStyle.Margin.Right
-			childMarginCrossStart, childMarginCrossEnd = childStyle.Margin.Top, childStyle.Margin.Bottom
-		} else {
-			childCrossSize, childMainSize = child.GetSize()
-			childMarginMainStart, childMarginMainEnd = childStyle.Margin.Top, childStyle.Margin.Bottom
-			childMarginCrossStart, childMarginCrossEnd = childStyle.Margin.Left, childStyle.Margin.Right
-		}
-
-		// 主軸方向の位置を決定 (マージンを考慮)
-		currentMain += childMarginMainStart
-
-		// 交差軸方向の位置をAlignItems設定に応じて決定
 		crossOffset := 0
 		switch l.AlignItems {
-		case AlignStart, AlignStretch:
-			crossOffset = 0
 		case AlignCenter:
-			crossOffset = (crossSize - childCrossSize - childMarginCrossStart - childMarginCrossEnd) / 2
+			crossOffset = (crossSize - item.crossSize - item.crossMargin) / 2
 		case AlignEnd:
-			crossOffset = crossSize - childCrossSize - childMarginCrossEnd
+			crossOffset = crossSize - item.crossSize - item.crossMargin + item.mainMarginStart
 		}
-		finalCrossPos := crossStart + crossOffset + childMarginCrossStart
 
-		// 最終的な座標を設定
+		finalCrossPos := crossStart + crossOffset
+
 		if isRow {
-			child.SetPosition(containerX+currentMain, containerY+finalCrossPos)
+			item.widget.SetPosition(containerX+currentMain, containerY+finalCrossPos)
 		} else {
-			child.SetPosition(containerX+finalCrossPos, containerY+currentMain)
+			item.widget.SetPosition(containerX+finalCrossPos, containerY+currentMain)
 		}
 
-		// 次の要素の開始位置を計算 (要素サイズ + マージン + Gap)
-		currentMain += childMainSize + childMarginMainEnd + l.Gap
+		currentMain += item.mainSize + (item.mainMargin - item.mainMarginStart) + l.Gap
 	}
 }

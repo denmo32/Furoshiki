@@ -89,7 +89,7 @@ func (c *Container) AddChild(child component.Widget) {
 	}
 	child.SetParent(c)
 	c.children = append(c.children, child)
-	c.MarkDirty()
+	c.MarkDirty(true)
 }
 
 func (c *Container) RemoveChild(child component.Widget) {
@@ -100,7 +100,7 @@ func (c *Container) RemoveChild(child component.Widget) {
 		if currentChild == child {
 			c.children = append(c.children[:i], c.children[i+1:]...)
 			child.SetParent(nil)
-			c.MarkDirty()
+			c.MarkDirty(true)
 			return
 		}
 	}
@@ -193,6 +193,6 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 		}
 	}
 
-	b.container.MarkDirty()
+	b.container.MarkDirty(true)
 	return b.container, nil
 }

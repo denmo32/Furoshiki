@@ -26,7 +26,7 @@ type Widget interface {
 	GetMinSize() (width, height int)
 	SetStyle(style style.Style)
 	GetStyle() *style.Style
-	MarkDirty()
+	MarkDirty(relayout bool)
 	IsDirty() bool
 	ClearDirty()
 	AddEventHandler(eventType event.EventType, handler event.EventHandler)
@@ -99,7 +99,7 @@ func (w *LayoutableWidget) SetPosition(x, y int) {
 	if w.x != x || w.y != y {
 		w.x = x
 		w.y = y
-		w.MarkDirty()
+		w.MarkDirty(true)
 	}
 }
 
@@ -111,7 +111,7 @@ func (w *LayoutableWidget) SetSize(width, height int) {
 	if w.width != width || w.height != height {
 		w.width = width
 		w.height = height
-		w.MarkDirty()
+		w.MarkDirty(true)
 	}
 }
 
@@ -123,7 +123,7 @@ func (w *LayoutableWidget) SetMinSize(width, height int) {
 	if w.minWidth != width || w.minHeight != height {
 		w.minWidth = width
 		w.minHeight = height
-		w.MarkDirty()
+		w.MarkDirty(true)
 	}
 }
 
@@ -133,22 +133,24 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 
 func (w *LayoutableWidget) SetStyle(style style.Style) {
 	w.style = style
-	w.MarkDirty()
+	// スタイルの変更は必ずしも再レイアウトを必要としないかもしれないが、
+	// Paddingなどが変わる可能性があるため、安全策としてtrueにする
+	w.MarkDirty(true)
 }
 
 func (w *LayoutableWidget) GetStyle() *style.Style {
 	return &w.style
 }
 
-func (w *LayoutableWidget) MarkDirty() {
+func (w *LayoutableWidget) MarkDirty(relayout bool) {
 	if w.dirty {
 		return // 既にdirtyなら何もしない
 	}
 	w.dirty = true
 
-	// 親が存在し、かつ自身がレイアウト境界でない場合にのみ、親へdirtyフラグを伝播させる
-	if w.parent != nil && !w.relayoutBoundary {
-		w.parent.MarkDirty()
+	// 親が存在し、かつ自身がレイアウト境界でなく、再レイアウトが必要な場合のみ伝播
+	if w.parent != nil && !w.relayoutBoundary && relayout {
+		w.parent.MarkDirty(true)
 	}
 }
 
@@ -187,7 +189,7 @@ func (w *LayoutableWidget) SetFlex(flex int) {
 	}
 	if w.flex != flex {
 		w.flex = flex
-		w.MarkDirty()
+		w.MarkDirty(true)
 	}
 }
 
@@ -218,6 +220,8 @@ func (w *LayoutableWidget) HitTest(x, y int) Widget {
 func (w *LayoutableWidget) SetHovered(hovered bool) {
 	if w.isHovered != hovered {
 		w.isHovered = hovered
+		// 再描画のみを要求するため、relayoutはfalse
+		w.MarkDirty(false)
 	}
 }
 
@@ -228,7 +232,7 @@ func (w *LayoutableWidget) IsHovered() bool {
 func (w *LayoutableWidget) SetVisible(visible bool) {
 	if w.isVisible != visible {
 		w.isVisible = visible
-		w.MarkDirty()
+		w.MarkDirty(true)
 	}
 }
 
@@ -298,7 +302,7 @@ func (t *TextWidget) Text() string {
 func (t *TextWidget) SetText(text string) {
 	if t.text != text {
 		t.text = text
-		t.MarkDirty()
+		t.MarkDirty(true)
 	}
 }
 
@@ -329,23 +333,30 @@ func (t *TextWidget) calculateMinSize() (int, int) {
 // --- Button component ---
 type Button struct {
 	*TextWidget
-	hoverStyle *style.Style
+	hoverStyle   *style.Style
+	currentStyle *style.Style // 描画時に使用するスタイルをキャッシュ
 }
 
-// Draw はButtonを描画します。TextWidgetのDrawをオーバーライドしてホバー効果を追加します。
+// SetHovered はホバー状態を設定し、描画スタイルを更新します。
+func (b *Button) SetHovered(hovered bool) {
+	// LayoutableWidgetの基本実装を呼び出す
+	b.LayoutableWidget.SetHovered(hovered)
+	// 状態に応じてスタイルを切り替える
+	if b.isHovered && b.hoverStyle != nil {
+		b.currentStyle = b.hoverStyle
+	} else {
+		b.currentStyle = &b.style
+	}
+}
+
+// Draw はButtonを描画します。キャッシュされたスタイルを使用します。
 func (b *Button) Draw(screen *ebiten.Image) {
 	if !b.isVisible {
 		return
 	}
-	// 現在適用すべきスタイルを選択（通常時 or ホバー時）
-	currentStyle := &b.style
-	if b.isHovered && b.hoverStyle != nil {
-		currentStyle = b.hoverStyle
-	}
-	// 背景と境界線を描画（フィールドへ直接アクセス）
-	drawStyledBackground(screen, b.x, b.y, b.width, b.height, *currentStyle)
-	// テキストを描画（フィールドへ直接アクセス）
-	drawAlignedText(screen, b.text, image.Rect(b.x, b.y, b.x+b.width, b.y+b.height), *currentStyle)
+	// キャッシュされたスタイルで描画
+	drawStyledBackground(screen, b.x, b.y, b.width, b.height, *b.currentStyle)
+	drawAlignedText(screen, b.text, image.Rect(b.x, b.y, b.x+b.width, b.y+b.height), *b.currentStyle)
 }
 
 // --- ButtonBuilder ---
@@ -368,6 +379,8 @@ func NewButtonBuilder() *ButtonBuilder {
 	button.width = 100
 	button.height = 40
 	button.SetStyle(defaultStyle)
+	// 初期状態のスタイルをキャッシュ
+	button.currentStyle = &button.style
 
 	return &ButtonBuilder{
 		button: button,
@@ -380,13 +393,13 @@ func (b *ButtonBuilder) calculateMinSizeInternal() {
 }
 
 func (b *ButtonBuilder) CalculateMinSize() *ButtonBuilder {
-	b.calculateMinSizeInternal()
+	// この呼び出しはBuild時に自動的に行われるため、通常は不要です。
+	// 明示的に計算したい場合のために残しますが、内部処理はBuildに集約します。
 	return b
 }
 
 func (b *ButtonBuilder) Text(text string) *ButtonBuilder {
 	b.button.SetText(text)
-	b.calculateMinSizeInternal()
 	return b
 }
 
@@ -406,8 +419,10 @@ func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 
 func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
 	existingStyle := b.button.GetStyle()
-	b.button.SetStyle(style.Merge(*existingStyle, s))
-	b.calculateMinSizeInternal()
+	mergedStyle := style.Merge(*existingStyle, s)
+	b.button.SetStyle(mergedStyle)
+	// スタイルが変更されたので、キャッシュも更新
+	b.button.currentStyle = &b.button.style
 	return b
 }
 
@@ -471,13 +486,12 @@ func (b *LabelBuilder) calculateMinSizeInternal() {
 }
 
 func (b *LabelBuilder) CalculateMinSize() *LabelBuilder {
-	b.calculateMinSizeInternal()
+	// この呼び出しはBuild時に自動的に行われるため、通常は不要です。
 	return b
 }
 
 func (b *LabelBuilder) Text(text string) *LabelBuilder {
 	b.label.SetText(text)
-	b.calculateMinSizeInternal()
 	return b
 }
 
@@ -489,7 +503,6 @@ func (b *LabelBuilder) Size(width, height int) *LabelBuilder {
 func (b *LabelBuilder) Style(s style.Style) *LabelBuilder {
 	existingStyle := b.label.GetStyle()
 	b.label.SetStyle(style.Merge(*existingStyle, s))
-	b.calculateMinSizeInternal()
 	return b
 }
 
