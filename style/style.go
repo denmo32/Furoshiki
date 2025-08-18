@@ -43,12 +43,14 @@ func Merge(base, overlay Style) Style {
 	}
 
 	// BorderWidth
+	// [注意] ゼロ値チェックのため、overlay.BorderWidthを意図的に0に設定して
+	// baseの値を上書きすることはできません。
 	if overlay.BorderWidth != 0 {
 		result.BorderWidth = overlay.BorderWidth
 	}
 
 	// Margin
-	// [注記] overlay.Marginがゼロ値(Insets{})の場合、baseの値が維持されます。
+	// [注意] overlay.Marginがゼロ値(Insets{})の場合、baseの値が維持されます。
 	// 特定の辺のマージンのみを0にしたい場合は、overlay側で他の辺の値を明示的に設定する必要があります。
 	if overlay.Margin != (Insets{}) {
 		result.Margin = overlay.Margin
@@ -70,11 +72,15 @@ func Merge(base, overlay Style) Style {
 	}
 
 	// BorderRadius
+	// [注意] ゼロ値チェックのため、overlay.BorderRadiusを意図的に0に設定して
+	// baseの値を上書きすることはできません。
 	if overlay.BorderRadius != 0 {
 		result.BorderRadius = overlay.BorderRadius
 	}
 
 	// Opacity
+	// [注意] ゼロ値チェックのため、overlay.Opacityを意図的に0.0に設定して
+	// baseの値を上書きすることはできません。
 	if overlay.Opacity != 0 {
 		result.Opacity = overlay.Opacity
 	}

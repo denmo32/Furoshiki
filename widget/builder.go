@@ -7,16 +7,18 @@ import (
 	"furoshiki/style"
 )
 
-// textWidget は、core.TextWidget を埋め込むウィジェットが満たすインターフェースです。
-// これにより、ジェネリックビルダーがウィジェットのメソッドを呼び出せるようになります。
+// textWidget は、component.TextWidget を埋め込むウィジェットが満たすインターフェースです。
+// これにより、ジェネリックビルダーがテキスト関連ウィジェットの共通メソッドを呼び出せるようになります。
 type textWidget interface {
 	component.Widget
 	SetText(string)
 	CalculateMinSize() (int, int)
-	SetRequestedPosition(x, y int) // [追加] AbsoluteLayoutのために追加
+	// SetRequestedPositionはcomponent.LayoutableWidgetに実装されているため、
+	// それを埋め込むことでこのインターフェースを満たします。
+	SetRequestedPosition(x, y int)
 }
 
-// Builder は、core.TextWidget をベースにしたウィジェットビルダーのための汎用的なベースです。
+// Builder は、component.TextWidget をベースにしたウィジェットビルダーのための汎用的なベースです。
 // T は具象ビルダーの型 (例: *LabelBuilder)
 // W はビルドされるウィジェットの型 (例: *Label)
 type Builder[T any, W textWidget] struct {

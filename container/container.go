@@ -10,7 +10,7 @@ import (
 )
 
 // Containerは子Widgetを保持し、レイアウトを管理するコンポーネントです。
-// core.Containerインターフェースを実装します。
+// component.Containerインターフェースを実装します。
 type Container struct {
 	*component.LayoutableWidget
 	children []component.Widget
@@ -22,24 +22,21 @@ var _ component.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
 
 // Updateはコンテナと子要素の状態を更新します。
-// core.LayoutableWidgetのUpdateをオーバーライドして、レイアウト計算と子の更新を追加します。
+// component.LayoutableWidgetのUpdateをオーバーライドして、レイアウト計算と子の更新を追加します。
 // このメソッドはUIツリーのルートから毎フレーム再帰的に呼び出されます。
 func (c *Container) Update() {
 	if !c.IsVisible() {
 		return
 	}
 
-	// relayoutDirtyフラグが立っている場合、または単にdirtyな場合でもレイアウトを再計算します。
-	// relayoutDirtyは伝播するため、子の変更が親のレイアウトに影響を与えることを示します。
+	// このコンテナ、またはその子孫のいずれかで再レイアウトが必要な場合 (relayoutDirty=true)、
+	// IsDirty() は true を返します。その場合、レイアウトを再計算します。
 	if c.IsDirty() {
-		// [修正] レイアウト計算は再レイアウトフラグが立っている場合のみ実行するべき
-		// if c.relayoutDirty { // relayoutDirtyは非公開フィールドなので直接アクセスできない
-		// → IsDirty()がtrueならレイアウト計算するのが安全。relayoutDirtyの管理はMarkDirtyに任せる。
-		// 現状の実装でOK。
 		if c.layout != nil {
 			// レイアウト計算中にパニックが発生してもアプリケーション全体がクラッシュしないようにする
 			defer func() {
 				if r := recover(); r != nil {
+					// 将来的には、より高度なロギングやエラー報告メカニズムに置き換えることができます。
 					fmt.Printf("Recovered from panic during layout calculation: %v\n", r)
 				}
 			}()
@@ -58,7 +55,7 @@ func (c *Container) Update() {
 }
 
 // Drawはコンテナ自身と、そのすべての子を描画します。
-// core.LayoutableWidgetのDrawをオーバーライドします。
+// component.LayoutableWidgetのDrawをオーバーライドします。
 func (c *Container) Draw(screen *ebiten.Image) {
 	// コンテナが非表示の場合、自身も子も描画しない。
 	if !c.IsVisible() {
@@ -73,15 +70,16 @@ func (c *Container) Draw(screen *ebiten.Image) {
 }
 
 // HitTest は、指定された座標がコンテナまたはその子のいずれかにヒットするかをテストします。
-// core.LayoutableWidgetのHitTestをオーバーライドします。
+// component.LayoutableWidgetのHitTestをオーバーライドします。
 func (c *Container) HitTest(x, y int) component.Widget {
+	// コンテナが非表示の場合はヒットしない
 	if !c.IsVisible() {
 		return nil
 	}
 	// 描画順とは逆に、最前面の子からヒットテストを行う
 	for i := len(c.children) - 1; i >= 0; i-- {
 		child := c.children[i]
-		// 非表示の子はスキップ
+		// 非表示の子はヒットテストの対象外
 		if !child.IsVisible() {
 			continue
 		}
@@ -96,7 +94,22 @@ func (c *Container) HitTest(x, y int) component.Widget {
 	return nil
 }
 
-// --- Container Methods (from core.Container interface) ---
+// [追加] Cleanup は、コンテナとすべての子ウィジェットのリソースを解放します。
+// UIツリーからコンテナが削除されるときや、アプリケーション終了時に呼び出されるべきです。
+func (c *Container) Cleanup() {
+	// まず、すべての子ウィジェットのクリーンアップを再帰的に呼び出します。
+	for _, child := range c.children {
+		child.Cleanup()
+	}
+	// 子のリストをクリアします。
+	c.children = nil
+
+	// 最後に、埋め込まれたLayoutableWidget自身のクリーンアップ処理（イベントハンドラのクリアなど）を呼び出します。
+	c.LayoutableWidget.Cleanup()
+}
+
+
+// --- Container Methods (from component.Container interface) ---
 
 func (c *Container) AddChild(child component.Widget) {
 	if child == nil {

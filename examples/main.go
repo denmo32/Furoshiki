@@ -149,7 +149,7 @@ func NewGame() *Game {
 	return g
 }
 
-// updateStatus はフッターのステータスラベルを更新します
+// switchMainContent はメインコンテンツエリアのウィジェットを安全に交換します
 func (g *Game) switchMainContent(newContent component.Widget) {
 	if g.mainContent != nil {
 		g.mainLayout.RemoveChild(g.mainContent)
@@ -158,6 +158,7 @@ func (g *Game) switchMainContent(newContent component.Widget) {
 	g.mainLayout.AddChild(g.mainContent)
 }
 
+// updateStatus はフッターのステータスラベルを更新します
 func (g *Game) updateStatus(message string) {
 	g.statusLabel.SetText("Status: " + message)
 }
@@ -328,7 +329,7 @@ func (g *Game) createSettingsView() component.Widget {
 
 func (g *Game) Update() error {
 	cx, cy := ebiten.CursorPosition()
-	// g.root.HitTestは component.Widget を返しますが、これは event.eventTarget インターフェースを満たしているので、
+	// g.root.HitTestは component.Widget を返し、このインターフェースは event.eventTarget を満たしているので、
 	// そのまま event.GetDispatcher().Dispatch に渡すことができます。
 	target := g.root.HitTest(cx, cy)
 	event.GetDispatcher().Dispatch(target, cx, cy)
@@ -350,9 +351,13 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	return g.width, g.height
 }
 
+// Cleanup はゲーム終了時にリソースを解放します。
 func (g *Game) Cleanup() {
-	if cleanup, ok := g.root.(interface{ Cleanup() }); ok {
-		cleanup.Cleanup()
+	// component.WidgetインターフェースにCleanup()が定義されているため、
+	// 型アサーションは不要です。ルートウィジェットのCleanupを呼ぶことで、
+	// UIツリー全体が再帰的にクリーンアップされます。
+	if g.root != nil {
+		g.root.Cleanup()
 	}
 	event.GetDispatcher().Reset()
 }
@@ -362,6 +367,7 @@ func main() {
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle("Furoshiki UI - Interactive Demo")
 	game := NewGame()
+	// defer game.Cleanup() は、ebiten.RunGameがreturnした後に呼ばれることを保証します。
 	defer game.Cleanup()
 
 	if err := ebiten.RunGame(game); err != nil {

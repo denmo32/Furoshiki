@@ -48,6 +48,26 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 	return w.minWidth, w.minHeight
 }
 
+// [追加] AbsoluteLayoutのために、要求された相対位置を設定・取得するメソッドを追加します。
+// これらはWidgetインターフェースには含まれず、特定のレイアウト(AbsoluteLayout)と
+// ウィジェットが協調するために使用されます。
+
+// SetRequestedPosition は、レイアウトに対する希望の相対位置を設定します。
+func (w *LayoutableWidget) SetRequestedPosition(x, y int) {
+	if w.requestedX != x || w.requestedY != y {
+		w.requestedX = x
+		w.requestedY = y
+		// 希望位置の変更は再レイアウトをトリガーすべき
+		w.MarkDirty(true)
+	}
+}
+
+// GetRequestedPosition は、レイアウトに対する希望の相対位置を取得します。
+func (w *LayoutableWidget) GetRequestedPosition() (int, int) {
+	return w.requestedX, w.requestedY
+}
+
+
 func (w *LayoutableWidget) SetStyle(style style.Style) {
 	w.style = style
 	// スタイルの変更はパディングやマージンに影響し、レイアウトが変わる可能性があるため、
