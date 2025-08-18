@@ -14,6 +14,19 @@ type Label struct {
 	*component.TextWidget
 }
 
+// HitTest は、指定された座標がラベルの領域内にあるかを判定します。
+// [追加] component.LayoutableWidgetの基本的なテストを呼び出し、ヒットした場合は
+// LayoutableWidgetではなく、具象型であるLabel自身を返します。
+// これにより、イベントシステムが正しいウィジェットインスタンスを扱えるようになります。
+func (l *Label) HitTest(x, y int) component.Widget {
+	// 埋め込まれたLayoutableWidgetのHitTestを呼び出して、基本的な境界チェックを行います
+	if l.LayoutableWidget.HitTest(x, y) != nil {
+		// ヒットした場合、インターフェースを満たす具象型であるLabel自身(*l)を返します
+		return l
+	}
+	return nil
+}
+
 // --- LabelBuilder ---
 // LabelBuilder は、Labelを安全かつ流れるように構築するためのビルダーです。
 type LabelBuilder struct {

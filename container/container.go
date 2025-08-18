@@ -114,12 +114,14 @@ func (c *Container) RemoveChild(child component.Widget) {
 	}
 	for i, currentChild := range c.children {
 		if currentChild == child {
+			// スライスから子を削除
 			c.children = append(c.children[:i], c.children[i+1:]...)
+			// 親への参照をクリア
 			child.SetParent(nil)
-			// 子のクリーンアップ処理を呼び出す
-			if cleanup, ok := child.(interface{ Cleanup() }); ok {
-				cleanup.Cleanup()
-			}
+			// [改善] 子のクリーンアップ処理を呼び出します。
+			// component.WidgetインターフェースはCleanup()メソッドを保証しているため、型アサーションは不要です。
+			child.Cleanup()
+			// コンテナの再レイアウトを要求
 			c.MarkDirty(true)
 			return
 		}

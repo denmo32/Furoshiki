@@ -45,6 +45,19 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), *styleToUse)
 }
 
+// HitTest は、指定された座標がボタンの領域内にあるかを判定します。
+// [追加] component.LayoutableWidgetの基本的なテストを呼び出し、ヒットした場合は
+// LayoutableWidgetではなく、具象型であるButton自身を返します。
+// これにより、イベントシステムが正しいウィジェットインスタンスを扱えるようになります。
+func (b *Button) HitTest(x, y int) component.Widget {
+	// 埋め込まれたLayoutableWidgetのHitTestを呼び出して、基本的な境界チェックを行います
+	if b.LayoutableWidget.HitTest(x, y) != nil {
+		// ヒットした場合、インターフェースを満たす具象型であるButton自身(*b)を返します
+		return b
+	}
+	return nil
+}
+
 // --- ButtonBuilder ---
 // ButtonBuilder は、Buttonを安全かつ流れるように構築するためのビルダーです。
 type ButtonBuilder struct {
