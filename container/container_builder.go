@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"furoshiki/core"
+	"furoshiki/component"
 	"furoshiki/layout"
 	"furoshiki/style"
 )
@@ -21,7 +21,7 @@ type ContainerBuilder struct {
 func NewContainerBuilder() *ContainerBuilder {
 	return &ContainerBuilder{
 		container: &Container{
-			LayoutableWidget: core.NewLayoutableWidget(),
+			LayoutableWidget: component.NewLayoutableWidget(),
 			layout:           &layout.AbsoluteLayout{},
 		},
 	}
@@ -81,7 +81,7 @@ func (b *ContainerBuilder) Flex(flex int) *ContainerBuilder {
 }
 
 // AddChild はコンテナに子ウィジェットを追加します。
-func (b *ContainerBuilder) AddChild(child core.Widget) *ContainerBuilder {
+func (b *ContainerBuilder) AddChild(child component.Widget) *ContainerBuilder {
 	if child == nil {
 		b.errors = append(b.errors, fmt.Errorf("child cannot be nil"))
 		return b
@@ -91,7 +91,7 @@ func (b *ContainerBuilder) AddChild(child core.Widget) *ContainerBuilder {
 }
 
 // AddChildren はコンテナに複数の子ウィジェットを一度に追加します。
-func (b *ContainerBuilder) AddChildren(children ...core.Widget) *ContainerBuilder {
+func (b *ContainerBuilder) AddChildren(children ...component.Widget) *ContainerBuilder {
 	for _, child := range children {
 		if child == nil {
 			b.errors = append(b.errors, fmt.Errorf("child cannot be nil"))

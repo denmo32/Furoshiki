@@ -47,5 +47,5 @@ root, _ := ui.VStack(func(b *ui.Builder) { // 縦積みコンテナ
     })
 }).Build()
 
-	[計画中] コアウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
+	[計画中] 基本ウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
 	[計画中] クリッピング: 描画領域を制限するクリッピング機能を実装します。

@@ -1,7 +1,7 @@
 package layout
 
 import (
-	"furoshiki/core"
+	"furoshiki/component"
 )
 
 // FlexLayout は、CSS Flexboxにインスパイアされたレイアウトシステムです。
@@ -16,7 +16,7 @@ type FlexLayout struct {
 
 // flexItemInfo は、レイアウト計算中に各子要素の情報を保持するための中間構造体です。
 type flexItemInfo struct {
-	widget                  core.Widget
+	widget                  component.Widget
 	mainSize, crossSize     int // 最終的な主軸・交差軸サイズ
 	mainMargin, crossMargin int // 主軸・交差軸のマージン合計
 	mainMarginStart         int // 主軸の開始側マージン
@@ -32,15 +32,15 @@ func (l *FlexLayout) Layout(container Container) {
 		return
 	}
 
-	containerStyle := container.GetStyle()
+	padding := container.GetPadding()
 	containerWidth, containerHeight := container.GetSize()
 
 	if containerWidth <= 0 || containerHeight <= 0 {
 		return
 	}
 
-	availableWidth := max(0, containerWidth-containerStyle.Padding.Left-containerStyle.Padding.Right)
-	availableHeight := max(0, containerHeight-containerStyle.Padding.Top-containerStyle.Padding.Bottom)
+	availableWidth := max(0, containerWidth-padding.Left-padding.Right)
+	availableHeight := max(0, containerHeight-padding.Top-padding.Bottom)
 
 	isRow := l.Direction == DirectionRow
 	mainSize, crossSize := availableWidth, availableHeight
@@ -65,9 +65,9 @@ func (l *FlexLayout) Layout(container Container) {
 }
 
 // getVisibleChildren は、コンテナから表示状態の子ウィジェットのみを抽出します。
-func getVisibleChildren(container Container) []core.Widget {
+func getVisibleChildren(container Container) []component.Widget {
 	allChildren := container.GetChildren()
-	visibleChildren := make([]core.Widget, 0, len(allChildren))
+	visibleChildren := make([]component.Widget, 0, len(allChildren))
 	for _, child := range allChildren {
 		if child.IsVisible() {
 			visibleChildren = append(visibleChildren, child)
@@ -77,13 +77,13 @@ func getVisibleChildren(container Container) []core.Widget {
 }
 
 // calculateInitialSizes は、各子要素の初期サイズとマージンを計算します。
-func (l *FlexLayout) calculateInitialSizes(children []core.Widget, isRow bool) ([]flexItemInfo, int, float64) {
+func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bool) ([]flexItemInfo, int, float64) {
 	items := make([]flexItemInfo, len(children))
 	var totalFixedMainSize int
 	var totalFlex float64
 
 	for i, child := range children {
-		style := child.GetStyle()
+		s := child.GetStyle()
 		minW, minH := child.GetMinSize()
 		w, h := child.GetSize()
 
@@ -92,13 +92,13 @@ func (l *FlexLayout) calculateInitialSizes(children []core.Widget, isRow bool) (
 		info.flex = child.GetFlex()
 
 		if isRow {
-			info.mainMarginStart = style.Margin.Left
-			info.mainMargin = style.Margin.Left + style.Margin.Right
-			info.crossMargin = style.Margin.Top + style.Margin.Bottom
+			info.mainMarginStart = s.Margin.Left
+			info.mainMargin = s.Margin.Left + s.Margin.Right
+			info.crossMargin = s.Margin.Top + s.Margin.Bottom
 		} else {
-			info.mainMarginStart = style.Margin.Top
-			info.mainMargin = style.Margin.Top + style.Margin.Bottom
-			info.crossMargin = style.Margin.Left + style.Margin.Right
+			info.mainMarginStart = s.Margin.Top
+			info.mainMargin = s.Margin.Top + s.Margin.Bottom
+			info.crossMargin = s.Margin.Left + s.Margin.Right
 		}
 
 		if info.flex > 0 {
@@ -205,11 +205,11 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 	}
 	mainOffset = max(0, mainOffset)
 
-	containerStyle := container.GetStyle()
+	padding := container.GetPadding()
 	containerX, containerY := container.GetPosition()
 
-	mainStart := ifThen(isRow, containerStyle.Padding.Left, containerStyle.Padding.Top)
-	crossStart := ifThen(isRow, containerStyle.Padding.Top, containerStyle.Padding.Left)
+	mainStart := ifThen(isRow, padding.Left, padding.Top)
+	crossStart := ifThen(isRow, padding.Top, padding.Left)
 	currentMain := mainStart + mainOffset
 
 	for _, item := range items {

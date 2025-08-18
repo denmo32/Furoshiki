@@ -5,8 +5,8 @@ import (
 	"image/color"
 	"log"
 
+	"furoshiki/component"
 	"furoshiki/container"
-	"furoshiki/core"
 	"furoshiki/event"
 	"furoshiki/layout"
 	"furoshiki/style"
@@ -48,7 +48,7 @@ func init() {
 }
 
 type Game struct {
-	root          core.Widget
+	root          component.Widget
 	width, height int
 }
 
@@ -266,7 +266,7 @@ func createMainContent() (*container.Container, error) {
 		Build()
 }
 
-func createCard(title, mainText, subText string) (core.Widget, error) {
+func createCard(title, mainText, subText string) (component.Widget, error) {
 	titleLabel, err := widget.NewLabelBuilder().Text(title).Style(style.Style{Font: mplusFontSmall, TextColor: color.Gray{Y: 100}}).Build()
 	if err != nil {
 		return nil, fmt.Errorf("error creating titleLabel: %w", err)

@@ -1,8 +1,7 @@
 package layout
 
 import (
-	"furoshiki/core"
-	"furoshiki/style"
+	"furoshiki/component"
 )
 
 // Layout は、コンテナ内の子要素をどのように配置するかを決定するロジックのインターフェースです。
@@ -10,13 +9,18 @@ type Layout interface {
 	Layout(container Container)
 }
 
+// Insets はパディングの四方の値を表します。
+type Insets struct {
+	Top, Right, Bottom, Left int
+}
+
 // Container は、レイアウトが必要とするコンテナの振る舞いを定義するインターフェースです。
 // これにより、layoutパッケージは具体的なコンテナの実装から独立しています。
 type Container interface {
 	GetSize() (width, height int)
 	GetPosition() (x, y int)
-	GetChildren() []core.Widget
-	GetStyle() *style.Style
+	GetChildren() []component.Widget
+	GetPadding() Insets
 }
 
 // LayoutType はレイアウトの種類を定義します。

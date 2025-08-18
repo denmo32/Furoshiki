@@ -1,4 +1,4 @@
-package core
+package component
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"

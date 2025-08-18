@@ -3,7 +3,7 @@ package container
 import (
 	"fmt"
 
-	"furoshiki/core"
+	"furoshiki/component"
 	"furoshiki/layout"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -12,13 +12,13 @@ import (
 // Containerは子Widgetを保持し、レイアウトを管理するコンポーネントです。
 // core.Containerインターフェースを実装します。
 type Container struct {
-	*core.LayoutableWidget
-	children []core.Widget
+	*component.LayoutableWidget
+	children []component.Widget
 	layout   layout.Layout
 }
 
 // コンパイル時にインターフェースの実装を検証
-var _ core.Container = (*Container)(nil)
+var _ component.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
 
 // Updateはコンテナと子要素の状態を更新します。
@@ -75,7 +75,7 @@ func (c *Container) Draw(screen *ebiten.Image) {
 
 // HitTest は、指定された座標がコンテナまたはその子のいずれかにヒットするかをテストします。
 // core.LayoutableWidgetのHitTestをオーバーライドします。
-func (c *Container) HitTest(x, y int) core.Widget {
+func (c *Container) HitTest(x, y int) component.Widget {
 	if !c.IsVisible() {
 		return nil
 	}
@@ -92,14 +92,14 @@ func (c *Container) HitTest(x, y int) core.Widget {
 	}
 	// どの子にもヒットしなかった場合、コンテナ自身がヒットするかチェック
 	if target := c.LayoutableWidget.HitTest(x, y); target != nil {
-			return c // コンテナ自身を返す
+		return c // コンテナ自身を返す
 	}
 	return nil
 }
 
 // --- Container Methods (from core.Container interface) ---
 
-func (c *Container) AddChild(child core.Widget) {
+func (c *Container) AddChild(child component.Widget) {
 	if child == nil {
 		return
 	}
@@ -112,7 +112,7 @@ func (c *Container) AddChild(child core.Widget) {
 	c.MarkDirty(true)
 }
 
-func (c *Container) RemoveChild(child core.Widget) {
+func (c *Container) RemoveChild(child component.Widget) {
 	if child == nil {
 		return
 	}
@@ -130,6 +130,20 @@ func (c *Container) RemoveChild(child core.Widget) {
 	}
 }
 
-func (c *Container) GetChildren() []core.Widget {
+func (c *Container) GetChildren() []component.Widget {
 	return c.children
+}
+
+// --- Layout Container Methods ---
+
+// GetPadding はレイアウト計算のためにパディング情報を返します。
+// layout.Containerインターフェースを実装します。
+func (c *Container) GetPadding() layout.Insets {
+	style := c.GetStyle()
+	return layout.Insets{
+		Top:    style.Padding.Top,
+		Right:  style.Padding.Right,
+		Bottom: style.Padding.Bottom,
+		Left:   style.Padding.Left,
+	}
 }
