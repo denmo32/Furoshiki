@@ -1,11 +1,47 @@
-package component
+package widget
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+
+	"furoshiki/core"
 	"furoshiki/event"
 	"furoshiki/style"
-	"image/color"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
+
+// --- Button component ---
+// Button は、クリック可能なUI要素です。TextWidgetを拡張し、ホバー状態のスタイル管理機能を追加します。
+type Button struct {
+	*core.TextWidget
+	hoverStyle   *style.Style
+	currentStyle *style.Style // 描画時に使用するスタイルをキャッシュ
+}
+
+// SetHovered はホバー状態を設定し、描画スタイルを更新します。
+func (b *Button) SetHovered(hovered bool) {
+	b.TextWidget.SetHovered(hovered)
+	if b.IsHovered() && b.hoverStyle != nil {
+		b.currentStyle = b.hoverStyle
+	} else {
+		b.currentStyle = b.GetStyle()
+	}
+}
+
+// Draw はButtonを描画します。キャッシュされたスタイルを使用します。
+func (b *Button) Draw(screen *ebiten.Image) {
+	if !b.IsVisible() {
+		return
+	}
+	x, y := b.GetPosition()
+	width, height := b.GetSize()
+	text := b.Text()
+	// キャッシュされたスタイルで描画
+	core.DrawStyledBackground(screen, x, y, width, height, *b.currentStyle)
+	core.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), *b.currentStyle)
+}
 
 // --- ButtonBuilder ---
 // ButtonBuilder は、Buttonを安全かつ流れるように構築するためのビルダーです。
@@ -24,13 +60,12 @@ func NewButtonBuilder() *ButtonBuilder {
 		Padding:     style.Insets{Top: 5, Right: 10, Bottom: 5, Left: 10},
 	}
 	button := &Button{
-		TextWidget: NewTextWidget(""),
+		TextWidget: core.NewTextWidget(""),
 	}
-	button.width = 100
-	button.height = 40
+	button.SetSize(100, 40)
 	button.SetStyle(defaultStyle)
 	// 初期状態のスタイルをキャッシュ
-	button.currentStyle = &button.style
+	button.currentStyle = button.GetStyle()
 
 	return &ButtonBuilder{
 		button: button,
@@ -39,15 +74,13 @@ func NewButtonBuilder() *ButtonBuilder {
 
 // calculateMinSizeInternal は、ボタンのテキストとパディングに基づいて最小サイズを計算し、設定します。
 func (b *ButtonBuilder) calculateMinSizeInternal() {
-	minWidth, minHeight := b.button.calculateMinSize()
+	minWidth, minHeight := b.button.CalculateMinSize()
 	b.button.SetMinSize(minWidth, minHeight)
 }
 
 // CalculateMinSize は、ボタンの最小サイズを計算します。
 // この呼び出しはBuild時に自動的に行われるため、通常はユーザーが呼び出す必要はありません。
 func (b *ButtonBuilder) CalculateMinSize() *ButtonBuilder {
-	// この呼び出しはBuild時に自動的に行われるため、通常は不要です。
-	// 明示的に計算したい場合のために残しますが、内部処理はBuildに集約します。
 	return b
 }
 
@@ -71,7 +104,6 @@ func (b *ButtonBuilder) Size(width, height int) *ButtonBuilder {
 func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 	if onClick != nil {
 		b.button.AddEventHandler(event.EventClick, func(e event.Event) {
-			// ハンドラの実行中にパニックが発生してもアプリケーション全体がクラッシュしないようにする
 			defer func() {
 				if r := recover(); r != nil {
 					fmt.Printf("Recovered from panic in button click handler: %v\n", r)
@@ -88,8 +120,7 @@ func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
 	existingStyle := b.button.GetStyle()
 	mergedStyle := style.Merge(*existingStyle, s)
 	b.button.SetStyle(mergedStyle)
-	// スタイルが変更されたので、キャッシュも更新
-	b.button.currentStyle = &b.button.style
+	b.button.currentStyle = b.button.GetStyle()
 	return b
 }
 

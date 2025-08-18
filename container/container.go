@@ -3,26 +3,26 @@ package container
 import (
 	"fmt"
 
-	"furoshiki/component"
+	"furoshiki/core"
 	"furoshiki/layout"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // Containerは子Widgetを保持し、レイアウトを管理するコンポーネントです。
-// component.Containerインターフェースを実装します。
+// core.Containerインターフェースを実装します。
 type Container struct {
-	*component.LayoutableWidget
-	children []component.Widget
+	*core.LayoutableWidget
+	children []core.Widget
 	layout   layout.Layout
 }
 
 // コンパイル時にインターフェースの実装を検証
-var _ component.Container = (*Container)(nil)
+var _ core.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
 
 // Updateはコンテナと子要素の状態を更新します。
-// component.LayoutableWidgetのUpdateをオーバーライドして、レイアウト計算と子の更新を追加します。
+// core.LayoutableWidgetのUpdateをオーバーライドして、レイアウト計算と子の更新を追加します。
 // このメソッドはUIツリーのルートから毎フレーム再帰的に呼び出されます。
 func (c *Container) Update() {
 	if !c.IsVisible() {
@@ -55,7 +55,7 @@ func (c *Container) Update() {
 }
 
 // Drawはコンテナ自身と、そのすべての子を描画します。
-// component.LayoutableWidgetのDrawをオーバーライドします。
+// core.LayoutableWidgetのDrawをオーバーライドします。
 func (c *Container) Draw(screen *ebiten.Image) {
 	// isVisibleフィールドに直接アクセスするために、埋め込んだLayoutableWidgetのフィールドを直接参照します。
 	// しかし、Goの仕様上、c.isVisibleとは書けず、c.LayoutableWidget.isVisibleとする必要があります。
@@ -74,8 +74,8 @@ func (c *Container) Draw(screen *ebiten.Image) {
 }
 
 // HitTest は、指定された座標がコンテナまたはその子のいずれかにヒットするかをテストします。
-// component.LayoutableWidgetのHitTestをオーバーライドします。
-func (c *Container) HitTest(x, y int) component.Widget {
+// core.LayoutableWidgetのHitTestをオーバーライドします。
+func (c *Container) HitTest(x, y int) core.Widget {
 	if !c.IsVisible() {
 		return nil
 	}
@@ -92,14 +92,14 @@ func (c *Container) HitTest(x, y int) component.Widget {
 	}
 	// どの子にもヒットしなかった場合、コンテナ自身がヒットするかチェック
 	if target := c.LayoutableWidget.HitTest(x, y); target != nil {
-		return c // コンテナ自身を返す
+			return c // コンテナ自身を返す
 	}
 	return nil
 }
 
-// --- Container Methods (from component.Container interface) ---
+// --- Container Methods (from core.Container interface) ---
 
-func (c *Container) AddChild(child component.Widget) {
+func (c *Container) AddChild(child core.Widget) {
 	if child == nil {
 		return
 	}
@@ -112,7 +112,7 @@ func (c *Container) AddChild(child component.Widget) {
 	c.MarkDirty(true)
 }
 
-func (c *Container) RemoveChild(child component.Widget) {
+func (c *Container) RemoveChild(child core.Widget) {
 	if child == nil {
 		return
 	}
@@ -130,6 +130,6 @@ func (c *Container) RemoveChild(child component.Widget) {
 	}
 }
 
-func (c *Container) GetChildren() []component.Widget {
+func (c *Container) GetChildren() []core.Widget {
 	return c.children
 }

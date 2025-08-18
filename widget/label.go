@@ -1,10 +1,19 @@
-package component
+package widget
 
 import (
 	"fmt"
-	"furoshiki/style"
 	"image/color"
+
+	"furoshiki/core"
+	"furoshiki/style"
 )
+
+// --- Label component ---
+// LabelはTextWidgetを直接埋め込みます。Label固有のロジックは今のところありません。
+// 主にテキストを表示するためのシンプルなウィジェットです。
+type Label struct {
+	*core.TextWidget
+}
 
 // --- LabelBuilder ---
 // LabelBuilder は、Labelを安全かつ流れるように構築するためのビルダーです。
@@ -16,10 +25,9 @@ type LabelBuilder struct {
 // NewLabelBuilder は、デフォルトのスタイルで初期化されたLabelBuilderを返します。
 func NewLabelBuilder() *LabelBuilder {
 	label := &Label{
-		TextWidget: NewTextWidget(""),
+		TextWidget: core.NewTextWidget(""),
 	}
-	label.width = 100
-	label.height = 30
+	label.SetSize(100, 30)
 	defaultStyle := style.Style{
 		Background: color.Transparent,
 		TextColor:  color.Black,
@@ -34,14 +42,13 @@ func NewLabelBuilder() *LabelBuilder {
 
 // calculateMinSizeInternal は、ラベルのテキストとパディングに基づいて最小サイズを計算し、設定します。
 func (b *LabelBuilder) calculateMinSizeInternal() {
-	minWidth, minHeight := b.label.calculateMinSize()
+	minWidth, minHeight := b.label.CalculateMinSize()
 	b.label.SetMinSize(minWidth, minHeight)
 }
 
 // CalculateMinSize は、ラベルの最小サイズを計算します。
 // この呼び出しはBuild時に自動的に行われるため、通常はユーザーが呼び出す必要はありません。
 func (b *LabelBuilder) CalculateMinSize() *LabelBuilder {
-	// この呼び出しはBuild時に自動的に行われるため、通常は不要です。
 	return b
 }
 

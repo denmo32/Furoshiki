@@ -1,4 +1,4 @@
-package component
+package core
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
@@ -17,7 +17,7 @@ func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
 		return
 	}
 	// 背景と境界線の描画（フィールドへ直接アクセス）
-	drawStyledBackground(screen, w.x, w.y, w.width, w.height, w.style)
+	DrawStyledBackground(screen, w.x, w.y, w.width, w.height, w.style)
 }
 
 func (w *LayoutableWidget) MarkDirty(relayout bool) {

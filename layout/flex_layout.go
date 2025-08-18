@@ -1,7 +1,7 @@
 package layout
 
 import (
-	"furoshiki/component"
+	"furoshiki/core"
 )
 
 // FlexLayout は、CSS Flexboxにインスパイアされたレイアウトシステムです。
@@ -16,7 +16,7 @@ type FlexLayout struct {
 
 // flexItemInfo は、レイアウト計算中に各子要素の情報を保持するための中間構造体です。
 type flexItemInfo struct {
-	widget                  component.Widget
+	widget                  core.Widget
 	mainSize, crossSize     int // 最終的な主軸・交差軸サイズ
 	mainMargin, crossMargin int // 主軸・交差軸のマージン合計
 	mainMarginStart         int // 主軸の開始側マージン
@@ -65,9 +65,9 @@ func (l *FlexLayout) Layout(container Container) {
 }
 
 // getVisibleChildren は、コンテナから表示状態の子ウィジェットのみを抽出します。
-func getVisibleChildren(container Container) []component.Widget {
+func getVisibleChildren(container Container) []core.Widget {
 	allChildren := container.GetChildren()
-	visibleChildren := make([]component.Widget, 0, len(allChildren))
+	visibleChildren := make([]core.Widget, 0, len(allChildren))
 	for _, child := range allChildren {
 		if child.IsVisible() {
 			visibleChildren = append(visibleChildren, child)
@@ -77,7 +77,7 @@ func getVisibleChildren(container Container) []component.Widget {
 }
 
 // calculateInitialSizes は、各子要素の初期サイズとマージンを計算します。
-func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bool) ([]flexItemInfo, int, float64) {
+func (l *FlexLayout) calculateInitialSizes(children []core.Widget, isRow bool) ([]flexItemInfo, int, float64) {
 	items := make([]flexItemInfo, len(children))
 	var totalFixedMainSize int
 	var totalFlex float64

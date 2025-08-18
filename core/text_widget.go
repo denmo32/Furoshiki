@@ -1,4 +1,4 @@
-package component
+package core
 
 import (
 	"image"
@@ -45,11 +45,11 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	// 背景描画は基本のDrawを呼び出す
 	t.LayoutableWidget.Draw(screen)
 	// テキストを描画（フィールドへ直接アクセス）
-	drawAlignedText(screen, t.text, image.Rect(t.x, t.y, t.x+t.width, t.y+t.height), t.style)
+	DrawAlignedText(screen, t.text, image.Rect(t.x, t.y, t.x+t.width, t.y+t.height), t.style)
 }
 
 // calculateMinSize は、現在のテキストとスタイルに基づいて最小サイズを計算します。
-func (t *TextWidget) calculateMinSize() (int, int) {
+func (t *TextWidget) CalculateMinSize() (int, int) {
 	style := t.GetStyle()
 	if t.text != "" && style.Font != nil {
 		bounds := text.BoundString(style.Font, t.text)

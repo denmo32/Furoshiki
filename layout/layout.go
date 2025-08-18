@@ -1,7 +1,7 @@
 package layout
 
 import (
-	"furoshiki/component"
+	"furoshiki/core"
 	"furoshiki/style"
 )
 
@@ -15,7 +15,7 @@ type Layout interface {
 type Container interface {
 	GetSize() (width, height int)
 	GetPosition() (x, y int)
-	GetChildren() []component.Widget
+	GetChildren() []core.Widget
 	GetStyle() *style.Style
 }
 

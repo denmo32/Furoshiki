@@ -1,4 +1,4 @@
-package component
+package core
 
 import (
 	"furoshiki/style"
@@ -12,7 +12,7 @@ import (
 
 // --- Drawing Helper ---
 
-func drawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.Style) {
+func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.Style) {
 	if width <= 0 || height <= 0 {
 		return
 	}
@@ -24,7 +24,7 @@ func drawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 	}
 }
 
-func drawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
+func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
 	if textContent == "" || s.Font == nil {
 		return
 	}
