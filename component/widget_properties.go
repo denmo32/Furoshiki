@@ -50,13 +50,16 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 
 func (w *LayoutableWidget) SetStyle(style style.Style) {
 	w.style = style
-	// スタイルの変更は必ずしも再レイアウトを必要としないかもしれないが、
-	// Paddingなどが変わる可能性があるため、安全策としてtrueにする
+	// スタイルの変更はパディングやマージンに影響し、レイアウトが変わる可能性があるため、
+	// 安全策として再レイアウトを要求します。
 	w.MarkDirty(true)
 }
 
-func (w *LayoutableWidget) GetStyle() *style.Style {
-	return &w.style
+// GetStyle はウィジェットの現在のスタイルを返します。
+// スタイルのコピーを返すため、この戻り値を変更してもウィジェットには影響しません。
+// スタイルを変更するには SetStyle を使用してください。
+func (w *LayoutableWidget) GetStyle() style.Style {
+	return w.style
 }
 
 func (w *LayoutableWidget) SetFlex(flex int) {

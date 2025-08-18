@@ -40,19 +40,14 @@ func GetDispatcher() *Dispatcher {
 
 // Dispatch は、マウスイベントを処理し、適切なイベントをコンポーネントに発行します。
 // このメソッドは、アプリケーションのメインUpdateループから毎フレーム呼び出されることを想定しています。
-// target引数には、ヒットテストの結果（通常はcomponent.Widget）がinterface{}型として渡されます。
-func (d *Dispatcher) Dispatch(target interface{}, cx, cy int) {
+// [改善] target引数の型を interface{} から eventTarget に変更し、型安全性を向上させます。
+// これにより、イベント処理に必要なメソッドを持たないオブジェクトが渡されることをコンパイル時に防ぎます。
+func (d *Dispatcher) Dispatch(target eventTarget, cx, cy int) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	// 渡されたtargetをeventTargetインターフェースに変換できるか試みる。
-	// これにより、イベント処理に必要なメソッドを持たないオブジェクトを安全に無視できる。
-	var currentTarget eventTarget
-	if target != nil {
-		if ct, ok := target.(eventTarget); ok {
-			currentTarget = ct
-		}
-	}
+	// targetは既にeventTarget型なので、型アサーションは不要です。
+	currentTarget := target
 
 	// ホバー状態の更新
 	if currentTarget != d.hoveredComponent {

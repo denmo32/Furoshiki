@@ -13,6 +13,7 @@ type textWidget interface {
 	component.Widget
 	SetText(string)
 	CalculateMinSize() (int, int)
+	SetRequestedPosition(x, y int) // [追加] AbsoluteLayoutのために追加
 }
 
 // Builder は、core.TextWidget をベースにしたウィジェットビルダーのための汎用的なベースです。
@@ -36,6 +37,14 @@ func (b *Builder[T, W]) Text(text string) T {
 	return b.self
 }
 
+// [追加] Positionは、ウィジェットの希望する相対位置を設定します。
+// この値は、親コンテナがAbsoluteLayoutを使用している場合に、子の配置位置として利用されます。
+// FlexLayoutなど他のレイアウトでは無視されることがあります。
+func (b *Builder[T, W]) Position(x, y int) T {
+	b.Widget.SetRequestedPosition(x, y)
+	return b.self
+}
+
 // Size はウィジェットのサイズを設定します。
 func (b *Builder[T, W]) Size(width, height int) T {
 	if width < 0 || height < 0 {
@@ -48,8 +57,9 @@ func (b *Builder[T, W]) Size(width, height int) T {
 
 // Style はウィジェットの基本スタイルを設定します。
 func (b *Builder[T, W]) Style(s style.Style) T {
+	// [改善] GetStyle()が値型を返すようになったため、ポインタアクセス(*)が不要になります。
 	existingStyle := b.Widget.GetStyle()
-	b.Widget.SetStyle(style.Merge(*existingStyle, s))
+	b.Widget.SetStyle(style.Merge(existingStyle, s))
 	return b.self
 }
 

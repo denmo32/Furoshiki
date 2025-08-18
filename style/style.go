@@ -27,7 +27,8 @@ type Insets struct {
 
 // Mergeは2つのスタイルをマージします。
 // baseスタイルをベースに、overlayスタイルの値を上書きします。
-// overlayスタイルでゼロ値（nil, 0など）が指定されている場合は、baseスタイルの値を保持します。
+// overlayスタイルでゼロ値（nil, 0, 空の構造体など）が指定されているフィールドは、
+// 「設定されていない」と見なされ、baseスタイルの値が保持されます。
 func Merge(base, overlay Style) Style {
 	result := base
 
@@ -47,6 +48,8 @@ func Merge(base, overlay Style) Style {
 	}
 
 	// Margin
+	// [注記] overlay.Marginがゼロ値(Insets{})の場合、baseの値が維持されます。
+	// 特定の辺のマージンのみを0にしたい場合は、overlay側で他の辺の値を明示的に設定する必要があります。
 	if overlay.Margin != (Insets{}) {
 		result.Margin = overlay.Margin
 	}
@@ -90,8 +93,8 @@ func (s *Style) Validate() error {
 		return fmt.Errorf("border radius must be non-negative, got %f", s.BorderRadius)
 	}
 
-	if s.Opacity < 0 || s.Opacity > 1 {
-		return fmt.Errorf("opacity must be between 0 and 1, got %f", s.Opacity)
+	if s.Opacity < 0 || s.Opacity > 1.0 {
+		return fmt.Errorf("opacity must be between 0.0 and 1.0, got %f", s.Opacity)
 	}
 
 	if s.Margin.Top < 0 || s.Margin.Right < 0 || s.Margin.Bottom < 0 || s.Margin.Left < 0 {

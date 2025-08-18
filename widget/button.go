@@ -16,7 +16,7 @@ import (
 // Button は、クリック可能なUI要素です。TextWidgetを拡張し、ホバー状態のスタイル管理機能を追加します。
 type Button struct {
 	*component.TextWidget
-	hoverStyle *style.Style
+	hoverStyle style.Style // ポインタから値型に変更。Nilチェックが不要になり、安全性が向上します。
 }
 
 // SetHovered はホバー状態を設定し、再描画を要求します。
@@ -36,17 +36,18 @@ func (b *Button) Draw(screen *ebiten.Image) {
 
 	// 描画時にホバー状態を確認し、適切なスタイルを選択する
 	styleToUse := b.GetStyle()
-	if b.IsHovered() && b.hoverStyle != nil {
+	if b.IsHovered() {
 		styleToUse = b.hoverStyle
 	}
 
 	// 選択したスタイルで描画
-	component.DrawStyledBackground(screen, x, y, width, height, *styleToUse)
-	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), *styleToUse)
+	// [修正] styleToUseは値型なので、ポインタ参照(*)は不要です。
+	component.DrawStyledBackground(screen, x, y, width, height, styleToUse)
+	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), styleToUse)
 }
 
 // HitTest は、指定された座標がボタンの領域内にあるかを判定します。
-// [追加] component.LayoutableWidgetの基本的なテストを呼び出し、ヒットした場合は
+// component.LayoutableWidgetの基本的なテストを呼び出し、ヒットした場合は
 // LayoutableWidgetではなく、具象型であるButton自身を返します。
 // これにより、イベントシステムが正しいウィジェットインスタンスを扱えるようになります。
 func (b *Button) HitTest(x, y int) component.Widget {
@@ -62,6 +63,8 @@ func (b *Button) HitTest(x, y int) component.Widget {
 // ButtonBuilder は、Buttonを安全かつ流れるように構築するためのビルダーです。
 type ButtonBuilder struct {
 	Builder[*ButtonBuilder, *Button]
+	// HoverStyleの呼び出し順問題を解決するため、ホバー用の差分スタイルを保持します。
+	hoverStyleDiff *style.Style
 }
 
 // NewButtonBuilder は、デフォルトのスタイルで初期化されたButtonBuilderを返します。
@@ -78,6 +81,8 @@ func NewButtonBuilder() *ButtonBuilder {
 	}
 	button.SetSize(100, 40)
 	button.SetStyle(defaultStyle)
+	// 初期状態では、ホバースタイルは基本スタイルと同じ
+	button.hoverStyle = defaultStyle
 
 	b := &ButtonBuilder{}
 	b.Builder.Init(b, button)
@@ -107,14 +112,23 @@ func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
 }
 
 // HoverStyle は、マウスカーソルがボタン上にあるときのスタイルを設定します。
+// ここでは差分スタイルを保存するだけに留め、Build時にマージすることで、
+// Style() と HoverStyle() の呼び出し順に依存しないようにします。
 func (b *ButtonBuilder) HoverStyle(s style.Style) *ButtonBuilder {
-	// ベーススタイルにホバースタイルをマージして、完全なホバースタイルを生成
-	mergedHoverStyle := style.Merge(*b.Widget.GetStyle(), s)
-	b.Widget.hoverStyle = &mergedHoverStyle
+	b.hoverStyleDiff = &s
 	return b
 }
 
 // Build は、設定に基づいて最終的なButtonを構築して返します。
 func (b *ButtonBuilder) Build() (*Button, error) {
+	// Buildが呼び出された時点で、最終的な基本スタイルとホバー差分スタイルをマージします。
+	if b.hoverStyleDiff != nil {
+		finalBaseStyle := b.Widget.GetStyle()
+		b.Widget.hoverStyle = style.Merge(finalBaseStyle, *b.hoverStyleDiff)
+	} else {
+		// HoverStyleが指定されなかった場合、ホバースタイルは基本スタイルと同じにします。
+		b.Widget.hoverStyle = b.Widget.GetStyle()
+	}
+
 	return b.Builder.Build("Button")
 }

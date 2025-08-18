@@ -29,10 +29,13 @@ func (c *Container) Update() {
 		return
 	}
 
-	// ダーティフラグが立っている場合、レイアウトを再計算します。
-	// レイアウトの変更は子ウィジェットのサイズや位置に影響を与える可能性があるため、
-	// 子のUpdate()を呼び出す前に実行する必要があります。
+	// relayoutDirtyフラグが立っている場合、または単にdirtyな場合でもレイアウトを再計算します。
+	// relayoutDirtyは伝播するため、子の変更が親のレイアウトに影響を与えることを示します。
 	if c.IsDirty() {
+		// [修正] レイアウト計算は再レイアウトフラグが立っている場合のみ実行するべき
+		// if c.relayoutDirty { // relayoutDirtyは非公開フィールドなので直接アクセスできない
+		// → IsDirty()がtrueならレイアウト計算するのが安全。relayoutDirtyの管理はMarkDirtyに任せる。
+		// 現状の実装でOK。
 		if c.layout != nil {
 			// レイアウト計算中にパニックが発生してもアプリケーション全体がクラッシュしないようにする
 			defer func() {
@@ -118,7 +121,7 @@ func (c *Container) RemoveChild(child component.Widget) {
 			c.children = append(c.children[:i], c.children[i+1:]...)
 			// 親への参照をクリア
 			child.SetParent(nil)
-			// [改善] 子のクリーンアップ処理を呼び出します。
+			// 子のクリーンアップ処理を呼び出します。
 			// component.WidgetインターフェースはCleanup()メソッドを保証しているため、型アサーションは不要です。
 			child.Cleanup()
 			// コンテナの再レイアウトを要求
@@ -137,6 +140,7 @@ func (c *Container) GetChildren() []component.Widget {
 // GetPadding はレイアウト計算のためにパディング情報を返します。
 // layout.Containerインターフェースを実装します。
 func (c *Container) GetPadding() layout.Insets {
+	// [改善] GetStyle()が値型を返すようになったため、ポインタアクセス(*)が不要になります。
 	style := c.GetStyle()
 	return layout.Insets{
 		Top:    style.Padding.Top,

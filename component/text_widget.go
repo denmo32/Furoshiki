@@ -13,6 +13,9 @@ import (
 type TextWidget struct {
 	*LayoutableWidget
 	text string
+	// [改善] 埋め込み先のウィジェットが子の位置を独自に管理できるよう、
+	// requestedX/Yフィールドを追加します。AbsoluteLayoutなどで使用されます。
+	requestedX, requestedY int
 }
 
 // NewTextWidget は新しいTextWidgetを生成します。
@@ -49,7 +52,9 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	// プロパティへの直接アクセスではなく、ゲッターメソッドを使用して一貫性を保つ
 	x, y := t.GetPosition()
 	width, height := t.GetSize()
-	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), t.style)
+	// [改善] GetStyle()が値型を返すようになったため、戻り値を変数に受けて使用します。
+	style := t.GetStyle()
+	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), style)
 }
 
 // calculateMinSize は、現在のテキストとスタイルに基づいて最小サイズを計算します。
@@ -73,4 +78,18 @@ func (t *TextWidget) CalculateMinSize() (int, int) {
 	}
 	// テキストがない場合でも設定済みの最小サイズを返す
 	return t.minWidth, t.minHeight
+}
+
+// [追加] AbsoluteLayoutのために、要求された相対位置を設定・取得するメソッドを追加します。
+// これらはWidgetインターフェースには含まれず、特定のレイアウトとウィジェットが協調するために使用されます。
+
+// SetRequestedPosition は、レイアウトに対する希望の相対位置を設定します。
+func (t *TextWidget) SetRequestedPosition(x, y int) {
+	t.requestedX = x
+	t.requestedY = y
+}
+
+// GetRequestedPosition は、レイアウトに対する希望の相対位置を取得します。
+func (t *TextWidget) GetRequestedPosition() (int, int) {
+	return t.requestedX, t.requestedY
 }

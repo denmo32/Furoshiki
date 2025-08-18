@@ -328,6 +328,8 @@ func (g *Game) createSettingsView() component.Widget {
 
 func (g *Game) Update() error {
 	cx, cy := ebiten.CursorPosition()
+	// g.root.HitTestは component.Widget を返しますが、これは event.eventTarget インターフェースを満たしているので、
+	// そのまま event.GetDispatcher().Dispatch に渡すことができます。
 	target := g.root.HitTest(cx, cy)
 	event.GetDispatcher().Dispatch(target, cx, cy)
 	g.root.Update()

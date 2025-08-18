@@ -20,7 +20,9 @@ type Widget interface {
 	SetMinSize(width, height int)
 	GetMinSize() (width, height int)
 	SetStyle(style style.Style)
-	GetStyle() *style.Style
+	// [修正] 戻り値をポインタ型(*style.Style)から値型(style.Style)に変更します。
+	// これにより、GetStyle()経由でスタイルを直接変更されることを防ぎ、SetStyle()の利用を強制します。
+	GetStyle() style.Style
 	MarkDirty(relayout bool)
 	IsDirty() bool
 	ClearDirty()

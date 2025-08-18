@@ -17,12 +17,12 @@ type ContainerBuilder struct {
 }
 
 // NewContainerBuilder は、デフォルト値で初期化されたContainerBuilderを返します。
-// デフォルトのレイアウトは AbsoluteLayout です。
+// [改善] デフォルトのレイアウトを、より汎用性が高く一般的に使用される FlexLayout に変更します。
 func NewContainerBuilder() *ContainerBuilder {
 	return &ContainerBuilder{
 		container: &Container{
 			LayoutableWidget: component.NewLayoutableWidget(),
-			layout:           &layout.AbsoluteLayout{},
+			layout:           &layout.FlexLayout{}, // デフォルトをFlexLayoutに
 		},
 	}
 }
@@ -35,7 +35,8 @@ func (b *ContainerBuilder) RelayoutBoundary(isBoundary bool) *ContainerBuilder {
 	return b
 }
 
-// Position はコンテナの初期位置を設定します。
+// Position はコンテナのスクリーン上の絶対位置を設定します。
+// 注: このコンテナがFlexLayoutを持つ親の中にある場合、この位置はレイアウト計算によって上書きされます。
 func (b *ContainerBuilder) Position(x, y int) *ContainerBuilder {
 	b.container.SetPosition(x, y)
 	return b
@@ -56,7 +57,7 @@ func (b *ContainerBuilder) Size(width, height int) *ContainerBuilder {
 // Layout はコンテナが使用するレイアウトマネージャーを設定します。
 func (b *ContainerBuilder) Layout(layout layout.Layout) *ContainerBuilder {
 	if layout == nil {
-		b.errors = append(b.errors, fmt.Errorf("layout cannot be nil"))
+		b.errors = append(b.errors, errors.New("layout cannot be nil"))
 		return b
 	}
 	b.container.layout = layout
@@ -65,8 +66,9 @@ func (b *ContainerBuilder) Layout(layout layout.Layout) *ContainerBuilder {
 
 // Style はコンテナのスタイルを設定します。
 func (b *ContainerBuilder) Style(s style.Style) *ContainerBuilder {
+	// [改善] GetStyle()が値型を返すようになったため、ポインタアクセス(*)が不要になります。
 	existingStyle := b.container.GetStyle()
-	b.container.SetStyle(style.Merge(*existingStyle, s))
+	b.container.SetStyle(style.Merge(existingStyle, s))
 	return b
 }
 
@@ -83,7 +85,7 @@ func (b *ContainerBuilder) Flex(flex int) *ContainerBuilder {
 // AddChild はコンテナに子ウィジェットを追加します。
 func (b *ContainerBuilder) AddChild(child component.Widget) *ContainerBuilder {
 	if child == nil {
-		b.errors = append(b.errors, fmt.Errorf("child cannot be nil"))
+		b.errors = append(b.errors, errors.New("child cannot be nil"))
 		return b
 	}
 	b.container.AddChild(child)
@@ -94,7 +96,7 @@ func (b *ContainerBuilder) AddChild(child component.Widget) *ContainerBuilder {
 func (b *ContainerBuilder) AddChildren(children ...component.Widget) *ContainerBuilder {
 	for _, child := range children {
 		if child == nil {
-			b.errors = append(b.errors, fmt.Errorf("child cannot be nil"))
+			b.errors = append(b.errors, errors.New("child cannot be nil"))
 			continue
 		}
 		b.container.AddChild(child)
