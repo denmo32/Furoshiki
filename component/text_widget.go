@@ -44,8 +44,12 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	}
 	// 背景描画は基本のDrawを呼び出す
 	t.LayoutableWidget.Draw(screen)
-	// テキストを描画（フィールドへ直接アクセス）
-	DrawAlignedText(screen, t.text, image.Rect(t.x, t.y, t.x+t.width, t.y+t.height), t.style)
+
+	// テキストを描画
+	// プロパティへの直接アクセスではなく、ゲッターメソッドを使用して一貫性を保つ
+	x, y := t.GetPosition()
+	width, height := t.GetSize()
+	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), t.style)
 }
 
 // calculateMinSize は、現在のテキストとスタイルに基づいて最小サイズを計算します。

@@ -52,7 +52,7 @@ func (l *FlexLayout) Layout(container Container) {
 	items, totalFixedMainSize, totalFlex := l.calculateInitialSizes(children, isRow)
 
 	// ステップ 3: 伸縮可能スペースの計算と分配
-	l.distributeRemainingSpace(items, mainSize, totalFixedMainSize, totalFlex)
+	l.distributeRemainingSpace(items, mainSize, totalFixedMainSize, totalFlex, isRow)
 
 	// ステップ 4: 交差軸のサイズ計算
 	l.calculateCrossAxisSizes(items, crossSize, isRow)
@@ -118,7 +118,7 @@ func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bo
 }
 
 // distributeRemainingSpace は、flex値に基づいて余剰スペースを分配または不足分を縮小します。
-func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, totalFixedMainSize int, totalFlex float64) {
+func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, totalFixedMainSize int, totalFlex float64, isRow bool) {
 	totalGap := 0
 	if len(items) > 1 {
 		totalGap = (len(items) - 1) * l.Gap
@@ -126,15 +126,24 @@ func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, to
 	remainingSpace := mainSize - totalFixedMainSize - totalGap
 
 	if remainingSpace < 0 {
-		// スペース不足：固定サイズアイテムを比例縮小
+		// スペース不足：固定サイズアイテムを比例縮小する。
 		// totalFixedMainSizeが0の場合は縮小しない
 		if totalFixedMainSize > 0 {
+			// scaleは、利用可能なスペースを要求されたスペースで割った値。
 			scale := float64(mainSize-totalGap) / float64(totalFixedMainSize)
-			if scale > 0 {
+			if scale > 0 { // scaleが0以下だとすべてのサイズが0になってしまうためチェック
 				for i := range items {
+					// flexアイテムは後で調整されるため、ここでは固定サイズアイテムのみを対象とする。
 					if items[i].flex == 0 {
+						// 縮小後の期待サイズを計算
 						newSize := int(float64(items[i].mainSize+items[i].mainMargin) * scale)
-						items[i].mainSize = max(0, newSize-items[i].mainMargin)
+
+						// ウィジェットの最小サイズを取得
+						minW, minH := items[i].widget.GetMinSize()
+						minMainSize := ifThen(isRow, minW, minH)
+
+						// 最小サイズを下回らないようにサイズを決定する
+						items[i].mainSize = max(minMainSize, newSize-items[i].mainMargin)
 					}
 				}
 			}

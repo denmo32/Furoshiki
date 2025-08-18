@@ -115,8 +115,7 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 	if b.container.GetFlex() == 0 {
 		width, height := b.container.GetSize()
 		if width == 0 && height == 0 {
-			log.Printf("Warning: Container has no flex and both width and height are 0. It may not be visible. Using default 200x200.")
-			b.container.SetSize(200, 200)
+			log.Printf("Warning: Container created with no flex and zero size (width=0, height=0). It may not be visible unless its size is managed by a parent layout.")
 		}
 	}
 

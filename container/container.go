@@ -57,12 +57,8 @@ func (c *Container) Update() {
 // Drawはコンテナ自身と、そのすべての子を描画します。
 // core.LayoutableWidgetのDrawをオーバーライドします。
 func (c *Container) Draw(screen *ebiten.Image) {
-	// isVisibleフィールドに直接アクセスするために、埋め込んだLayoutableWidgetのフィールドを直接参照します。
-	// しかし、Goの仕様上、c.isVisibleとは書けず、c.LayoutableWidget.isVisibleとする必要があります。
-	// 可読性のため、一度変数に受けるか、あるいはIsVisible()を呼び出すのが一般的ですが、
-	// ここではパフォーマンス最適化のデモとして、あえて直接アクセスに近い形をとります。
-	// 実際には IsVisible() をインライン化するコンパイラの最適化に期待する方が良い場合もあります。
-	if !c.IsVisible() { // IsVisible()経由のアクセスに戻します。フィールド直接アクセスは埋め込みの都合上冗長なため。
+	// コンテナが非表示の場合、自身も子も描画しない。
+	if !c.IsVisible() {
 		return
 	}
 	// まずコンテナ自身の背景などを描画
