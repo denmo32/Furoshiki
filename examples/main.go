@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"strconv"
 
 	"furoshiki/component"
 	"furoshiki/container"
@@ -47,17 +48,27 @@ func init() {
 	}
 }
 
+// Game はアプリケーションの状態を保持します
 type Game struct {
-	root          component.Widget
-	width, height int
+	root               component.Widget
+	width, height      int
+	mainLayout         *container.Container // サイドバーとメインコンテンツを保持
+	mainContent        component.Widget     // 現在のメインコンテンツ
+	statusLabel        *widget.Label
+	dynamicWidgetCount int // 動的に追加されるウィジェットのカウンター
 }
 
+// NewGame は新しいゲームインスタンスを作成します
 func NewGame() *Game {
 	const initialWidth, initialHeight = 800, 600
+	g := &Game{
+		width:  initialWidth,
+		height: initialHeight,
+	}
 
-	// --- ヘッダーの作成 ---
-	header, err := widget.NewLabelBuilder().
-		Text("Ebitengine UI Kit - 機能デモ").
+	// --- ヘッダー ---
+	header, _ := widget.NewLabelBuilder().
+		Text("Furoshiki UI - 機能デモ").
 		Size(0, 40).
 		Style(style.Style{
 			Font:       mplusFont,
@@ -66,111 +77,15 @@ func NewGame() *Game {
 			Padding:    style.Insets{Left: 15},
 		}).
 		Build()
-	if err != nil {
-		log.Printf("Error creating header: %v", err)
-		header, _ = widget.NewLabelBuilder().Text("Header").Build()
-	}
 
-	// --- サイドバーの作成 ---
-	// ボタンビルダーは自動で最小サイズを計算するため、CalculateMinSize()の呼び出しは不要
-	sideButton1, err := widget.NewButtonBuilder().Text("Dashboard").Flex(0).Size(0, 35).
-		Style(style.Style{Font: mplusFont}).
-		HoverStyle(style.Style{Background: color.RGBA{R: 200, G: 220, B: 255, A: 255}}).
-		OnClick(func() { fmt.Println("Dashboard Clicked!") }).
-		Build()
-	if err != nil {
-		log.Printf("Error creating sideButton1: %v", err)
-		sideButton1, _ = widget.NewButtonBuilder().Text("Button1").Build()
-	}
-
-	sideButton2, err := widget.NewButtonBuilder().Text("Analytics").Flex(0).Size(0, 35).
-		Style(style.Style{Font: mplusFont}).
-		HoverStyle(style.Style{Background: color.RGBA{R: 200, G: 220, B: 255, A: 255}}).
-		OnClick(func() { fmt.Println("Analytics Clicked!") }).
-		Build()
-	if err != nil {
-		log.Printf("Error creating sideButton2: %v", err)
-		sideButton2, _ = widget.NewButtonBuilder().Text("Button2").Build()
-	}
-
-	sideButton3, err := widget.NewButtonBuilder().Text("Settings").Flex(0).Size(0, 35).
-		Style(style.Style{Font: mplusFont}).
-		HoverStyle(style.Style{Background: color.RGBA{R: 200, G: 220, B: 255, A: 255}}).
-		OnClick(func() { fmt.Println("Settings Clicked!") }).
-		Build()
-	if err != nil {
-		log.Printf("Error creating sideButton3: %v", err)
-		sideButton3, _ = widget.NewButtonBuilder().Text("Button3").Build()
-	}
-
-	sideBar, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
-			Direction:  layout.DirectionColumn,
-			Justify:    layout.AlignStart,
-			AlignItems: layout.AlignStretch,
-			Gap:        5,
-		}).
-		Size(150, 0).
-		Style(style.Style{
-			Background: color.RGBA{R: 240, G: 240, B: 240, A: 255},
-			Padding:    style.Insets{Top: 10, Right: 10, Bottom: 10, Left: 10},
-		}).
-		AddChildren(sideButton1, sideButton2, sideButton3).
-		Build()
-	if err != nil {
-		log.Printf("Error creating sideBar: %v", err)
-		sideBar, _ = container.NewContainerBuilder().Build()
-	}
-	// サイドバー自体にも最小幅を設定
-	sideBar.SetMinSize(140, 0)
-
-	// --- メインコンテンツエリアの作成 ---
-	mainContentContainer, err := createMainContent()
-	if err != nil {
-		log.Printf("Error creating mainContentContainer: %v", err)
-		mainContentContainer, _ = container.NewContainerBuilder().Build()
-	}
-
-	// --- 中間レイアウト (サイドバー + メインコンテンツ) ---
-	mainLayout, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
-			Direction:  layout.DirectionRow,
-			AlignItems: layout.AlignStretch,
-			Gap:        10,
-		}).
-		Flex(1).
-		AddChildren(sideBar, mainContentContainer).
-		Build()
-	if err != nil {
-		log.Printf("Error creating mainLayout: %v", err)
-		mainLayout, _ = container.NewContainerBuilder().Build()
-	}
-
-	// --- フッター (ステータスバー) の作成 ---
-	statusLabel, err := widget.NewLabelBuilder().Text("Status: OK").Style(style.Style{Font: mplusFontSmall}).Build()
-	if err != nil {
-		log.Printf("Error creating statusLabel: %v", err)
-		statusLabel, _ = widget.NewLabelBuilder().Text("Status").Build()
-	}
-
-	versionLabel, err := widget.NewLabelBuilder().Text("Version 1.0.0").Style(style.Style{Font: mplusFontSmall}).Build()
-	if err != nil {
-		log.Printf("Error creating versionLabel: %v", err)
-		versionLabel, _ = widget.NewLabelBuilder().Text("Version").Build()
-	}
-
-	spacer, err := container.NewContainerBuilder().Flex(1).Build()
-	if err != nil {
-		log.Printf("Error creating spacer: %v", err)
-		spacer, _ = container.NewContainerBuilder().Build()
-	}
+	// --- フッター (ステータスバー) ---
+	g.statusLabel, _ = widget.NewLabelBuilder().Text("Status: OK").Style(style.Style{Font: mplusFontSmall}).Build()
+	versionLabel, _ := widget.NewLabelBuilder().Text("Version 1.0.0").Style(style.Style{Font: mplusFontSmall}).Build()
+	spacer, _ := container.NewContainerBuilder().Flex(1).Build()
 	spacer.SetMinSize(10, 0)
 
-	footer, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
-			Direction:  layout.DirectionRow,
-			AlignItems: layout.AlignCenter,
-		}).
+	footer, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, AlignItems: layout.AlignCenter}).
 		Size(0, 25).
 		Style(style.Style{
 			Background:  color.RGBA{R: 220, G: 220, B: 220, A: 255},
@@ -178,154 +93,244 @@ func NewGame() *Game {
 			BorderColor: color.Gray{Y: 180},
 			BorderWidth: 1,
 		}).
-		AddChildren(statusLabel, spacer, versionLabel).
+		AddChildren(g.statusLabel, spacer, versionLabel).
 		Build()
-	if err != nil {
-		log.Printf("Error creating footer: %v", err)
-		footer, _ = container.NewContainerBuilder().Build()
-	}
 
-	// --- ルートコンテナ (アプリケーション全体の親) ---
-	rootContainer, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
-			Direction:  layout.DirectionColumn,
-			AlignItems: layout.AlignStretch,
-		}).
-		Size(initialWidth, initialHeight).
+	// --- サイドバー ---
+	sideButton1, _ := widget.NewButtonBuilder().Text("Dashboard").Flex(0).Size(0, 35).
+		Style(style.Style{Font: mplusFont}).
+		HoverStyle(style.Style{Background: color.RGBA{R: 200, G: 220, B: 255, A: 255}}).
+		OnClick(func() { g.showDashboardView() }).
+		Build()
+
+	sideButton2, _ := widget.NewButtonBuilder().Text("Analytics").Flex(0).Size(0, 35).
+		Style(style.Style{Font: mplusFont}).
+		HoverStyle(style.Style{Background: color.RGBA{R: 200, G: 220, B: 255, A: 255}}).
+		OnClick(func() { g.showAnalyticsView() }).
+		Build()
+
+	sideButton3, _ := widget.NewButtonBuilder().Text("Settings").Flex(0).Size(0, 35).
+		Style(style.Style{Font: mplusFont}).
+		HoverStyle(style.Style{Background: color.RGBA{R: 200, G: 220, B: 255, A: 255}}).
+		OnClick(func() { g.showSettingsView() }).
+		Build()
+
+	sideBar, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionColumn, Justify: layout.AlignStart, AlignItems: layout.AlignStretch, Gap: 5}).
+		Size(150, 0).
 		Style(style.Style{
-			Background: color.RGBA{R: 250, G: 250, B: 250, A: 255},
+			Background: color.RGBA{R: 240, G: 240, B: 240, A: 255},
+			Padding:    style.Insets{Top: 10, Right: 10, Bottom: 10, Left: 10},
 		}).
-		AddChildren(header, mainLayout, footer).
+		AddChildren(sideButton1, sideButton2, sideButton3).
 		Build()
-	if err != nil {
-		log.Printf("Error creating rootContainer: %v", err)
-		rootContainer, _ = container.NewContainerBuilder().
-			Size(initialWidth, initialHeight).
-			Build()
-	}
+	sideBar.SetMinSize(140, 0)
 
-	return &Game{
-		root:   rootContainer,
-		width:  initialWidth,
-		height: initialHeight,
-	}
+	// --- メインコンテンツエリアの初期化 ---
+	g.mainContent = g.createDashboardView() // 初期ビュー
+
+	// --- 中間レイアウト (サイドバー + メインコンテンツ) ---
+	g.mainLayout, _ = container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, AlignItems: layout.AlignStretch, Gap: 0}).
+		Flex(1).
+		AddChildren(sideBar, g.mainContent).
+		Build()
+
+	// --- ルートコンテナ ---
+	rootContainer, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionColumn, AlignItems: layout.AlignStretch}).
+		Size(initialWidth, initialHeight).
+		Style(style.Style{Background: color.RGBA{R: 250, G: 250, B: 250, A: 255}}).
+		AddChildren(header, g.mainLayout, footer).
+		Build()
+
+	g.root = rootContainer
+	g.updateStatus("Welcome! Dashboard view displayed.")
+	return g
 }
 
-func createMainContent() (*container.Container, error) {
-	refreshButton, err := widget.NewButtonBuilder().Text("Refresh").OnClick(func() { fmt.Println("Refresh!") }).Style(style.Style{Font: mplusFont}).Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating refreshButton: %w", err)
+// updateStatus はフッターのステータスラベルを更新します
+func (g *Game) switchMainContent(newContent component.Widget) {
+	if g.mainContent != nil {
+		g.mainLayout.RemoveChild(g.mainContent)
 	}
+	g.mainContent = newContent
+	g.mainLayout.AddChild(g.mainContent)
+}
 
-	exportButton, err := widget.NewButtonBuilder().Text("Export").OnClick(func() { fmt.Println("Export!") }).
-		Style(style.Style{Font: mplusFont, Margin: style.Insets{Left: 20}}).
-		Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating exportButton: %w", err)
-	}
+func (g *Game) updateStatus(message string) {
+	g.statusLabel.SetText("Status: " + message)
+}
 
-	controlPanel, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, Justify: layout.AlignEnd, Gap: 10}).
-		Size(0, 40).
-		AddChildren(refreshButton, exportButton).
-		Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating controlPanel: %w", err)
-	}
+// --- ビュー作成関数 ---
 
-	card1, err := createCard("Total Revenue", "$45,231.89", "Increased by 20%")
-	if err != nil {
-		return nil, fmt.Errorf("error creating card1: %w", err)
-	}
+func (g *Game) showDashboardView() {
+	g.switchMainContent(g.createDashboardView())
+	g.updateStatus("Dashboard view displayed.")
+}
 
-	card2, err := createCard("Subscriptions", "+2,350", "Gained 180 this week")
-	if err != nil {
-		return nil, fmt.Errorf("error creating card2: %w", err)
-	}
+func (g *Game) showAnalyticsView() {
+	g.switchMainContent(g.createAnalyticsView())
+	g.updateStatus("Analytics view displayed.")
+}
 
-	card3, err := createCard("Active Users", "9,876", "Currently online")
-	if err != nil {
-		return nil, fmt.Errorf("error creating card3: %w", err)
-	}
+func (g *Game) showSettingsView() {
+	g.switchMainContent(g.createSettingsView())
+	g.updateStatus("Settings view displayed.")
+}
 
-	cardArea, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, AlignItems: layout.AlignStart, Gap: 15}).
+func (g *Game) createDashboardView() component.Widget {
+	g.dynamicWidgetCount = 0
+	// 動的ウィジェットを保持するコンテナ
+	dynamicArea, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, AlignItems: layout.AlignStart, Gap: 10, Wrap: true}).
 		Flex(1).
-		AddChildren(card1, card2, card3).
+		Style(style.Style{
+			Padding:     style.Insets{Top: 10, Right: 10, Bottom: 10, Left: 10},
+			BorderColor: color.Gray{Y: 200},
+			BorderWidth: 1,
+		}).
 		Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating cardArea: %w", err)
-	}
-	cardArea.SetMinSize(300, 100) // カードエリアが極端に縮まらないように設定
+	dynamicArea.SetMinSize(100, 100)
 
-	return container.NewContainerBuilder().
+	addWidgetButton, _ := widget.NewButtonBuilder().Text("Add Widget").Style(style.Style{Font: mplusFont}).
+		OnClick(func() {
+			g.dynamicWidgetCount++
+			newLabel, _ := widget.NewLabelBuilder().
+				Text("Widget " + strconv.Itoa(g.dynamicWidgetCount)).
+				Size(100, 40).
+				Style(style.Style{
+					Font:       mplusFontSmall,
+					Background: color.RGBA{B: 100, A: 50},
+					Padding:    style.Insets{Top: 5, Right: 5, Bottom: 5, Left: 5},
+				}).
+				Build()
+			dynamicArea.AddChild(newLabel)
+			g.updateStatus(fmt.Sprintf("Added Widget %d.", g.dynamicWidgetCount))
+		}).Build()
+
+	removeWidgetButton, _ := widget.NewButtonBuilder().Text("Remove Last").Style(style.Style{Font: mplusFont}).
+		OnClick(func() {
+			children := dynamicArea.GetChildren()
+			if len(children) > 0 {
+				lastChild := children[len(children)-1]
+				dynamicArea.RemoveChild(lastChild)
+				g.updateStatus("Removed last widget.")
+			} else {
+				g.updateStatus("No widgets to remove.")
+			}
+		}).Build()
+
+	controlPanel, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, Justify: layout.AlignStart, Gap: 10}).
+		Size(0, 60).
+		Style(style.Style{Padding: style.Insets{Top: 10, Bottom: 10}}).
+		AddChildren(addWidgetButton, removeWidgetButton).
+		Build()
+
+	view, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionColumn, AlignItems: layout.AlignStretch}).
+		Flex(1).
+		Style(style.Style{Padding: style.Insets{Top: 15, Right: 15, Bottom: 15, Left: 15}}).
+		AddChildren(controlPanel, dynamicArea).
+		Build()
+	return view
+}
+
+func (g *Game) createAnalyticsView() component.Widget {
+	title, _ := widget.NewLabelBuilder().Text("Analytics Overview").Style(style.Style{Font: mplusFont}).Build()
+	placeholder, _ := widget.NewLabelBuilder().
+		Text("This is a placeholder for analytics data and charts.").
+		Size(0, 0).
+		Flex(1).
+		Style(style.Style{
+			Font:        mplusFontSmall,
+			Background:  color.RGBA{A: 30},
+			BorderColor: color.Gray{Y: 200},
+			BorderWidth: 1,
+			Padding:     style.Insets{Top: 20, Left: 20},
+		}).
+		Build()
+
+	view, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionColumn, AlignItems: layout.AlignStretch, Gap: 15}).
+		Flex(1).
+		Style(style.Style{Padding: style.Insets{Top: 15, Right: 15, Bottom: 15, Left: 15}}).
+		AddChildren(title, placeholder).
+		Build()
+	return view
+}
+
+func (g *Game) createSettingsView() component.Widget {
+	// デモ用ウィジェット
+	box1, _ := widget.NewLabelBuilder().Text("Box 1").Size(80, 50).Style(style.Style{Background: color.RGBA{R: 255, G: 200, B: 200, A: 255}, Font: mplusFontSmall}).Build()
+	box2, _ := widget.NewLabelBuilder().Text("Box 2").Size(80, 50).Style(style.Style{Background: color.RGBA{R: 200, G: 255, B: 200, A: 255}, Font: mplusFontSmall}).Build()
+	box3, _ := widget.NewLabelBuilder().Text("Box 3").Size(80, 50).Style(style.Style{Background: color.RGBA{R: 200, G: 200, B: 255, A: 255}, Font: mplusFontSmall}).Build()
+
+	// レイアウト変更デモ用のコンテナ
+	layoutDemoContainer := &layout.FlexLayout{Direction: layout.DirectionRow, Justify: layout.AlignCenter, AlignItems: layout.AlignCenter, Gap: 10}
+	demoArea, _ := container.NewContainerBuilder().
+		Layout(layoutDemoContainer).
+		Flex(1).
+		Style(style.Style{
+			BorderColor: color.Gray{Y: 200},
+			BorderWidth: 1,
+			Padding:     style.Insets{Top: 10, Right: 10, Bottom: 10, Left: 10},
+		}).
+		AddChildren(box1, box2, box3).
+		Build()
+
+	// レイアウト方向を切り替えるボタン
+	toggleDirButton, _ := widget.NewButtonBuilder().Text("Toggle Layout Direction").Style(style.Style{Font: mplusFont}).
+		OnClick(func() {
+			if layoutDemoContainer.Direction == layout.DirectionRow {
+				layoutDemoContainer.Direction = layout.DirectionColumn
+				g.updateStatus("Layout changed to: Column")
+			} else {
+				layoutDemoContainer.Direction = layout.DirectionRow
+				g.updateStatus("Layout changed to: Row")
+			}
+			// レイアウト変更を適用するためにダーティフラグを立てる
+			demoArea.MarkDirty(true)
+		}).Build()
+
+	// 表示・非表示を切り替えるウィジェット
+	toggleTarget, _ := widget.NewLabelBuilder().Text("Toggle Me!").Size(120, 40).Style(style.Style{Background: color.RGBA{R: 255, G: 255, B: 150, A: 255}, Font: mplusFontSmall}).Build()
+
+	toggleVisibilityButton, _ := widget.NewButtonBuilder().Text("Toggle Visibility").Style(style.Style{Font: mplusFont}).
+		OnClick(func() {
+			isVisible := toggleTarget.IsVisible()
+			toggleTarget.SetVisible(!isVisible)
+			if isVisible {
+				g.updateStatus("Widget hidden.")
+			} else {
+				g.updateStatus("Widget shown.")
+			}
+		}).Build()
+
+	controlPanel, _ := container.NewContainerBuilder().
+		Layout(&layout.FlexLayout{Direction: layout.DirectionRow, Justify: layout.AlignStart, AlignItems: layout.AlignCenter, Gap: 10}).
+		Size(0, 60).
+		Style(style.Style{Padding: style.Insets{Top: 10, Bottom: 10}}).
+		AddChildren(toggleDirButton, toggleVisibilityButton, toggleTarget).
+		Build()
+
+	view, _ := container.NewContainerBuilder().
 		Layout(&layout.FlexLayout{Direction: layout.DirectionColumn, AlignItems: layout.AlignStretch, Gap: 10}).
 		Flex(1).
 		Style(style.Style{Padding: style.Insets{Top: 15, Right: 15, Bottom: 15, Left: 15}}).
-		AddChildren(controlPanel, cardArea).
+		AddChildren(controlPanel, demoArea).
 		Build()
+	return view
 }
 
-func createCard(title, mainText, subText string) (component.Widget, error) {
-	titleLabel, err := widget.NewLabelBuilder().Text(title).Style(style.Style{Font: mplusFontSmall, TextColor: color.Gray{Y: 100}}).Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating titleLabel: %w", err)
-	}
-
-	mainLabel, err := widget.NewLabelBuilder().Text(mainText).Style(style.Style{Font: mplusFont, TextColor: color.Black}).Size(0, 40).Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating mainLabel: %w", err)
-	}
-
-	subLabel, err := widget.NewLabelBuilder().Text(subText).Style(style.Style{Font: mplusFontSmall, TextColor: color.Gray{Y: 120}}).Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating subLabel: %w", err)
-	}
-
-	spacer, err := container.NewContainerBuilder().Flex(1).Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating spacer: %w", err)
-	}
-
-	card, err := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
-			Direction:  layout.DirectionColumn,
-			AlignItems: layout.AlignStart,
-			Gap:        5,
-		}).
-		Flex(1).
-		Style(style.Style{
-			Background:  color.White,
-			BorderColor: color.Gray{Y: 200},
-			BorderWidth: 1,
-			Padding:     style.Insets{Top: 10, Right: 12, Bottom: 10, Left: 12},
-		}).
-		AddChildren(titleLabel, mainLabel, spacer, subLabel).
-		Build()
-	if err != nil {
-		return nil, fmt.Errorf("error creating card: %w", err)
-	}
-
-	card.SetMinSize(150, 80) // カード自体の最小サイズも設定
-	return card, nil
-}
+// --- Ebitengine Game Loop ---
 
 func (g *Game) Update() error {
-	// --- イベント処理 ---
-	// マウスカーソルの位置を取得
 	cx, cy := ebiten.CursorPosition()
-	// カーソル下のコンポーネントを特定
 	target := g.root.HitTest(cx, cy)
-
-	// マウスイベントをUIツリーにディスパッチ
 	event.GetDispatcher().Dispatch(target, cx, cy)
-
-	// --- UIの更新 ---
-	// UIツリー全体の更新処理を呼び出す。
-	// これにより、ダーティフラグが立っているコンテナのレイアウトが再計算され、
-	// 必要に応じてウィジェットの状態が更新される。
 	g.root.Update()
-
 	return nil
 }
 
@@ -344,21 +349,17 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func (g *Game) Cleanup() {
-	// ゲーム終了時にリソースを解放
 	if cleanup, ok := g.root.(interface{ Cleanup() }); ok {
 		cleanup.Cleanup()
 	}
-	// イベントディスパッチャをリセット
 	event.GetDispatcher().Reset()
 }
 
 func main() {
 	ebiten.SetWindowSize(800, 600)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetWindowTitle("UI Library Example (Improved)")
+	ebiten.SetWindowTitle("Furoshiki UI - Interactive Demo")
 	game := NewGame()
-
-	// ゲーム終了時にクリーンアップ処理を実行
 	defer game.Cleanup()
 
 	if err := ebiten.RunGame(game); err != nil {
