@@ -49,7 +49,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 // Layout はゲームの画面サイズを返します
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 400, 300
+	// [更新] GridLayoutのデモを追加したため、高さを増やします
+	return 400, 450
 }
 
 var mplusFont font.Face
@@ -78,7 +79,7 @@ func main() {
 		b.Padding(20).Gap(15).
 			Justify(layout.AlignStart).
 			AlignItems(layout.AlignCenter).
-			Size(400, 300)
+			Size(400, 450) // [更新] 高さを増やします
 
 		// タイトルラベル
 		b.Label(func(l *widget.LabelBuilder) {
@@ -115,7 +116,7 @@ func main() {
 
 		// 重ね合わせコンテナ
 		b.ZStack(func(b *ui.ContainerBuilder) {
-			b.Size(300, 150)
+			b.Size(300, 100) // [更新] 高さを調整
 			// コンテナ自体に背景色を設定
 			// [修正] color.Color 型の変数に具象型の値を入れることで、そのポインタを *color.Color として渡せるようにします。
 			bgColor := color.Color(color.RGBA{R: 220, G: 220, B: 220, A: 255})
@@ -133,7 +134,7 @@ func main() {
 				btn.Style(style.Style{BorderRadius: &radius})
 
 				btn.Text("Overlay Button")
-				btn.Position(90, 60) // コンテナ内の(90, 60)に配置
+				btn.Position(90, 35) // [更新] Y座標を調整
 				btn.Size(120, 30)
 				btn.OnClick(func() {
 					fmt.Println("Overlay button clicked!")
@@ -144,6 +145,30 @@ func main() {
 				btn.HoverStyle(style.Style{Opacity: &opacity})
 			})
 		})
+
+		// [追加] グリッドレイアウトのデモ
+		b.Grid(func(g *ui.GridContainerBuilder) {
+			// [修正] メソッドチェーンが正しく動作するように修正
+			g.Size(300, 120).
+				Columns(3).
+				HorizontalGap(10).
+				VerticalGap(10)
+
+			// 3x2のグリッドに6つのボタンを配置
+			for i := 0; i < 6; i++ {
+				// ループ変数をキャプチャして、各ボタンが正しい番号を持つようにする
+				buttonIndex := i + 1
+				g.Button(func(btn *widget.ButtonBuilder) {
+					btn.Style(baseStyle)
+					btn.Text(fmt.Sprintf("Grid %d", buttonIndex))
+					// サイズはGridLayoutによって自動的に設定されるため、ここでは指定しない
+					btn.OnClick(func() {
+						fmt.Printf("Grid button %d clicked!\n", buttonIndex)
+					})
+				})
+			}
+		})
+
 	}).Build()
 
 	if err != nil {
@@ -156,7 +181,7 @@ func main() {
 		dispatcher: event.GetDispatcher(),
 	}
 
-	ebiten.SetWindowSize(400, 300)
+	ebiten.SetWindowSize(400, 450) // [更新] 高さを増やします
 	ebiten.SetWindowTitle("Furoshiki UI Demo")
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)

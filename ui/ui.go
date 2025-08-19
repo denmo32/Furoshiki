@@ -51,6 +51,22 @@ func ZStack(buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
 	return builder
 }
 
+// [追加] Grid は子要素を格子状に配置するGridLayoutコンテナを作成するビルダーです
+func Grid(buildFunc func(*GridContainerBuilder)) *container.ContainerBuilder {
+	builder := container.NewContainerBuilder().
+		Layout(&layout.GridLayout{
+			Columns: 1, // デフォルトは1列
+		})
+
+	if buildFunc != nil {
+		// GridContainerBuilderにラップして、専用のメソッドを提供します
+		gridBuilder := &GridContainerBuilder{ContainerBuilder: &ContainerBuilder{ContainerBuilder: builder}}
+		buildFunc(gridBuilder)
+	}
+
+	return builder
+}
+
 // ContainerBuilder はコンテナに子要素を追加するためのヘルパーメソッドを提供します
 type ContainerBuilder struct {
 	*container.ContainerBuilder
@@ -106,6 +122,15 @@ func (b *ContainerBuilder) VStack(buildFunc func(*ContainerBuilder)) *ContainerB
 // [改善] 子コンテナのビルド時に発生したエラーを親のビルダーに伝播させます。
 func (b *ContainerBuilder) ZStack(buildFunc func(*ContainerBuilder)) *ContainerBuilder {
 	builder := ZStack(buildFunc)
+	container, err := builder.Build()
+	b.ContainerBuilder.AddError(err) // エラーを記録
+	b.ContainerBuilder.AddChild(container)
+	return b
+}
+
+// [追加] Grid は子要素を格子状に配置するGridLayoutコンテナを追加します
+func (b *ContainerBuilder) Grid(buildFunc func(*GridContainerBuilder)) *ContainerBuilder {
+	builder := Grid(buildFunc)
 	container, err := builder.Build()
 	b.ContainerBuilder.AddError(err) // エラーを記録
 	b.ContainerBuilder.AddChild(container)
@@ -178,4 +203,79 @@ func Style(background color.Color, textColor color.Color) style.Style {
 			Top: 5, Right: 10, Bottom: 5, Left: 10,
 		},
 	}
+}
+
+// --- GridContainerBuilder ---
+
+// [追加] GridContainerBuilder はGridLayoutコンテナに特化した設定メソッドを提供します。
+// ContainerBuilderをラップすることで、既存のメソッド（Size, Styleなど）も利用可能にします。
+type GridContainerBuilder struct {
+	*ContainerBuilder
+}
+
+// Columns はグリッドの列数を設定します。
+func (b *GridContainerBuilder) Columns(count int) *GridContainerBuilder {
+	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+		if count > 0 {
+			gridLayout.Columns = count
+		}
+	}
+	return b
+}
+
+// Rows はグリッドの行数を設定します。
+// 0または負の値を設定すると、子の数と列数から自動的に計算されます。
+func (b *GridContainerBuilder) Rows(count int) *GridContainerBuilder {
+	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+		gridLayout.Rows = count
+	}
+	return b
+}
+
+// HorizontalGap はセル間の水平方向の間隔を設定します。
+func (b *GridContainerBuilder) HorizontalGap(gap int) *GridContainerBuilder {
+	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+		gridLayout.HorizontalGap = gap
+	}
+	return b
+}
+
+// VerticalGap はセル間の垂直方向の間隔を設定します。
+func (b *GridContainerBuilder) VerticalGap(gap int) *GridContainerBuilder {
+	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+		gridLayout.VerticalGap = gap
+	}
+	return b
+}
+
+// [修正] 以下のメソッドは、メソッドチェーンが正しく機能するように戻り値の型を *GridContainerBuilder にオーバーライドします。
+
+// Size はコンテナのサイズを設定します。
+func (b *GridContainerBuilder) Size(width, height int) *GridContainerBuilder {
+	b.ContainerBuilder.Size(width, height)
+	return b
+}
+
+// Style はコンテナのスタイルを設定します。
+func (b *GridContainerBuilder) Style(s style.Style) *GridContainerBuilder {
+	b.ContainerBuilder.Style(s)
+	return b
+}
+
+// Padding はコンテナのパディングを設定します。
+func (b *GridContainerBuilder) Padding(padding int) *GridContainerBuilder {
+	b.ContainerBuilder.Padding(padding)
+	return b
+}
+
+// Button はコンテナにButtonを追加します。
+func (b *GridContainerBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *GridContainerBuilder {
+	b.ContainerBuilder.Button(buildFunc)
+	return b
+}
+
+// Label はコンテナにLabelを追加します。
+func (b *GridContainerBuilder) Label(buildFunc func(*widget.LabelBuilder)) *GridContainerBuilder {
+	b.ContainerBuilder.Label(buildFunc)
+	return b
 }

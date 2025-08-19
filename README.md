@@ -15,33 +15,34 @@ Furoshikiを理解するための主要な概念です。
     Layout: Container 内の子要素をどのように配置するかを決定するロジックです。
         FlexLayout: CSS Flexboxにインスパイアされた、強力で柔軟なレイアウトシステム。
         AbsoluteLayout: 子要素を絶対座標で自由に配置します。ダイアログやオーバーレイに適しています。
+        GridLayout: 子要素を格子状に配置します。設定画面やインベントリに適しています。
     Builder Pattern: NewButtonBuilder() のようなビルダーを使い、メソッドチェーンでプロパティを設定することで、安全かつ流れるようにコンポーネントを構築します。
     Style: style.Style 構造体を通じて、背景色、境界線、パディング、マージンといったコンポーネントの見た目を定義します。
     宣言的UIヘルパー: ui.VStack(), ui.HStack(), ui.ZStack() などの関数を使い、ネストされたUI構造を直感的に構築できます。
 
 主な機能 (Key Features)
-1. 強力なFlexboxレイアウト
-FlexLayout を使用することで、モダンなUIレイアウトを簡単に構築できます。
-    Direction: 子要素を縦 (DirectionColumn) または横 (DirectionRow) に並べます。
-    Justify: 主軸方向の揃え位置（先頭、中央、末尾）を指定します。
-    AlignItems: 交差軸方向の揃え位置（先頭、中央、末尾、引き伸ばし）を指定します。
-    Gap: 子要素間の間隔を設定します。
-    Flex値: 子要素に Flex(1) のように値を設定すると、親コンテナのサイズ変更に応じて自動的に伸縮します。
+1. 強力なレイアウトシステム
+FlexLayoutとGridLayoutを使用することで、モダンなUIレイアウトを簡単に構築できます。
+    Flexbox: Direction, Justify, AlignItems, Gap, Flex値などをサポート。
+    Grid: Columns, Rows, HorizontalGap, VerticalGap を指定して格子状に配置。
 
 2. 宣言的UIヘルパー
 uiパッケージの関数を使用することで、短いコードで複雑なUIを構築できます。
     VStack(): 垂直方向に子要素を配置するコンテナを作成します。
     HStack(): 水平方向に子要素を配置するコンテナを作成します。
     ZStack(): 子要素を重ねて配置するコンテナを作成します。
+    Grid(): 子要素を格子状に配置するコンテナを作成します。
 
     // 使用例
     root, _ := ui.VStack(func(b *ui.ContainerBuilder) {
         b.Padding(10).Gap(5)
-        b.Label(func(l *widget.LabelBuilder) { 
-            l.Text("Title") 
+        b.Label(func(l *widget.LabelBuilder) {
+            l.Text("Title")
         })
-        b.Button(func(btn *widget.ButtonBuilder) {
-            btn.Text("Submit")
+        b.Grid(func(g *ui.GridContainerBuilder) {
+            g.Columns(2).Gap(5)
+            g.Button(...)
+            g.Button(...)
         })
     }).Build()
 
@@ -56,4 +57,4 @@ Furoshikiは、より表現力豊かで使いやすいライブラリを目指�
     [計画中] テーマ＆スタイルシートシステム: アプリケーション全体のデザインをThemeオブジェクトとして一元管理し、.Class("classname")でスタイルを適用する仕組みを導入します。これにより、スタイル定義とUI構造を分離し、コードの簡潔化とデザインの一貫性を向上させます。
     [実装済み] 宣言的UIヘルパー (Functional Builders): UIの階層構造をコードのネストで表現できる高レベルAPIを導入し、より直感的で宣言的なUI構築を可能にします。
     [計画中] 基本ウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
-    [計画中] クリッピング: 描画領域を制限するクリッピング機能を実装します。
+    [計画中] クリッピングとスクロール: 描画領域を制限するクリッピング機能を実装し、ScrollViewコンテナを導入します。
