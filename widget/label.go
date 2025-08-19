@@ -1,10 +1,12 @@
 package widget
 
 import (
-	"image/color"
-
 	"furoshiki/component"
 	"furoshiki/style"
+	"image"
+	"image/color"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // --- Label component ---
@@ -14,18 +16,27 @@ type Label struct {
 	*component.TextWidget
 }
 
-// HitTest は、指定された座標がラベルの領域内にあるかを判定します。
-// [追加] component.LayoutableWidgetの基本的なテストを呼び出し、ヒットした場合は
-// LayoutableWidgetではなく、具象型であるLabel自身を返します。
-// これにより、イベントシステムが正しいウィジェットインスタンスを扱えるようになります。
-func (l *Label) HitTest(x, y int) component.Widget {
-	// 埋め込まれたLayoutableWidgetのHitTestを呼び出して、基本的な境界チェックを行います
-	if l.LayoutableWidget.HitTest(x, y) != nil {
-		// ヒットした場合、インターフェースを満たす具象型であるLabel自身(*l)を返します
-		return l
+// [追加] Label自身のDrawメソッドを明示的に実装します。
+// これにより、埋め込まれたTextWidgetのDrawメソッドへの暗黙的な依存がなくなり、
+// 描画の振る舞いが明確かつ自己完結し、意図しないバグを防ぎます。
+func (l *Label) Draw(screen *ebiten.Image) {
+	if !l.IsVisible() {
+		return
 	}
-	return nil
+	// 自身のプロパティを取得
+	x, y := l.GetPosition()
+	width, height := l.GetSize()
+	style := l.GetStyle()
+	text := l.Text()
+
+	// 取得したスタイルを使って、背景とテキストをヘルパー関数で描画します。
+	component.DrawStyledBackground(screen, x, y, width, height, style)
+	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), style)
 }
+
+// [削除] HitTestメソッドは、component.LayoutableWidgetの汎用的な実装で十分なため、削除します。
+// LayoutableWidgetは初期化時に具象ウィジェット(self)への参照を受け取り、
+// HitTestが成功した際にその参照を返すため、具象型でのオーバーライドは不要です。
 
 // --- LabelBuilder ---
 // LabelBuilder は、Labelを安全かつ流れるように構築するためのビルダーです。
@@ -34,15 +45,25 @@ type LabelBuilder struct {
 }
 
 // NewLabelBuilder は、デフォルトのスタイルで初期化されたLabelBuilderを返します。
+// [修正] 初期化をself参照パターンに合わせ、スタイル設定をポインタ対応にします。
 func NewLabelBuilder() *LabelBuilder {
-	label := &Label{
-		TextWidget: component.NewTextWidget(""),
-	}
+	// まずラベルインスタンスを作成
+	label := &Label{}
+	// 次に、ラベル自身をselfとして渡してTextWidgetを初期化
+	label.TextWidget = component.NewTextWidget(label, "")
+
 	label.SetSize(100, 30)
+
+	// [修正] 具象型の値からcolor.Color型の変数を作成し、そのアドレスを渡す
+	bgColor := color.Color(color.Transparent)
+	textColor := color.Color(color.Black)
+
 	defaultStyle := style.Style{
-		Background: color.Transparent,
-		TextColor:  color.Black,
-		Padding:    style.Insets{Top: 2, Right: 5, Bottom: 2, Left: 5},
+		Background: &bgColor,
+		TextColor:  &textColor,
+		Padding: &style.Insets{
+			Top: 2, Right: 5, Bottom: 2, Left: 5,
+		},
 	}
 	label.SetStyle(defaultStyle)
 

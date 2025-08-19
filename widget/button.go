@@ -41,23 +41,13 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	}
 
 	// 選択したスタイルで描画
-	// [修正] styleToUseは値型なので、ポインタ参照(*)は不要です。
 	component.DrawStyledBackground(screen, x, y, width, height, styleToUse)
 	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), styleToUse)
 }
 
-// HitTest は、指定された座標がボタンの領域内にあるかを判定します。
-// component.LayoutableWidgetの基本的なテストを呼び出し、ヒットした場合は
-// LayoutableWidgetではなく、具象型であるButton自身を返します。
-// これにより、イベントシステムが正しいウィジェットインスタンスを扱えるようになります。
-func (b *Button) HitTest(x, y int) component.Widget {
-	// 埋め込まれたLayoutableWidgetのHitTestを呼び出して、基本的な境界チェックを行います
-	if b.LayoutableWidget.HitTest(x, y) != nil {
-		// ヒットした場合、インターフェースを満たす具象型であるButton自身(*b)を返します
-		return b
-	}
-	return nil
-}
+// [削除] HitTestメソッドは、component.LayoutableWidgetの汎用的な実装で十分なため、削除します。
+// LayoutableWidgetは初期化時に具象ウィジェット(self)への参照を受け取り、
+// HitTestが成功した際にその参照を返すため、具象型でのオーバーライドは不要です。
 
 // --- ButtonBuilder ---
 // ButtonBuilder は、Buttonを安全かつ流れるように構築するためのビルダーです。
@@ -68,17 +58,29 @@ type ButtonBuilder struct {
 }
 
 // NewButtonBuilder は、デフォルトのスタイルで初期化されたButtonBuilderを返します。
+// [修正] 初期化をself参照パターンに合わせ、スタイル設定をポインタ対応にします。
 func NewButtonBuilder() *ButtonBuilder {
+	// ヘルパー関数で値をポインタ化
+	ptrFloat32 := func(v float32) *float32 { return &v }
+	// [修正] 具象型の値からcolor.Color型の変数を作成し、そのアドレスを渡す
+	bgColor := color.Color(color.RGBA{R: 220, G: 220, B: 220, A: 255})
+	textColor := color.Color(color.Black)
+	borderColor := color.Color(color.Gray{Y: 150})
+
 	defaultStyle := style.Style{
-		Background:  color.RGBA{R: 220, G: 220, B: 220, A: 255},
-		TextColor:   color.Black,
-		BorderColor: color.Gray{Y: 150},
-		BorderWidth: 1,
-		Padding:     style.Insets{Top: 5, Right: 10, Bottom: 5, Left: 10},
+		Background:  &bgColor,
+		TextColor:   &textColor,
+		BorderColor: &borderColor,
+		BorderWidth: ptrFloat32(1),
+		Padding: &style.Insets{
+			Top: 5, Right: 10, Bottom: 5, Left: 10,
+		},
 	}
-	button := &Button{
-		TextWidget: component.NewTextWidget(""),
-	}
+	// まずボタンインスタンスを作成
+	button := &Button{}
+	// 次に、ボタン自身をselfとして渡してTextWidgetを初期化
+	button.TextWidget = component.NewTextWidget(button, "")
+
 	button.SetSize(100, 40)
 	button.SetStyle(defaultStyle)
 	// 初期状態では、ホバースタイルは基本スタイルと同じ

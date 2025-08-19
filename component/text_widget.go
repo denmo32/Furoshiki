@@ -1,6 +1,7 @@
 package component
 
 import (
+	"furoshiki/style"
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -16,9 +17,10 @@ type TextWidget struct {
 }
 
 // NewTextWidget は新しいTextWidgetを生成します。
-func NewTextWidget(text string) *TextWidget {
+// [修正] 第一引数に、このTextWidgetを埋め込む具象ウィジェット(self)への参照を取るように変更します。
+func NewTextWidget(self Widget, text string) *TextWidget {
 	return &TextWidget{
-		LayoutableWidget: NewLayoutableWidget(),
+		LayoutableWidget: NewLayoutableWidget(self),
 		text:             text,
 	}
 }
@@ -38,30 +40,42 @@ func (t *TextWidget) SetText(text string) {
 }
 
 // Draw はTextWidgetを描画します。LayoutableWidgetのDrawをオーバーライドしてテキストを追加描画します。
+// [修正] 埋め込み先のDrawメソッドを呼び出すのをやめ、このメソッド内で背景とテキストの両方を描画するように変更します。
+// これにより、描画ロジックがこのウィジェット内で完結し、意図しない動作を防ぎます。
 func (t *TextWidget) Draw(screen *ebiten.Image) {
 	if !t.isVisible {
 		return
 	}
-	// 背景描画は基本のDrawを呼び出す
-	t.LayoutableWidget.Draw(screen)
-
-	// テキストを描画
-	// プロパティへの直接アクセスではなく、ゲッターメソッドを使用して一貫性を保つ
+	// ゲッターメソッドを使用してプロパティを取得
 	x, y := t.GetPosition()
 	width, height := t.GetSize()
-	// [改善] GetStyle()が値型を返すようになったため、戻り値を変数に受けて使用します。
 	style := t.GetStyle()
+
+	// 最初に背景と境界線を描画
+	DrawStyledBackground(screen, x, y, width, height, style)
+
+	// 次にテキストを描画
 	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), style)
 }
 
 // CalculateMinSize は、現在のテキストとスタイルに基づいて最小サイズを計算します。
+// [修正] スタイルのPaddingとFontがポインタになったため、nilチェックを追加します。
 func (t *TextWidget) CalculateMinSize() (int, int) {
-	style := t.GetStyle()
-	if t.text != "" && style.Font != nil {
-		bounds := text.BoundString(style.Font, t.text)
-		minWidth := bounds.Dx() + style.Padding.Left + style.Padding.Right
-		metrics := style.Font.Metrics()
-		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + style.Padding.Top + style.Padding.Bottom
+	s := t.GetStyle()
+	// [改善] s.Fontがポインタになったため、nilチェックを追加。
+	if t.text != "" && s.Font != nil && *s.Font != nil {
+		bounds := text.BoundString(*s.Font, t.text)
+
+		// パディングの値を取得（nilの場合はゼロ値として扱う）
+		padding := s.Padding
+		if s.Padding == nil {
+			// [修正] style.Paddingがnilの場合、ゼロ値のstyle.Insetsを作成して計算を続行
+			padding = &style.Insets{}
+		}
+
+		minWidth := bounds.Dx() + padding.Left + padding.Right
+		metrics := (*s.Font).Metrics()
+		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + padding.Top + padding.Bottom
 
 		// 既存の最小サイズより大きい場合はそれを優先
 		if t.minWidth > minWidth {

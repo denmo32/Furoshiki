@@ -8,10 +8,11 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-// eventTarget は、Dispatcherがイベントをディスパッチするためにウィジェットが満たすべき最低限の振る舞いを定義するインターフェースです。
+// [改善] EventTargetインターフェースを公開し、型安全性を向上させます。
+// EventTargetは、Dispatcherがイベントをディスパッチするためにウィジェットが満たすべき最低限の振る舞いを定義するインターフェースです。
 // このインターフェースをeventパッケージ内で定義することで、componentパッケージへの依存をなくし、インポートサイクルを回避します。
 // component.Widgetは（構造的に）このインターフェースを満たします。
-type eventTarget interface {
+type EventTarget interface {
 	SetHovered(bool)
 	HandleEvent(Event)
 }
@@ -21,7 +22,7 @@ type eventTarget interface {
 // Dispatcherは、UIイベントを一元管理し、適切なコンポーネントにディスパッチします。
 // シングルトンパターンで実装され、UIツリー全体で唯一のインスタンスを共有します。
 type Dispatcher struct {
-	hoveredComponent eventTarget // 型を具体的なウィジェットからインターフェースに変更
+	hoveredComponent EventTarget // 型を非公開インターフェースから公開インターフェースに変更
 	mutex            sync.Mutex
 }
 
@@ -40,13 +41,13 @@ func GetDispatcher() *Dispatcher {
 
 // Dispatch は、マウスイベントを処理し、適切なイベントをコンポーネントに発行します。
 // このメソッドは、アプリケーションのメインUpdateループから毎フレーム呼び出されることを想定しています。
-// [改善] target引数の型を interface{} から eventTarget に変更し、型安全性を向上させます。
+// [改善] target引数の型を EventTarget に変更し、型安全性を向上させます。
 // これにより、イベント処理に必要なメソッドを持たないオブジェクトが渡されることをコンパイル時に防ぎます。
-func (d *Dispatcher) Dispatch(target eventTarget, cx, cy int) {
+func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	// targetは既にeventTarget型なので、型アサーションは不要です。
+	// targetは既にEventTarget型なので、型アサーションは不要です。
 	currentTarget := target
 
 	// ホバー状態の更新

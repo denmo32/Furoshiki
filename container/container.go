@@ -14,12 +14,24 @@ import (
 type Container struct {
 	*component.LayoutableWidget
 	children []component.Widget
-	layout   layout.Layout
+	layout   layout.Layout // 非公開フィールド
+	warned   bool          // サイズ警告を出したかどうかのフラグ
 }
 
 // コンパイル時にインターフェースの実装を検証
 var _ component.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
+
+// GetLayout はコンテナが使用しているレイアウトを返します
+func (c *Container) GetLayout() layout.Layout {
+	return c.layout
+}
+
+// SetLayout はコンテナが使用するレイアウトを設定します
+func (c *Container) SetLayout(layout layout.Layout) {
+	c.layout = layout
+	c.MarkDirty(true)
+}
 
 // Updateはコンテナと子要素の状態を更新します。
 // component.LayoutableWidgetのUpdateをオーバーライドして、レイアウト計算と子の更新を追加します。
@@ -28,6 +40,9 @@ func (c *Container) Update() {
 	if !c.IsVisible() {
 		return
 	}
+
+	// サイズ警告のチェック - Updateメソッド内でのみチェックするように変更
+	c.checkSizeWarning()
 
 	// このコンテナ、またはその子孫のいずれかで再レイアウトが必要な場合 (relayoutDirty=true)、
 	// IsDirty() は true を返します。その場合、レイアウトを再計算します。
@@ -54,15 +69,41 @@ func (c *Container) Update() {
 	}
 }
 
+// checkSizeWarning はコンテナのサイズに関する警告を出力します
+func (c *Container) checkSizeWarning() {
+	// すでに警告を出している場合は何もしない
+	if c.warned {
+		return
+	}
+
+	// Flexが設定されておらず、かつサイズが両方0のコンテナは描画されない可能性が高いため警告する。
+	// 片方の軸のサイズが0なのは、親のFlexLayout(AlignStretch)に依存する一般的なパターンのため、警告対象外とする。
+	if c.GetFlex() == 0 {
+		width, height := c.GetSize()
+		if width == 0 && height == 0 {
+			parent := c.GetParent()
+			// 親がいない（ルートコンテナ）の場合のみ警告
+			if parent == nil {
+				fmt.Printf("Warning: Root container created with no flex and zero size (width=0, height=0). It may not be visible.\n")
+				c.warned = true // 警告を出したことを記録
+			}
+		}
+	}
+}
+
 // Drawはコンテナ自身と、そのすべての子を描画します。
 // component.LayoutableWidgetのDrawをオーバーライドします。
+// [修正] 埋め込み先のDrawメソッド呼び出しをやめ、コンテナ自身の背景描画と子の描画呼び出しを明確に分離します。
 func (c *Container) Draw(screen *ebiten.Image) {
 	// コンテナが非表示の場合、自身も子も描画しない。
 	if !c.IsVisible() {
 		return
 	}
-	// まずコンテナ自身の背景などを描画
-	c.LayoutableWidget.Draw(screen)
+	// まずコンテナ自身の背景などを描画ヘルパーで描画
+	x, y := c.GetPosition()
+	width, height := c.GetSize()
+	component.DrawStyledBackground(screen, x, y, width, height, c.GetStyle())
+
 	// 次にすべての子ウィジェットを描画
 	for _, child := range c.children {
 		child.Draw(screen)
@@ -88,7 +129,8 @@ func (c *Container) HitTest(x, y int) component.Widget {
 		}
 	}
 	// どの子にもヒットしなかった場合、コンテナ自身がヒットするかチェック
-	if target := c.LayoutableWidget.HitTest(x, y); target != nil {
+	// [修正] base_widget.HitTestがselfを返すようになったため、戻り値がnilでなければコンテナ自身(c)がヒットしたことになる。
+	if c.LayoutableWidget.HitTest(x, y) != nil {
 		return c // コンテナ自身を返す
 	}
 	return nil
@@ -152,13 +194,17 @@ func (c *Container) GetChildren() []component.Widget {
 
 // GetPadding はレイアウト計算のためにパディング情報を返します。
 // layout.Containerインターフェースを実装します。
+// [修正] スタイルのPaddingがポインタ型になったため、nilの場合はゼロ値のInsetsを返します。
 func (c *Container) GetPadding() layout.Insets {
-	// [改善] GetStyle()が値型を返すようになったため、ポインタアクセス(*)が不要になります。
 	style := c.GetStyle()
-	return layout.Insets{
-		Top:    style.Padding.Top,
-		Right:  style.Padding.Right,
-		Bottom: style.Padding.Bottom,
-		Left:   style.Padding.Left,
+	if style.Padding != nil {
+		return layout.Insets{
+			Top:    style.Padding.Top,
+			Right:  style.Padding.Right,
+			Bottom: style.Padding.Bottom,
+			Left:   style.Padding.Left,
+		}
 	}
+	// パディングが設定されていない場合は、ゼロ値のInsetsを返す
+	return layout.Insets{}
 }

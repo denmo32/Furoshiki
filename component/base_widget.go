@@ -32,11 +32,21 @@ type LayoutableWidget struct {
 	// --- Hierarchy & Events ---
 	parent        Container // 親コンテナへの参照
 	eventHandlers map[event.EventType]event.EventHandler
+	// [追加] selfは、このLayoutableWidgetを埋め込んでいる具象ウィジェット(Button, Labelなど)への参照です。
+	// これにより、HitTestのようなメソッドが、具象型を正しく返すことができます。
+	self Widget
 }
 
 // NewLayoutableWidget は、デフォルト値で LayoutableWidget を初期化します。
-func NewLayoutableWidget() *LayoutableWidget {
+// [修正] 引数に具象ウィジェット自身(self)を取り、内部に保持するように変更します。
+func NewLayoutableWidget(self Widget) *LayoutableWidget {
+	if self == nil {
+		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、パニックを発生させます。
+		// これは、ウィジェットのコンストラクタが常に正しいインスタンスを渡すことを強制する設計上の決定です。
+		panic("NewLayoutableWidget: self cannot be nil")
+	}
 	return &LayoutableWidget{
+		self:          self,
 		isVisible:     true, // デフォルトで表示状態にする
 		eventHandlers: make(map[event.EventType]event.EventHandler),
 	}

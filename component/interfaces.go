@@ -20,8 +20,12 @@ type Widget interface {
 	SetMinSize(width, height int)
 	GetMinSize() (width, height int)
 	SetStyle(style style.Style)
+	// GetStyle はウィジェットの現在のスタイルを返します。
 	// [修正] 戻り値をポインタ型(*style.Style)から値型(style.Style)に変更します。
-	// これにより、GetStyle()経由でスタイルを直接変更されることを防ぎ、SetStyle()の利用を強制します。
+	// これにより、GetStyle()経由でスタイル構造体自体を変更されることを防ぎ、SetStyle()の利用を強制します。
+	// 注意: このメソッドはスタイルの浅いコピーを返します。返されたStyle構造体のポインタフィールド
+	// (例: Background, Padding) が指す先の値を変更すると、元のウィジェットのスタイルに影響が及ぶ
+	// 可能性があります。スタイル全体を安全に変更するにはSetStyle()を使用してください。
 	GetStyle() style.Style
 	MarkDirty(relayout bool)
 	IsDirty() bool
@@ -40,6 +44,11 @@ type Widget interface {
 	IsVisible() bool
 	SetRelayoutBoundary(isBoundary bool) // レイアウト境界フラグを設定
 	Cleanup()                            // コンポーネントのクリーンアップ処理
+
+	// Widgetはイベントディスパッチャが要求するevent.EventTargetインターフェースを
+	// 構造的に満たす必要があります。
+	// SetHovered(bool)
+	// HandleEvent(event.Event)
 }
 
 // --- Container Interface ---

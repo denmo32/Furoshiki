@@ -2,6 +2,7 @@ package layout
 
 import (
 	"furoshiki/component"
+	"furoshiki/style"
 )
 
 // FlexLayout は、CSS Flexboxにインスパイアされたレイアウトシステムです。
@@ -77,6 +78,7 @@ func getVisibleChildren(container Container) []component.Widget {
 }
 
 // calculateInitialSizes は、各子要素の初期サイズとマージンを計算します。
+// [修正] スタイルのMarginがポインタ型になったため、nilチェックを追加します。
 func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bool) ([]flexItemInfo, int, float64) {
 	items := make([]flexItemInfo, len(children))
 	var totalFixedMainSize int
@@ -91,14 +93,20 @@ func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bo
 		info.widget = child
 		info.flex = child.GetFlex()
 
+		// Marginが設定されていればその値を、なければゼロ値を使用する
+		margin := style.Insets{}
+		if s.Margin != nil {
+			margin = *s.Margin
+		}
+
 		if isRow {
-			info.mainMarginStart = s.Margin.Left
-			info.mainMargin = s.Margin.Left + s.Margin.Right
-			info.crossMargin = s.Margin.Top + s.Margin.Bottom
+			info.mainMarginStart = margin.Left
+			info.mainMargin = margin.Left + margin.Right
+			info.crossMargin = margin.Top + margin.Bottom
 		} else {
-			info.mainMarginStart = s.Margin.Top
-			info.mainMargin = s.Margin.Top + s.Margin.Bottom
-			info.crossMargin = s.Margin.Left + s.Margin.Right
+			info.mainMarginStart = margin.Top
+			info.mainMargin = margin.Top + margin.Bottom
+			info.crossMargin = margin.Left + margin.Right
 		}
 
 		if info.flex > 0 {
@@ -126,7 +134,10 @@ func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, to
 	remainingSpace := mainSize - totalFixedMainSize - totalGap
 
 	if remainingSpace < 0 {
-		// スペース不足：固定サイズアイテムを比例縮小する。
+		// [改善] スペース不足時の挙動についてコメントを追加
+		// スペース不足：固定サイズアイテム(flex値が0のアイテム)を、そのサイズに比例して縮小します。
+		// flex値を持つアイテムは、この段階では縮小されません。これはCSS Flexboxのflex-shrinkの
+		// 限定的な実装と見なせます。
 		// totalFixedMainSizeが0の場合は縮小しない
 		if totalFixedMainSize > 0 {
 			// scaleは、利用可能なスペースを要求されたスペースで割った値。

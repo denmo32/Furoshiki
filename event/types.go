@@ -17,8 +17,8 @@ const (
 // Event は、UIコンポーネント間でやり取りされるイベント情報を保持します。
 type Event struct {
 	Type EventType
-	// [改善] Targetの型を interface{} から eventTarget に変更し、型安全性を向上させます。
-	Target      eventTarget // イベントが発生したコンポーネント
+	// [改善] Targetの型を interface{} から公開された EventTarget に変更し、型安全性を向上させます。
+	Target      EventTarget // イベントが発生したコンポーネント
 	X, Y        int         // マウスイベントの場合の座標
 	Timestamp   int64
 	MouseButton ebiten.MouseButton

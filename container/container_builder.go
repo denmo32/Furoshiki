@@ -3,7 +3,6 @@ package container
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"furoshiki/component"
 	"furoshiki/layout"
@@ -18,12 +17,33 @@ type ContainerBuilder struct {
 
 // NewContainerBuilder は、デフォルト値で初期化されたContainerBuilderを返します。
 // [改善] デフォルトのレイアウトを、より汎用性が高く一般的に使用される FlexLayout に変更します。
+// [修正] Containerの初期化を、self参照を渡す新しい方式に変更します。
 func NewContainerBuilder() *ContainerBuilder {
+	// まずコンテナのインスタンスを生成
+	c := &Container{
+		children: make([]component.Widget, 0),
+	}
+	// 次に、コンテナ自身をselfとして渡してLayoutableWidgetを初期化
+	c.LayoutableWidget = component.NewLayoutableWidget(c)
+	// デフォルトのレイアウトを設定
+	c.layout = &layout.FlexLayout{}
+
 	return &ContainerBuilder{
-		container: &Container{
-			LayoutableWidget: component.NewLayoutableWidget(),
-			layout:           &layout.FlexLayout{}, // デフォルトをFlexLayoutに
-		},
+		container: c,
+	}
+}
+
+// [追加] GetLayout は、ビルド中のコンテナが現在使用しているレイアウトを返します。
+// これにより、uiパッケージのヘルパーなどが、コンテナをビルドせずにレイアウトプロパティを変更できます。
+func (b *ContainerBuilder) GetLayout() layout.Layout {
+	return b.container.GetLayout()
+}
+
+// [追加] AddError は、ビルドプロセス中に発生したエラーをビルダーに記録します。
+// uiパッケージのヘルパー関数が、子のビルドエラーを親のビルダーに伝播させるために使用します。
+func (b *ContainerBuilder) AddError(err error) {
+	if err != nil {
+		b.errors = append(b.errors, err)
 	}
 }
 
@@ -60,13 +80,12 @@ func (b *ContainerBuilder) Layout(layout layout.Layout) *ContainerBuilder {
 		b.errors = append(b.errors, errors.New("layout cannot be nil"))
 		return b
 	}
-	b.container.layout = layout
+	b.container.SetLayout(layout)
 	return b
 }
 
 // Style はコンテナのスタイルを設定します。
 func (b *ContainerBuilder) Style(s style.Style) *ContainerBuilder {
-	// [改善] GetStyle()が値型を返すようになったため、ポインタアクセス(*)が不要になります。
 	existingStyle := b.container.GetStyle()
 	b.container.SetStyle(style.Merge(existingStyle, s))
 	return b
@@ -112,14 +131,7 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 		return nil, fmt.Errorf("container build errors: %w", joinedErr)
 	}
 
-	// Flexが設定されておらず、かつサイズが両方0のコンテナは描画されない可能性が高いため警告する。
-	// 片方の軸のサイズが0なのは、親のFlexLayout(AlignStretch)に依存する一般的なパターンのため、警告対象外とする。
-	if b.container.GetFlex() == 0 {
-		width, height := b.container.GetSize()
-		if width == 0 && height == 0 {
-			log.Printf("Warning: Container created with no flex and zero size (width=0, height=0). It may not be visible unless its size is managed by a parent layout.")
-		}
-	}
+	// [削除] ビルド時の警告チェックを削除 - Updateメソッド内でチェックするように変更済
 
 	b.container.MarkDirty(true)
 	return b.container, nil

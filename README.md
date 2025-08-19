@@ -17,6 +17,7 @@ Furoshikiを理解するための主要な概念です。
         AbsoluteLayout: 子要素を絶対座標で自由に配置します。ダイアログやオーバーレイに適しています。
     Builder Pattern: NewButtonBuilder() のようなビルダーを使い、メソッドチェーンでプロパティを設定することで、安全かつ流れるようにコンポーネントを構築します。
     Style: style.Style 構造体を通じて、背景色、境界線、パディング、マージンといったコンポーネントの見た目を定義します。
+    宣言的UIヘルパー: ui.VStack(), ui.HStack(), ui.ZStack() などの関数を使い、ネストされたUI構造を直感的に構築できます。
 
 主な機能 (Key Features)
 1. 強力なFlexboxレイアウト
@@ -27,25 +28,32 @@ FlexLayout を使用することで、モダンなUIレイアウトを簡単に�
     Gap: 子要素間の間隔を設定します。
     Flex値: 子要素に Flex(1) のように値を設定すると、親コンテナのサイズ変更に応じて自動的に伸縮します。
 
-2. イベントシステム
+2. 宣言的UIヘルパー
+uiパッケージの関数を使用することで、短いコードで複雑なUIを構築できます。
+    VStack(): 垂直方向に子要素を配置するコンテナを作成します。
+    HStack(): 水平方向に子要素を配置するコンテナを作成します。
+    ZStack(): 子要素を重ねて配置するコンテナを作成します。
+
+    // 使用例
+    root, _ := ui.VStack(func(b *ui.ContainerBuilder) {
+        b.Padding(10).Gap(5)
+        b.Label(func(l *widget.LabelBuilder) { 
+            l.Text("Title") 
+        })
+        b.Button(func(btn *widget.ButtonBuilder) {
+            btn.Text("Submit")
+        })
+    }).Build()
+
+3. イベントシステム
 OnClick, OnMouseEnter, OnMouseLeave といった一般的なUIイベントを、コンポーネントに簡単に関連付けることができます。
 
-3. 動的なUI操作
+4. 動的なUI操作
 AddChild() や RemoveChild() メソッドを使って、実行中にUIツリーの構造を安全に変更できます。また、SetVisible(bool) を使ってコンポーネントの表示・非表示を切り替えることも可能です。非表示のコンポーネントは、更新・描画・レイアウト計算の対象から除外されます。
 
 今後のロードマップ (Roadmap)
 Furoshikiは、より表現力豊かで使いやすいライブラリを目指して、以下の機能開発を計画しています。
     [計画中] テーマ＆スタイルシートシステム: アプリケーション全体のデザインをThemeオブジェクトとして一元管理し、.Class("classname")でスタイルを適用する仕組みを導入します。これにより、スタイル定義とUI構造を分離し、コードの簡潔化とデザインの一貫性を向上させます。
-    [計画中] 宣言的UIヘルパー (Functional Builders): UIの階層構造をコードのネストで表現できる高レベルAPIを導入し、より直感的で宣言的なUI構築を可能にします。
-
-// 将来の理想的なコード例
-root, _ := ui.VStack(func(b *ui.Builder) { // 縦積みコンテナ
-    b.Padding(10).Gap(5)
-    b.Label(func(l *ui.LabelBuilder) { l.Text("Title") })
-    b.Button(func(btn *ui.ButtonBuilder) {
-        btn.Text("Submit").Class("primary")
-    })
-}).Build()
-
-	[計画中] 基本ウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
-	[計画中] クリッピング: 描画領域を制限するクリッピング機能を実装します。
+    [実装済み] 宣言的UIヘルパー (Functional Builders): UIの階層構造をコードのネストで表現できる高レベルAPIを導入し、より直感的で宣言的なUI構築を可能にします。
+    [計画中] 基本ウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
+    [計画中] クリッピング: 描画領域を制限するクリッピング機能を実装します。

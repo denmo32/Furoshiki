@@ -31,6 +31,9 @@ func (w *LayoutableWidget) HandleEvent(event event.Event) {
 	}
 }
 
+// HitTest は、指定された座標がウィジェットの領域内にあるかを判定します。
+// [改善] 戻り値として、初期化時に設定された具象ウィジェットへの参照(w.self)を返します。
+// これにより、ButtonやLabelなどの具象ウィジェット側でこのメソッドをオーバーライドする必要がなくなります。
 func (w *LayoutableWidget) HitTest(x, y int) Widget {
 	if !w.isVisible {
 		return nil
@@ -43,5 +46,6 @@ func (w *LayoutableWidget) HitTest(x, y int) Widget {
 	if !(image.Point{X: x, Y: y}.In(rect)) {
 		return nil
 	}
-	return w
+	// ヒットした場合、LayoutableWidget自身(w)ではなく、それを埋め込んでいる具象ウィジェット(w.self)を返します。
+	return w.self
 }

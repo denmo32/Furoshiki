@@ -57,9 +57,18 @@ func (b *Builder[T, W]) Size(width, height int) T {
 	return b.self
 }
 
+// MinSize はウィジェットの最小サイズを設定します
+func (b *Builder[T, W]) MinSize(width, height int) T {
+	if width < 0 || height < 0 {
+		b.errors = append(b.errors, fmt.Errorf("min size must be non-negative, got %dx%d", width, height))
+	} else {
+		b.Widget.SetMinSize(width, height)
+	}
+	return b.self
+}
+
 // Style はウィジェットの基本スタイルを設定します。
 func (b *Builder[T, W]) Style(s style.Style) T {
-	// [改善] GetStyle()が値型を返すようになったため、ポインタアクセス(*)が不要になります。
 	existingStyle := b.Widget.GetStyle()
 	b.Widget.SetStyle(style.Merge(existingStyle, s))
 	return b.self
@@ -76,13 +85,38 @@ func (b *Builder[T, W]) Flex(flex int) T {
 }
 
 // Build はウィジェットの構築を完了します。
-// エラーをチェックし、最小サイズを計算して設定します。
+// [修正] ユーザーが設定したサイズとコンテンツに必要な最小サイズを比較し、
+// ウィジェットがコンテンツを完全に表示できるサイズになるように調整します。
 func (b *Builder[T, W]) Build(typeName string) (W, error) {
 	if len(b.errors) > 0 {
 		var zero W
 		return zero, fmt.Errorf("%s build errors: %w", typeName, errors.Join(b.errors...))
 	}
-	minWidth, minHeight := b.Widget.CalculateMinSize()
-	b.Widget.SetMinSize(minWidth, minHeight)
+
+	// 1. コンテンツ（テキスト等）に基づいて必要な最小サイズを計算します。
+	calculatedMinWidth, calculatedMinHeight := b.Widget.CalculateMinSize()
+	// この計算値をウィジェットの最小サイズとして設定します。これはレイアウトシステムにとって重要です。
+	b.Widget.SetMinSize(calculatedMinWidth, calculatedMinHeight)
+
+	// 2. ユーザーが .Size() で明示的に設定したサイズを取得します。
+	currentWidth, currentHeight := b.Widget.GetSize()
+
+	// 3. 最終的なウィジェットのサイズを決定します。
+	//    - 明示的なサイズが最小サイズより大きい場合は、明示的なサイズを使用します。
+	//    - 明示的なサイズが最小サイズより小さい場合は、コンテンツがはみ出さないように最小サイズに引き上げます。
+	finalWidth := max(currentWidth, calculatedMinWidth)
+	finalHeight := max(currentHeight, calculatedMinHeight)
+
+	// 4. 決定した最終サイズをウィジェットに設定します。
+	b.Widget.SetSize(finalWidth, finalHeight)
+
 	return b.Widget, nil
+}
+
+// max は2つの整数のうち大きい方を返します。
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
