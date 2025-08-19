@@ -1,9 +1,10 @@
 package component
 
 import (
-	"fmt"
 	"furoshiki/event"
 	"image"
+	"log"           // [追加] ログ出力のために追加
+	"runtime/debug" // [追加] スタックトレース取得のために追加
 )
 
 func (w *LayoutableWidget) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
@@ -24,7 +25,8 @@ func (w *LayoutableWidget) HandleEvent(event event.Event) {
 		// イベントハンドラの実行中にパニックが発生してもアプリケーション全体がクラッシュしないようにする
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Printf("Recovered from panic in event handler: %v\n", r)
+				// [改善] パニック発生時に、より詳細なデバッグ情報（スタックトレース）をログに出力します。
+				log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
 			}
 		}()
 		handler(event)

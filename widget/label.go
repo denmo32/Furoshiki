@@ -3,36 +3,20 @@ package widget
 import (
 	"furoshiki/component"
 	"furoshiki/style"
-	"image"
 	"image/color"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // --- Label component ---
 // LabelはTextWidgetを直接埋め込みます。Label固有のロジックは今のところありません。
 // 主にテキストを表示するためのシンプルなウィジェットです。
+// [改善] 描画は、埋め込まれたcomponent.TextWidgetのDrawメソッドによって直接処理されます。
 type Label struct {
 	*component.TextWidget
 }
 
-// [追加] Label自身のDrawメソッドを明示的に実装します。
-// これにより、埋め込まれたTextWidgetのDrawメソッドへの暗黙的な依存がなくなり、
-// 描画の振る舞いが明確かつ自己完結し、意図しないバグを防ぎます。
-func (l *Label) Draw(screen *ebiten.Image) {
-	if !l.IsVisible() {
-		return
-	}
-	// 自身のプロパティを取得
-	x, y := l.GetPosition()
-	width, height := l.GetSize()
-	style := l.GetStyle()
-	text := l.Text()
-
-	// 取得したスタイルを使って、背景とテキストをヘルパー関数で描画します。
-	component.DrawStyledBackground(screen, x, y, width, height, style)
-	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), style)
-}
+// [削除] Label自身のDrawメソッドは、埋め込まれたTextWidgetのDrawメソッドと完全に同一のため削除しました。
+// これによりコードの冗長性がなくなり、TextWidgetの描画ロジックが直接利用されます。
+// これに伴い、Label固有の描画ロジックは不要となり、コードがよりシンプルで保守しやすくなりました。
 
 // [削除] HitTestメソッドは、component.LayoutableWidgetの汎用的な実装で十分なため、削除します。
 // LayoutableWidgetは初期化時に具象ウィジェット(self)への参照を受け取り、

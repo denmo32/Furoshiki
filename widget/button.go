@@ -1,9 +1,10 @@
 package widget
 
 import (
-	"fmt"
 	"image"
 	"image/color"
+	"log"           // [追加] ログ出力のために追加
+	"runtime/debug" // [追加] スタックトレース取得のために追加
 
 	"furoshiki/component"
 	"furoshiki/event"
@@ -97,7 +98,8 @@ func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 		b.Widget.AddEventHandler(event.EventClick, func(e event.Event) {
 			defer func() {
 				if r := recover(); r != nil {
-					fmt.Printf("Recovered from panic in button click handler: %v\n", r)
+					// [改善] パニック発生時に、より詳細なデバッグ情報（スタックトレース）をログに出力します。
+					log.Printf("Recovered from panic in button click handler: %v\n%s", r, debug.Stack())
 				}
 			}()
 			onClick()

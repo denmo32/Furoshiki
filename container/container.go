@@ -2,6 +2,8 @@ package container
 
 import (
 	"fmt"
+	"log"           // [追加] ログ出力のために追加
+	"runtime/debug" // [追加] スタックトレース取得のために追加
 
 	"furoshiki/component"
 	"furoshiki/layout"
@@ -51,8 +53,9 @@ func (c *Container) Update() {
 			// レイアウト計算中にパニックが発生してもアプリケーション全体がクラッシュしないようにする
 			defer func() {
 				if r := recover(); r != nil {
+					// [改善] パニック発生時に、より詳細なデバッグ情報（スタックトレース）をログに出力します。
 					// 将来的には、より高度なロギングやエラー報告メカニズムに置き換えることができます。
-					fmt.Printf("Recovered from panic during layout calculation: %v\n", r)
+					log.Printf("Recovered from panic during layout calculation: %v\n%s", r, debug.Stack())
 				}
 			}()
 			c.layout.Layout(c)
@@ -149,7 +152,6 @@ func (c *Container) Cleanup() {
 	// 最後に、埋め込まれたLayoutableWidget自身のクリーンアップ処理（イベントハンドラのクリアなど）を呼び出します。
 	c.LayoutableWidget.Cleanup()
 }
-
 
 // --- Container Methods (from component.Container interface) ---
 
