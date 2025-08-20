@@ -3,7 +3,6 @@ package container
 import (
 	"errors"
 	"fmt"
-
 	"furoshiki/component"
 	"furoshiki/layout"
 	"furoshiki/style"
@@ -16,7 +15,8 @@ type ContainerBuilder struct {
 }
 
 // NewContainerBuilder は、デフォルト値で初期化されたContainerBuilderを返します。
-// デフォルトのレイアウトは、汎用性が高い FlexLayout (Column方向) に設定されます。
+// デフォルトのレイアウトは、汎用性が高い FlexLayout (Row方向) に設定されます。
+// UI構築には、より宣言的な `ui.VStack` や `ui.HStack` の使用を推奨します。
 func NewContainerBuilder() *ContainerBuilder {
 	// まずコンテナのインスタンスを生成します。
 	c := &Container{
@@ -46,7 +46,7 @@ func (b *ContainerBuilder) AddError(err error) {
 	}
 }
 
-// [追加] MarkDirty は、ビルド中のコンテナに再レイアウトが必要であることをマークします。
+// MarkDirty は、ビルド中のコンテナに再レイアウトが必要であることをマークします。
 // uiパッケージのヘルパーなどがレイアウトプロパティを変更した際に使用します。
 func (b *ContainerBuilder) MarkDirty(relayout bool) {
 	if b.container != nil {

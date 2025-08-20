@@ -97,7 +97,7 @@ func (b *ContainerBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *Contai
 	return b
 }
 
-// [新機能] Spacer はコンテナに伸縮可能な空白を追加します。FlexLayout内でのみ効果があります。
+// Spacer はコンテナに伸縮可能な空白を追加します。FlexLayout内でのみ効果があります。
 // デフォルトでFlex値が1に設定され、利用可能なスペースをすべて埋めようとします。
 func (b *ContainerBuilder) Spacer() *ContainerBuilder {
 	spacer, _ := widget.NewSpacerBuilder().Flex(1).Build()
@@ -148,7 +148,6 @@ func (b *ContainerBuilder) Gap(gap int) *ContainerBuilder {
 	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Gap != gap {
 			flexLayout.Gap = gap
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
@@ -160,7 +159,6 @@ func (b *ContainerBuilder) Justify(alignment layout.Alignment) *ContainerBuilder
 	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Justify != alignment {
 			flexLayout.Justify = alignment
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
@@ -172,15 +170,13 @@ func (b *ContainerBuilder) AlignItems(alignment layout.Alignment) *ContainerBuil
 	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.AlignItems != alignment {
 			flexLayout.AlignItems = alignment
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
 	return b
 }
 
-// --- Common Property Helpers ---
-// [改良] メソッドチェーンが途切れないように、戻り値の型を *ContainerBuilder にします。
+// --- Common Property Helpers (overridden for method chaining) ---
 
 // Size はコンテナのサイズを設定します。
 func (b *ContainerBuilder) Size(width, height int) *ContainerBuilder {
@@ -207,7 +203,6 @@ func (b *ContainerBuilder) Position(x, y int) *ContainerBuilder {
 }
 
 // --- Style Helpers ---
-// [新機能] スタイルをより直感的に設定するためのヘルパーメソッド群です。
 
 // BackgroundColor はコンテナの背景色を設定します。
 func (b *ContainerBuilder) BackgroundColor(c color.Color) *ContainerBuilder {
@@ -231,17 +226,6 @@ func (b *ContainerBuilder) BorderRadius(radius float32) *ContainerBuilder {
 	return b.Style(style.Style{BorderRadius: style.PFloat32(radius)})
 }
 
-// StyleHelper は一般的に使用されるスタイルを簡単に作成するためのヘルパー関数です。
-func StyleHelper(background color.Color, textColor color.Color) style.Style {
-	return style.Style{
-		Background: style.PColor(background),
-		TextColor:  style.PColor(textColor),
-		Padding: style.PInsets(style.Insets{
-			Top: 5, Right: 10, Bottom: 5, Left: 10,
-		}),
-	}
-}
-
 // --- GridContainerBuilder ---
 
 // GridContainerBuilder はGridLayoutコンテナに特化した設定メソッドを提供します。
@@ -254,7 +238,6 @@ func (b *GridContainerBuilder) Columns(count int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if count > 0 && gridLayout.Columns != count {
 			gridLayout.Columns = count
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
@@ -266,7 +249,6 @@ func (b *GridContainerBuilder) Rows(count int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.Rows != count {
 			gridLayout.Rows = count
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
@@ -278,7 +260,6 @@ func (b *GridContainerBuilder) HorizontalGap(gap int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.HorizontalGap != gap {
 			gridLayout.HorizontalGap = gap
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
@@ -290,14 +271,14 @@ func (b *GridContainerBuilder) VerticalGap(gap int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.VerticalGap != gap {
 			gridLayout.VerticalGap = gap
-			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
 			b.MarkDirty(true)
 		}
 	}
 	return b
 }
 
-// [改良] メソッドチェーンがGridContainerBuilderを返すようにオーバーライドします。
+// --- Overridden methods for GridContainerBuilder method chaining ---
+
 func (b *GridContainerBuilder) Size(width, height int) *GridContainerBuilder {
 	b.ContainerBuilder.Size(width, height)
 	return b

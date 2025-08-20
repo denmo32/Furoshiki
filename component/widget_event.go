@@ -3,8 +3,8 @@ package component
 import (
 	"furoshiki/event"
 	"image"
-	"log"           // ログ出力のために追加
-	"runtime/debug" // スタックトレース取得のために追加
+	"log"
+	"runtime/debug"
 )
 
 // AddEventHandler は、指定されたイベントタイプに対応するイベントハンドラを登録します。

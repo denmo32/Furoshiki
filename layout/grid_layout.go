@@ -20,7 +20,6 @@ type GridLayout struct {
 // Layout は GridLayout のレイアウトロジックを実装します。
 // コンテナの利用可能なスペースを列数と行数で均等に分割し、各子要素をセルに配置します。
 func (l *GridLayout) Layout(container Container) {
-	// [改良] 共通化された getVisibleChildren を使用します。
 	children := getVisibleChildren(container)
 	childCount := len(children)
 	if childCount == 0 {
@@ -67,11 +66,6 @@ func (l *GridLayout) Layout(container Container) {
 
 	// すべての子をループし、位置とサイズを設定します。
 	for i, child := range children {
-		// 非表示の子はスキップ (getVisibleChildrenでフィルタリング済みですが念のため)
-		if !child.IsVisible() {
-			continue
-		}
-
 		// インデックスから現在の行と列を計算します。
 		row := i / columns
 		col := i % columns
@@ -90,5 +84,3 @@ func (l *GridLayout) Layout(container Container) {
 		child.SetSize(cellWidth, cellHeight)
 	}
 }
-
-// [削除] getVisibleChildren は共通の layout/utils.go に移動しました。

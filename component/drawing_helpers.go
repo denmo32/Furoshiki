@@ -183,7 +183,7 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 }
 
 // DrawAlignedText は、指定された矩形領域内にテキストを揃えて描画します。
-// [改良] 水平・垂直方向の揃え位置をスタイルで指定できるようになりました。
+// 水平・垂直方向の揃え位置をスタイルで指定できます。
 func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
 	// フォントが未設定、またはテキストが空の場合は何も描画しません。
 	if textContent == "" || s.Font == nil || *s.Font == nil {
@@ -209,7 +209,7 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 	// テキストの描画範囲を計算します。
 	bounds := text.BoundString(*s.Font, textContent)
 
-	// [改良] 水平方向の揃え位置を計算します。
+	// 水平方向の揃え位置を計算します。
 	var textX int
 	textAlign := style.TextAlignLeft // デフォルトは左揃え
 	if s.TextAlign != nil {
@@ -224,7 +224,7 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 		textX = contentRect.Min.X
 	}
 
-	// [改良] 垂直方向の揃え位置を計算します。
+	// 垂直方向の揃え位置を計算します。
 	var textY int
 	metrics := (*s.Font).Metrics()
 	textHeight := (metrics.Ascent + metrics.Descent).Ceil()

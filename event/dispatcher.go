@@ -56,9 +56,8 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 			d.hoveredComponent.HandleEvent(Event{
 				Type:   MouseLeave,
 				Target: d.hoveredComponent,
-				// [改良] イベントに現在のカーソル座標を含めます。
-				X: cx,
-				Y: cy,
+				X:      cx,
+				Y:      cy,
 			})
 		}
 		// 2. 新しいコンポーネントにマウスが入った場合 (MouseEnter)
@@ -67,9 +66,8 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 			currentTarget.HandleEvent(Event{
 				Type:   MouseEnter,
 				Target: currentTarget,
-				// [改良] イベントに現在のカーソル座標を含めます。
-				X: cx,
-				Y: cy,
+				X:      cx,
+				Y:      cy,
 			})
 		}
 		// 3. ホバー中のコンポーネントを更新

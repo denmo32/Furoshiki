@@ -19,7 +19,6 @@ type Event struct {
 	// Type はイベントの種類を示します。
 	Type EventType
 	// Target はイベントが発生したコンポーネントへの参照です。
-	// 型安全性を向上させるため、公開された EventTarget インターフェースを使用します。
 	Target EventTarget
 	// X, Y はマウスイベントが発生したスクリーン座標です。
 	X, Y int

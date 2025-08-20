@@ -24,14 +24,6 @@ type Container interface {
 	GetPadding() Insets
 }
 
-// LayoutType はレイアウトの種類を定義します。現在は直接使用されていません。
-type LayoutType int
-
-const (
-	LayoutAbsolute LayoutType = iota
-	LayoutFlex
-)
-
 // Alignment は要素の揃え位置を定義します。
 type Alignment int
 

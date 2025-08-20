@@ -82,7 +82,7 @@ func (b *Builder[T, W]) Flex(flex int) T {
 	return b.self
 }
 
-// --- [新機能] Style Helpers ---
+// --- Style Helpers ---
 
 // BackgroundColor はウィジェットの背景色を設定します。
 func (b *Builder[T, W]) BackgroundColor(c color.Color) T {

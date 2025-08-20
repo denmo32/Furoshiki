@@ -8,17 +8,11 @@ import (
 
 // --- Label component ---
 // LabelはTextWidgetを直接埋め込みます。主にテキストを表示するためのシンプルなウィジェットです。
-// 描画は、埋め込まれたcomponent.TextWidgetのDrawメソッドによって直接処理されます。
+// 描画やヒットテストは、埋め込まれたcomponent.TextWidgetおよびcomponent.LayoutableWidgetの
+// メソッドによって直接処理されるため、この型でメソッドをオーバーライドする必要はありません。
 type Label struct {
 	*component.TextWidget
 }
-
-// [削除] Label自身のDrawメソッドは、埋め込まれたTextWidgetのDrawメソッドと完全に同一のため削除しました。
-// これによりコードの冗長性がなくなり、TextWidgetの描画ロジックが直接利用されます。
-
-// [削除] HitTestメソッドは、component.LayoutableWidgetの汎用的な実装で十分なため、削除します。
-// LayoutableWidgetは初期化時に具象ウィジェット(self)への参照を受け取り、
-// HitTestが成功した際にその参照を返すため、具象型でのオーバーライドは不要です。
 
 // --- LabelBuilder ---
 // LabelBuilder は、Labelを安全かつ流れるように構築するためのビルダーです。
@@ -26,6 +20,7 @@ type LabelBuilder struct {
 	Builder[*LabelBuilder, *Label]
 }
 
+// NewLabelBuilder は新しいLabelBuilderを生成します。
 func NewLabelBuilder() *LabelBuilder {
 	// まずラベルインスタンスを作成
 	label := &Label{}

@@ -2,7 +2,7 @@ package component
 
 import (
 	"furoshiki/style"
-	"furoshiki/utils" // [修正] インポート先を layout から utils に変更
+	"furoshiki/utils"
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -93,7 +93,7 @@ func (t *TextWidget) GetMinSize() (int, int) {
 	// ユーザーが .MinSize() で明示的に設定した最小サイズを取得します。
 	userMinWidth, userMinHeight := t.LayoutableWidget.GetMinSize()
 
-	// [修正] utilsパッケージのMax関数を使用します。
+	// utilsパッケージのMax関数を使用します。
 	// 両者を比較し、各次元で大きい方を最終的な最小サイズとします。
 	finalMinWidth := utils.Max(contentMinWidth, userMinWidth)
 	finalMinHeight := utils.Max(contentMinHeight, userMinHeight)

@@ -1,12 +1,11 @@
 package widget
 
 import (
-	"image"
-	"image/color"
-
 	"furoshiki/component"
 	"furoshiki/event"
 	"furoshiki/style"
+	"image"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -52,6 +51,7 @@ type ButtonBuilder struct {
 	hoverStyleDiff *style.Style
 }
 
+// NewButtonBuilder は新しいButtonBuilderを生成します。
 func NewButtonBuilder() *ButtonBuilder {
 	defaultStyle := style.Style{
 		Background:  style.PColor(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
@@ -71,9 +71,8 @@ func NewButtonBuilder() *ButtonBuilder {
 
 	button.SetSize(100, 40)
 	button.SetStyle(defaultStyle)
-	// [修正] hoverStyleの初期化はBuild()メソッドで行われるため、ここでの設定は不要です。
+	// hoverStyleの最終的な設定は、全てのスタイル設定が終わった後のBuild()メソッドで行います。
 	// これにより、ロジックがBuild()内に集約され、より見通しが良くなります。
-	// button.hoverStyle = defaultStyle
 
 	b := &ButtonBuilder{}
 	b.Builder.Init(b, button)

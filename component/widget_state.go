@@ -26,7 +26,7 @@ func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
 // MarkDirty はウィジェットの状態が変更されたことをマークします。
 // relayoutがtrueの場合、親コンテナにも再レイアウトが必要であることを伝播させます。
 func (w *LayoutableWidget) MarkDirty(relayout bool) {
-	// すでにダーティで、かつ再レイアウトフラグが既に立っている場合は何もしません。
+	// すでにダーティで、かつ再レイアウト要求が既に立っている場合は何もしません。
 	if w.dirty && (!relayout || w.relayoutDirty) {
 		return
 	}
@@ -53,8 +53,7 @@ func (w *LayoutableWidget) SetRelayoutBoundary(isBoundary bool) {
 }
 
 // IsDirty はウィジェットが再描画または再レイアウトを必要とするかどうかを返します。
-// relayoutDirtyも考慮したフラグを返す方がより正確かもしれませんが、
-// 現在の実装では、レイアウトコンテナがIsDirty()で再計算の要否を判断するため、これで機能します。
+// レイアウトコンテナはこのフラグを見て、レイアウトの再計算を行うかを判断します。
 func (w *LayoutableWidget) IsDirty() bool {
 	return w.dirty
 }

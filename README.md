@@ -45,7 +45,7 @@ Furoshikiを理解するための主要な概念です。
 
 ### 3. シンプルなイベントシステム
 
-`OnClick`, `OnMouseEnter`, `OnMouseLeave` といった一般的なUIイベントを、`event.Event`オブジェクトを受け取るコールバック関数としてコンポーネントに簡単に関連付けることができます。
+`OnClick` のような一般的なUIイベントを、`event.Event`オブジェクトを受け取るコールバック関数としてコンポーネントに簡単に関連付けることができます。
 
 ### 4. 動的なUI操作
 
@@ -53,7 +53,7 @@ Furoshikiを理解するための主要な概念です。
 
 ## 使い方 (Usage Example)
 
-`ui` パッケージのヘルパー関数と、新しく追加されたビルダーのスタイルヘルパーメソッドを組み合わせることで、UIの構造と見た目を極めて直感的に記述できます。
+`ui` パッケージのヘルパー関数と、ビルダーのスタイルヘルパーメソッドを組み合わせることで、UIの構造と見た目を極めて直感的に記述できます。
 
 ```go
 // 使用例
@@ -71,7 +71,8 @@ root, _ := ui.VStack(func(b *ui.ContainerBuilder) {
           BackgroundColor(color.RGBA{R: 70, G: 130, B: 180, A: 255}).
           TextColor(color.White).
           TextAlign(style.TextAlignCenter).
-          VerticalAlign(style.VerticalAlignMiddle)
+          VerticalAlign(style.VerticalAlignMiddle).
+          BorderRadius(8)
     })
 
     // ボタンエリア
@@ -89,10 +90,10 @@ root, _ := ui.VStack(func(b *ui.ContainerBuilder) {
               OnClick(func(e event.Event) { fmt.Println("Cancel clicked") })
         })
     })
-    
+
     // Spacerを使って残りのスペースを押し広げる
     b.Spacer()
-    
+
     // フッターラベル
     b.Label(func(l *widget.LabelBuilder) {
         l.Text("Footer Area")

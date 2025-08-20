@@ -41,8 +41,7 @@ func (g *Game) Update() error {
 
 // Draw はゲームを描画します
 func (g *Game) Draw(screen *ebiten.Image) {
-	// 背景色はルートコンテナのスタイルで設定するため、ここでのFillは不要になります。
-	// screen.Fill(color.RGBA{R: 240, G: 240, B: 240, A: 255})
+	// ルートコンテナが自身の背景を描画するため、ここでの画面クリアは不要です。
 	g.root.Draw(screen)
 
 	// FPSなどのデバッグ情報を表示
@@ -51,6 +50,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 // Layout はゲームの画面サイズを返します
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	// ここで返すサイズが、UIのルートコンテナのサイズと一致することが重要です。
 	return 400, 500
 }
 
@@ -91,14 +91,14 @@ func main() {
 	})
 
 	// --- UIの構築 ---
-	// [大幅改良] uiパッケージの宣言的ヘルパーと新しいスタイルAPIで、より直感的にUIを構築します。
+	// uiパッケージの宣言的ヘルパーとメソッドチェーンにより、UIの構造を直感的に記述できます。
 	root, err := ui.VStack(func(b *ui.ContainerBuilder) {
 		b.Size(400, 500). // ウィンドウサイズに合わせる
-			Padding(20).    // 全体にパディング
-			Gap(15).        // 子要素間のギャップ
-			Justify(layout.AlignStart).
-			AlignItems(layout.AlignCenter).
-			BackgroundColor(color.RGBA{R: 245, G: 245, B: 245, A: 255})
+					Padding(20).    // 全体にパディング
+					Gap(15).        // 子要素間のギャップ
+					Justify(layout.AlignStart).
+					AlignItems(layout.AlignCenter).
+					BackgroundColor(color.RGBA{R: 245, G: 245, B: 245, A: 255})
 
 		// 1. タイトルラベル
 		b.Label(func(l *widget.LabelBuilder) {
@@ -144,7 +144,7 @@ func main() {
 				BackgroundColor(lightGray).
 				BorderRadius(4)
 
-			// ZStack内の要素はPositionで相対位置を指定
+			// ZStack内の要素はPositionでコンテナ内での相対位置を指定
 			b.Label(func(l *widget.LabelBuilder) {
 				l.Text("Overlapping Content").
 					Style(baseTextStyle).
@@ -163,7 +163,7 @@ func main() {
 			})
 		})
 
-		// 4. [新機能] Spacerを使って残りの垂直スペースを埋める
+		// 4. Spacerを使って残りの垂直スペースを埋める
 		b.Spacer()
 
 		// 5. グリッドレイアウトのデモ
@@ -198,7 +198,7 @@ func main() {
 	}
 
 	ebiten.SetWindowSize(400, 500)
-	ebiten.SetWindowTitle("Furoshiki UI Demo (Improved)")
+	ebiten.SetWindowTitle("Furoshiki UI Demo")
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatalf("Ebiten run game failed: %v", err)
 	}

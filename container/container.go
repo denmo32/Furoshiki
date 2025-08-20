@@ -2,11 +2,10 @@ package container
 
 import (
 	"fmt"
-	"log"           // ログ出力のために追加
-	"runtime/debug" // スタックトレース取得のために追加
-
 	"furoshiki/component"
 	"furoshiki/layout"
+	"log"
+	"runtime/debug"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -127,7 +126,6 @@ func (c *Container) HitTest(x, y int) component.Widget {
 			return target // ヒットした子を返します。
 		}
 	}
-	// [改善] コメントを実際の挙動に合わせて修正しました。
 	// どの子にもヒットしなかった場合、コンテナ自身がヒットするかテストします。
 	// これにより、子の間の隙間やパディング部分でコンテナがイベントを受け取ることができます。
 	if c.LayoutableWidget.HitTest(x, y) != nil {
@@ -158,6 +156,7 @@ func (c *Container) AddChild(child component.Widget) {
 		return
 	}
 	// 既に親が存在する場合は、その親から子を削除し、新しい親子関係を構築します。
+	// これにより、ウィジェットをUIツリー間で安全に「移動」させることができます。
 	if oldParent := child.GetParent(); oldParent != nil {
 		oldParent.RemoveChild(child)
 	}
