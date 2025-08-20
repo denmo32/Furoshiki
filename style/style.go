@@ -8,9 +8,8 @@ import (
 )
 
 // Styleはコンポーネントの視覚的プロパティを定義します。
-// [修正] ゼロ値（例: 0, nil）と「未設定」を区別できるように、
-// 多くのフィールドをポインタ型に変更します。これにより、Merge関数がより柔軟になります。
-// [改善] Background, BorderColor, Font, TextColor もポインタ型に変更し、一貫性を高めました。
+// ゼロ値（例: 0, nil）と「未設定」を区別できるように、
+// 多くのフィールドをポインタ型に変更しています。これにより、Merge関数がより柔軟になります。
 type Style struct {
 	Background   *color.Color
 	BorderColor  *color.Color
@@ -20,7 +19,7 @@ type Style struct {
 	Font         *font.Face
 	TextColor    *color.Color
 	BorderRadius *float32
-	Opacity      *float64
+	Opacity      *float64 // 0.0 (完全に透明) から 1.0 (完全に不透明)
 }
 
 // Insetsはマージンやパディングの四方の値を表します。
@@ -30,7 +29,6 @@ type Insets struct {
 
 // Mergeは2つのスタイルをマージします。
 // baseスタイルをベースに、overlayスタイルのプロパティがnilでない場合に値を上書きします。
-// [修正] ポインタ型のフィールドをチェックするようにロジックを更新しました。
 // これにより、意図的にBorderWidthを0に設定するなどの操作が可能になります。
 func Merge(base, overlay Style) Style {
 	result := base
@@ -68,7 +66,6 @@ func Merge(base, overlay Style) Style {
 
 // Validate はスタイルの値が有効かどうかを検証します。
 // 無効な値が見つかった場合はエラーを返します。
-// [修正] ポインタ型のフィールドに対応するため、nilチェックを追加します。
 func (s *Style) Validate() error {
 	if s.BorderWidth != nil && *s.BorderWidth < 0 {
 		return fmt.Errorf("border width must be non-negative, got %f", *s.BorderWidth)
@@ -91,4 +88,33 @@ func (s *Style) Validate() error {
 	}
 
 	return nil
+}
+
+// --- Pointer Helpers ---
+// 以下のヘルパー関数は、スタイル設定をより直感的かつシンプルにするために提供されます。
+// これらを使用することで、一時変数を宣言することなく、直接スタイル構造体に値を設定できます。
+
+// PColor は color.Color の値からそのポインタを生成して返します。
+func PColor(c color.Color) *color.Color {
+	return &c
+}
+
+// PFloat32 は float32 の値からそのポインタを生成して返します。
+func PFloat32(f float32) *float32 {
+	return &f
+}
+
+// PFloat64 は float64 の値からそのポインタを生成して返します。
+func PFloat64(f float64) *float64 {
+	return &f
+}
+
+// PInsets は Insets の値からそのポインタを生成して返します。
+func PInsets(i Insets) *Insets {
+	return &i
+}
+
+// PFont は font.Face の値からそのポインタを生成して返します。
+func PFont(f font.Face) *font.Face {
+	return &f
 }

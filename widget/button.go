@@ -3,8 +3,8 @@ package widget
 import (
 	"image"
 	"image/color"
-	"log"           // [追加] ログ出力のために追加
-	"runtime/debug" // [追加] スタックトレース取得のために追加
+	"log"           // ログ出力のために追加
+	"runtime/debug" // スタックトレース取得のために追加
 
 	"furoshiki/component"
 	"furoshiki/event"
@@ -17,11 +17,11 @@ import (
 // Button は、クリック可能なUI要素です。TextWidgetを拡張し、ホバー状態のスタイル管理機能を追加します。
 type Button struct {
 	*component.TextWidget
-	hoverStyle style.Style // ポインタから値型に変更。Nilチェックが不要になり、安全性が向上します。
+	hoverStyle style.Style // マウスホバー時のスタイル。値型で保持することでnilチェックを不要にします。
 }
 
 // SetHovered はホバー状態を設定し、再描画を要求します。
-// 実際のスタイルの選択はDrawメソッドで行われます。
+// component.LayoutableWidgetのSetHoveredを直接呼び出すことで、ダーティフラグが適切に設定されます。
 func (b *Button) SetHovered(hovered bool) {
 	b.TextWidget.SetHovered(hovered)
 }
@@ -35,13 +35,13 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	width, height := b.GetSize()
 	text := b.Text()
 
-	// 描画時にホバー状態を確認し、適切なスタイルを選択する
+	// 描画時にホバー状態を確認し、適切なスタイルを選択します。
 	styleToUse := b.GetStyle()
 	if b.IsHovered() {
 		styleToUse = b.hoverStyle
 	}
 
-	// 選択したスタイルで描画
+	// 選択したスタイルで背景とテキストを描画します。
 	component.DrawStyledBackground(screen, x, y, width, height, styleToUse)
 	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), styleToUse)
 }
@@ -58,24 +58,15 @@ type ButtonBuilder struct {
 	hoverStyleDiff *style.Style
 }
 
-// NewButtonBuilder は、デフォルトのスタイルで初期化されたButtonBuilderを返します。
-// [修正] 初期化をself参照パターンに合わせ、スタイル設定をポインタ対応にします。
 func NewButtonBuilder() *ButtonBuilder {
-	// ヘルパー関数で値をポインタ化
-	ptrFloat32 := func(v float32) *float32 { return &v }
-	// [修正] 具象型の値からcolor.Color型の変数を作成し、そのアドレスを渡す
-	bgColor := color.Color(color.RGBA{R: 220, G: 220, B: 220, A: 255})
-	textColor := color.Color(color.Black)
-	borderColor := color.Color(color.Gray{Y: 150})
-
 	defaultStyle := style.Style{
-		Background:  &bgColor,
-		TextColor:   &textColor,
-		BorderColor: &borderColor,
-		BorderWidth: ptrFloat32(1),
-		Padding: &style.Insets{
+		Background:  style.PColor(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
+		TextColor:   style.PColor(color.Black),
+		BorderColor: style.PColor(color.Gray{Y: 150}),
+		BorderWidth: style.PFloat32(1),
+		Padding: style.PInsets(style.Insets{
 			Top: 5, Right: 10, Bottom: 5, Left: 10,
-		},
+		}),
 	}
 	// まずボタンインスタンスを作成
 	button := &Button{}
@@ -96,9 +87,9 @@ func NewButtonBuilder() *ButtonBuilder {
 func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 	if onClick != nil {
 		b.Widget.AddEventHandler(event.EventClick, func(e event.Event) {
+			// ハンドラ内でパニックが発生してもアプリケーションがクラッシュしないようにリカバリします。
 			defer func() {
 				if r := recover(); r != nil {
-					// [改善] パニック発生時に、より詳細なデバッグ情報（スタックトレース）をログに出力します。
 					log.Printf("Recovered from panic in button click handler: %v\n%s", r, debug.Stack())
 				}
 			}()
@@ -134,5 +125,6 @@ func (b *ButtonBuilder) Build() (*Button, error) {
 		b.Widget.hoverStyle = b.Widget.GetStyle()
 	}
 
+	// 汎用ビルダーのBuildを呼び出して、最終的なサイズ調整などを行います。
 	return b.Builder.Build("Button")
 }

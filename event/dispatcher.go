@@ -8,7 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-// [改善] EventTargetインターフェースを公開し、型安全性を向上させます。
 // EventTargetは、Dispatcherがイベントをディスパッチするためにウィジェットが満たすべき最低限の振る舞いを定義するインターフェースです。
 // このインターフェースをeventパッケージ内で定義することで、componentパッケージへの依存をなくし、インポートサイクルを回避します。
 // component.Widgetは（構造的に）このインターフェースを満たします。
@@ -22,7 +21,8 @@ type EventTarget interface {
 // Dispatcherは、UIイベントを一元管理し、適切なコンポーネントにディスパッチします。
 // シングルトンパターンで実装され、UIツリー全体で唯一のインスタンスを共有します。
 type Dispatcher struct {
-	hoveredComponent EventTarget // 型を非公開インターフェースから公開インターフェースに変更
+	// 現在マウスカーソルがホバーしているコンポーネントを追跡します。
+	hoveredComponent EventTarget
 	mutex            sync.Mutex
 }
 
@@ -31,7 +31,7 @@ var (
 	once     sync.Once
 )
 
-// GetDispatcher は、Dispatcherのシングルトンインスタンスを返します。
+// GetDispatcher は、Dispatcherのシングルトンインスタンスをスレッドセーフに返します。
 func GetDispatcher() *Dispatcher {
 	once.Do(func() {
 		instance = &Dispatcher{}
@@ -41,18 +41,16 @@ func GetDispatcher() *Dispatcher {
 
 // Dispatch は、マウスイベントを処理し、適切なイベントをコンポーネントに発行します。
 // このメソッドは、アプリケーションのメインUpdateループから毎フレーム呼び出されることを想定しています。
-// [改善] target引数の型を EventTarget に変更し、型安全性を向上させます。
-// これにより、イベント処理に必要なメソッドを持たないオブジェクトが渡されることをコンパイル時に防ぎます。
+// target引数には、HitTestによって特定された、現在マウスカーソル下にあるウィジェットを渡します。
 func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	// targetは既にEventTarget型なので、型アサーションは不要です。
 	currentTarget := target
 
 	// ホバー状態の更新
 	if currentTarget != d.hoveredComponent {
-		// 以前ホバーされていたコンポーネントからマウスが離れた
+		// 1. 以前ホバーされていたコンポーネントからマウスが離れた場合 (MouseLeave)
 		if d.hoveredComponent != nil {
 			d.hoveredComponent.SetHovered(false)
 			d.hoveredComponent.HandleEvent(Event{
@@ -60,7 +58,7 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 				Target: d.hoveredComponent,
 			})
 		}
-		// 新しいコンポーネントにマウスが入った
+		// 2. 新しいコンポーネントにマウスが入った場合 (MouseEnter)
 		if currentTarget != nil {
 			currentTarget.SetHovered(true)
 			currentTarget.HandleEvent(Event{
@@ -68,6 +66,7 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 				Target: currentTarget,
 			})
 		}
+		// 3. ホバー中のコンポーネントを更新
 		d.hoveredComponent = currentTarget
 	}
 
@@ -97,7 +96,7 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 }
 
 // Reset は、ディスパッチャの内部状態をリセットします。
-// これは、UIツリーが完全に再構築される場合などに役立ちます。
+// これは、UIツリーが完全に再構築される場合や、モーダルウィンドウを閉じた後などに役立ちます。
 func (d *Dispatcher) Reset() {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()

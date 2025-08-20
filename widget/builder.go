@@ -19,12 +19,13 @@ type textWidget interface {
 }
 
 // Builder は、component.TextWidget をベースにしたウィジェットビルダーのための汎用的なベースです。
+// ジェネリクスを使用することで、コードの重複を避けつつ、型安全なメソッドチェーンを実現します。
 // T は具象ビルダーの型 (例: *LabelBuilder)
 // W はビルドされるウィジェットの型 (例: *Label)
 type Builder[T any, W textWidget] struct {
 	Widget W // 具象ビルダーからアクセスできるように公開します
 	errors []error
-	self   T
+	self   T // メソッドチェーンを可能にするために、具象ビルダー自身への参照を保持します
 }
 
 // Init はベースビルダーを初期化します。具象ビルダーのコンストラクタから呼び出す必要があります。
@@ -39,9 +40,9 @@ func (b *Builder[T, W]) Text(text string) T {
 	return b.self
 }
 
-// [追加] Positionは、ウィジェットの希望する相対位置を設定します。
-// この値は、親コンテナがAbsoluteLayoutを使用している場合に、子の配置位置として利用されます。
-// FlexLayoutなど他のレイアウトでは無視されることがあります。
+// Positionは、ウィジェットの希望する相対位置を設定します。
+// [重要] この設定は、親コンテナが `AbsoluteLayout` (例: `ui.ZStack` ヘルパーで作成) を
+// 使用している場合にのみ有効です。`FlexLayout` (VStack, HStack) など他のレイアウトでは無視されます。
 func (b *Builder[T, W]) Position(x, y int) T {
 	b.Widget.SetRequestedPosition(x, y)
 	return b.self
@@ -57,7 +58,7 @@ func (b *Builder[T, W]) Size(width, height int) T {
 	return b.self
 }
 
-// MinSize はウィジェットの最小サイズを設定します
+// MinSize はウィジェットの最小サイズを設定します。
 func (b *Builder[T, W]) MinSize(width, height int) T {
 	if width < 0 || height < 0 {
 		b.errors = append(b.errors, fmt.Errorf("min size must be non-negative, got %dx%d", width, height))
@@ -67,7 +68,7 @@ func (b *Builder[T, W]) MinSize(width, height int) T {
 	return b.self
 }
 
-// Style はウィジェットの基本スタイルを設定します。
+// Style はウィジェットの基本スタイルを設定します。既存のスタイルとマージされます。
 func (b *Builder[T, W]) Style(s style.Style) T {
 	existingStyle := b.Widget.GetStyle()
 	b.Widget.SetStyle(style.Merge(existingStyle, s))
@@ -85,7 +86,7 @@ func (b *Builder[T, W]) Flex(flex int) T {
 }
 
 // Build はウィジェットの構築を完了します。
-// [修正] ユーザーが設定したサイズとコンテンツに必要な最小サイズを比較し、
+// ユーザーが設定したサイズとコンテンツに必要な最小サイズを比較し、
 // ウィジェットがコンテンツを完全に表示できるサイズになるように調整します。
 func (b *Builder[T, W]) Build(typeName string) (W, error) {
 	if len(b.errors) > 0 {

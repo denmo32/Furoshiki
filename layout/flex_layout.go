@@ -36,6 +36,7 @@ func (l *FlexLayout) Layout(container Container) {
 	padding := container.GetPadding()
 	containerWidth, containerHeight := container.GetSize()
 
+	// コンテナに描画領域がない場合はレイアウトをスキップします。
 	if containerWidth <= 0 || containerHeight <= 0 {
 		return
 	}
@@ -78,7 +79,6 @@ func getVisibleChildren(container Container) []component.Widget {
 }
 
 // calculateInitialSizes は、各子要素の初期サイズとマージンを計算します。
-// [修正] スタイルのMarginがポインタ型になったため、nilチェックを追加します。
 func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bool) ([]flexItemInfo, int, float64) {
 	items := make([]flexItemInfo, len(children))
 	var totalFixedMainSize int
@@ -93,7 +93,7 @@ func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bo
 		info.widget = child
 		info.flex = child.GetFlex()
 
-		// Marginが設定されていればその値を、なければゼロ値を使用する
+		// Marginが設定されていればその値を、なければゼロ値を使用します。
 		margin := style.Insets{}
 		if s.Margin != nil {
 			margin = *s.Margin
@@ -134,33 +134,31 @@ func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, to
 	remainingSpace := mainSize - totalFixedMainSize - totalGap
 
 	if remainingSpace < 0 {
-		// [改善] スペース不足時の挙動についてコメントを追加
-		// スペース不足：固定サイズアイテム(flex値が0のアイテム)を、そのサイズに比例して縮小します。
-		// flex値を持つアイテムは、この段階では縮小されません。これはCSS Flexboxのflex-shrinkの
-		// 限定的な実装と見なせます。
-		// totalFixedMainSizeが0の場合は縮小しない
+		// スペースが不足している場合、flex値を持たない（固定サイズの）アイテムを、それぞれの主軸サイズに比例して縮小させます。
+		// ただし、各アイテムは自身の最小サイズより小さくなることはありません。
+		// これはCSS Flexboxの`flex-shrink`の挙動を簡略化したものです。
 		if totalFixedMainSize > 0 {
-			// scaleは、利用可能なスペースを要求されたスペースで割った値。
+			// scaleは、利用可能なスペースを要求されたスペースで割った縮小率です。
 			scale := float64(mainSize-totalGap) / float64(totalFixedMainSize)
 			if scale > 0 { // scaleが0以下だとすべてのサイズが0になってしまうためチェック
 				for i := range items {
-					// flexアイテムは後で調整されるため、ここでは固定サイズアイテムのみを対象とする。
+					// flexアイテムは後で調整されるため、ここでは固定サイズアイテムのみを対象とします。
 					if items[i].flex == 0 {
-						// 縮小後の期待サイズを計算
+						// 縮小後の期待サイズを計算します。
 						newSize := int(float64(items[i].mainSize+items[i].mainMargin) * scale)
 
-						// ウィジェットの最小サイズを取得
+						// ウィジェットの最小サイズを取得します。
 						minW, minH := items[i].widget.GetMinSize()
 						minMainSize := ifThen(isRow, minW, minH)
 
-						// 最小サイズを下回らないようにサイズを決定する
+						// 最小サイズを下回らないようにサイズを決定します。
 						items[i].mainSize = max(minMainSize, newSize-items[i].mainMargin)
 					}
 				}
 			}
 		}
 	} else if totalFlex > 0 && remainingSpace > 0 {
-		// スペース余剰：flexアイテムに分配
+		// スペースに余剰がある場合、flexアイテムにflex値に応じて分配します。
 		sizePerFlex := float64(remainingSpace) / totalFlex
 		for i := range items {
 			if items[i].flex > 0 {
@@ -174,11 +172,14 @@ func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, to
 // calculateCrossAxisSizes は、交差軸のサイズを計算します（AlignStretch対応）。
 func (l *FlexLayout) calculateCrossAxisSizes(items []flexItemInfo, crossSize int, isRow bool) {
 	if l.AlignItems == AlignStretch {
+		// AlignStretchの場合、すべての子をコンテナの交差軸サイズいっぱいに引き伸ばします。
 		for i := range items {
 			minW, minH := items[i].widget.GetMinSize()
+			// ただし、子の最小サイズは下回らないようにします。
 			items[i].crossSize = max(ifThen(isRow, minH, minW), crossSize-items[i].crossMargin)
 		}
 	} else {
+		// それ以外の場合は、子の本来のサイズまたは最小サイズを使用します。
 		for i := range items {
 			w, h := items[i].widget.GetSize()
 			minW, minH := items[i].widget.GetMinSize()
@@ -215,6 +216,7 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 	}
 	currentTotalMainSize += totalGap
 
+	// Justifyプロパティに基づいて、主軸方向の開始オフセットを計算します。
 	freeSpace := mainSize - currentTotalMainSize
 	mainOffset := 0
 	switch l.Justify {
@@ -235,6 +237,7 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 	for _, item := range items {
 		currentMain += item.mainMarginStart
 
+		// AlignItemsプロパティに基づいて、交差軸方向のオフセットを計算します。
 		crossOffset := 0
 		switch l.AlignItems {
 		case AlignCenter:
@@ -245,6 +248,7 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 
 		finalCrossPos := crossStart + crossOffset
 
+		// 最終的な絶対座標を設定します。
 		if isRow {
 			item.widget.SetPosition(containerX+currentMain, containerY+finalCrossPos)
 		} else {

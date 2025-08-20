@@ -7,16 +7,14 @@ import (
 )
 
 // --- Label component ---
-// LabelはTextWidgetを直接埋め込みます。Label固有のロジックは今のところありません。
-// 主にテキストを表示するためのシンプルなウィジェットです。
-// [改善] 描画は、埋め込まれたcomponent.TextWidgetのDrawメソッドによって直接処理されます。
+// LabelはTextWidgetを直接埋め込みます。主にテキストを表示するためのシンプルなウィジェットです。
+// 描画は、埋め込まれたcomponent.TextWidgetのDrawメソッドによって直接処理されます。
 type Label struct {
 	*component.TextWidget
 }
 
 // [削除] Label自身のDrawメソッドは、埋め込まれたTextWidgetのDrawメソッドと完全に同一のため削除しました。
 // これによりコードの冗長性がなくなり、TextWidgetの描画ロジックが直接利用されます。
-// これに伴い、Label固有の描画ロジックは不要となり、コードがよりシンプルで保守しやすくなりました。
 
 // [削除] HitTestメソッドは、component.LayoutableWidgetの汎用的な実装で十分なため、削除します。
 // LayoutableWidgetは初期化時に具象ウィジェット(self)への参照を受け取り、
@@ -28,8 +26,6 @@ type LabelBuilder struct {
 	Builder[*LabelBuilder, *Label]
 }
 
-// NewLabelBuilder は、デフォルトのスタイルで初期化されたLabelBuilderを返します。
-// [修正] 初期化をself参照パターンに合わせ、スタイル設定をポインタ対応にします。
 func NewLabelBuilder() *LabelBuilder {
 	// まずラベルインスタンスを作成
 	label := &Label{}
@@ -38,16 +34,12 @@ func NewLabelBuilder() *LabelBuilder {
 
 	label.SetSize(100, 30)
 
-	// [修正] 具象型の値からcolor.Color型の変数を作成し、そのアドレスを渡す
-	bgColor := color.Color(color.Transparent)
-	textColor := color.Color(color.Black)
-
 	defaultStyle := style.Style{
-		Background: &bgColor,
-		TextColor:  &textColor,
-		Padding: &style.Insets{
+		Background: style.PColor(color.Transparent),
+		TextColor:  style.PColor(color.Black),
+		Padding: style.PInsets(style.Insets{
 			Top: 2, Right: 5, Bottom: 2, Left: 5,
-		},
+		}),
 	}
 	label.SetStyle(defaultStyle)
 

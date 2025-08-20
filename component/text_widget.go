@@ -17,7 +17,7 @@ type TextWidget struct {
 }
 
 // NewTextWidget は新しいTextWidgetを生成します。
-// [修正] 第一引数に、このTextWidgetを埋め込む具象ウィジェット(self)への参照を取るように変更します。
+// 第一引数には、このTextWidgetを埋め込む具象ウィジェット(self)への参照を取ります。
 func NewTextWidget(self Widget, text string) *TextWidget {
 	return &TextWidget{
 		LayoutableWidget: NewLayoutableWidget(self),
@@ -34,14 +34,13 @@ func (t *TextWidget) Text() string {
 func (t *TextWidget) SetText(text string) {
 	if t.text != text {
 		t.text = text
-		// テキスト変更は最小サイズに影響する可能性があるため再レイアウトが必要
+		// テキスト変更は最小サイズに影響し、レイアウトが変わる可能性があるため再レイアウトを要求します。
 		t.MarkDirty(true)
 	}
 }
 
-// Draw はTextWidgetを描画します。LayoutableWidgetのDrawをオーバーライドしてテキストを追加描画します。
-// [修正] 埋め込み先のDrawメソッドを呼び出すのをやめ、このメソッド内で背景とテキストの両方を描画するように変更します。
-// これにより、描画ロジックがこのウィジェット内で完結し、意図しない動作を防ぎます。
+// Draw はTextWidgetを描画します。
+// このメソッド内で背景とテキストの両方を描画することで、描画ロジックがこのウィジェット内で完結します。
 func (t *TextWidget) Draw(screen *ebiten.Image) {
 	if !t.isVisible {
 		return
@@ -49,35 +48,36 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	// ゲッターメソッドを使用してプロパティを取得
 	x, y := t.GetPosition()
 	width, height := t.GetSize()
-	style := t.GetStyle()
+	currentStyle := t.GetStyle()
 
-	// 最初に背景と境界線を描画
-	DrawStyledBackground(screen, x, y, width, height, style)
+	// 最初に背景と境界線を描画します。
+	DrawStyledBackground(screen, x, y, width, height, currentStyle)
 
-	// 次にテキストを描画
-	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), style)
+	// 次にその上にテキストを描画します。
+	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), currentStyle)
 }
 
-// CalculateMinSize は、現在のテキストとスタイルに基づいて最小サイズを計算します。
-// [修正] スタイルのPaddingとFontがポインタになったため、nilチェックを追加します。
+// CalculateMinSize は、現在のテキストとスタイルに基づいてウィジェットが表示されるべき最小サイズを計算します。
+// この値はレイアウトシステムによって利用されます。
 func (t *TextWidget) CalculateMinSize() (int, int) {
 	s := t.GetStyle()
-	// [改善] s.Fontがポインタになったため、nilチェックを追加。
+	// テキストとフォントが存在する場合のみ、コンテンツに基づいたサイズを計算します。
 	if t.text != "" && s.Font != nil && *s.Font != nil {
 		bounds := text.BoundString(*s.Font, t.text)
 
-		// パディングの値を取得（nilの場合はゼロ値として扱う）
+		// パディングの値を取得（nilの場合はゼロ値として扱います）
 		padding := s.Padding
 		if s.Padding == nil {
-			// [修正] style.Paddingがnilの場合、ゼロ値のstyle.Insetsを作成して計算を続行
 			padding = &style.Insets{}
 		}
 
+		// テキストの幅と高さにパディングを加えたものを最小サイズとします。
 		minWidth := bounds.Dx() + padding.Left + padding.Right
 		metrics := (*s.Font).Metrics()
 		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + padding.Top + padding.Bottom
 
-		// 既存の最小サイズより大きい場合はそれを優先
+		// ユーザーによって明示的に設定された最小サイズ(minWidth, minHeight)がある場合は、
+		// 計算値と比べて大きい方を最終的な最小サイズとします。
 		if t.minWidth > minWidth {
 			minWidth = t.minWidth
 		}
@@ -87,6 +87,6 @@ func (t *TextWidget) CalculateMinSize() (int, int) {
 
 		return minWidth, minHeight
 	}
-	// テキストがない場合でも設定済みの最小サイズを返す
+	// テキストがない場合でも、ユーザー設定の最小サイズは尊重します。
 	return t.minWidth, t.minHeight
 }

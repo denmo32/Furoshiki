@@ -21,26 +21,25 @@ import (
 // Game はEbitenのゲームインターフェースを実装します
 type Game struct {
 	root       *container.Container
-	dispatcher *event.Dispatcher // [追加] イベントディスパッチャへの参照を追加
+	dispatcher *event.Dispatcher
 }
 
 // Update はゲームの状態を更新します
-// [改善] イベントディスパッチャを呼び出し、UIイベントを処理するように変更します。
 func (g *Game) Update() error {
 	// 1. UIツリーの状態更新とレイアウト計算
+	// この中で、ダーティマークされたコンテナのレイアウトが再計算されます。
 	g.root.Update()
 
-	// 2. マウスカーソル下のウィジェットを特定し、イベントをディスパッチ
+	// 2. マウスカーソル下のウィジェットを特定し、イベントをディスパッチします。
 	cx, cy := ebiten.CursorPosition()
 	target := g.root.HitTest(cx, cy) // ヒットしたウィジェットを取得
 	// component.Widgetはevent.EventTargetインターフェースを構造的に満たすため、直接渡せます。
-	g.dispatcher.Dispatch(target, cx, cy) // ディスパッチャに処理を委譲
+	g.dispatcher.Dispatch(target, cx, cy) // ディスパッチャにイベント処理を委譲
 
 	return nil
 }
 
 // Draw はゲームを描画します
-// [修正] メソッドレシーバーのタイプミス (g.Game) を正しい構文 (g *Game) に修正しました。
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{R: 240, G: 240, B: 240, A: 255})
 	g.root.Draw(screen)
@@ -49,7 +48,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 // Layout はゲームの画面サイズを返します
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	// [更新] GridLayoutのデモを追加したため、高さを増やします
 	return 400, 450
 }
 
@@ -69,25 +67,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// [修正] style.Styleのフィールドがポインタになったため、&でアドレスを渡すように変更
-	// 全ウィジェットに適用する基本スタイルを定義
+	// [改良] スタイル設定にstyle.PFontヘルパーを使用
 	baseStyle := style.Style{
-		Font: &mplusFont,
+		Font: style.PFont(mplusFont),
 	}
 
+	// uiパッケージのヘルパーを使って宣言的にUIを構築します
 	root, err := ui.VStack(func(b *ui.ContainerBuilder) {
 		b.Padding(20).Gap(15).
 			Justify(layout.AlignStart).
 			AlignItems(layout.AlignCenter).
-			Size(400, 450) // [更新] 高さを増やします
+			Size(400, 450)
 
 		// タイトルラベル
 		b.Label(func(l *widget.LabelBuilder) {
 			l.Style(baseStyle) // 基本スタイルを適用
 			l.Text("Furoshiki UI Demo")
 			l.Size(300, 40)
-			// 色のスタイルをマージ
-			// [修正] ui.Styleヘルパーが返すStyleもポインタフィールドを持つため、そのままマージ可能
+			// 色のスタイルをマージします
+			// ui.Styleヘルパーは内部でポインタヘルパーを使うように改良済
 			l.Style(ui.Style(color.RGBA{R: 70, G: 130, B: 180, A: 255}, color.White))
 		})
 
@@ -96,7 +94,7 @@ func main() {
 			b.Gap(20).Size(300, 50)
 
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Style(baseStyle) // 基本スタイルを適用
+				btn.Style(baseStyle)
 				btn.Text("OK")
 				btn.Size(100, 40)
 				btn.OnClick(func() {
@@ -105,7 +103,7 @@ func main() {
 			})
 
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Style(baseStyle) // 基本スタイルを適用
+				btn.Style(baseStyle)
 				btn.Text("Cancel")
 				btn.Size(100, 40)
 				btn.OnClick(func() {
@@ -114,54 +112,49 @@ func main() {
 			})
 		})
 
-		// 重ね合わせコンテナ
+		// 重ね合わせコンテナ (ZStack)
 		b.ZStack(func(b *ui.ContainerBuilder) {
-			b.Size(300, 100) // [更新] 高さを調整
-			// コンテナ自体に背景色を設定
-			// [修正] color.Color 型の変数に具象型の値を入れることで、そのポインタを *color.Color として渡せるようにします。
-			bgColor := color.Color(color.RGBA{R: 220, G: 220, B: 220, A: 255})
+			b.Size(300, 100)
+			// [改良] style.PColorヘルパーを使い、一時変数が不要に
 			b.Style(style.Style{
-				Background: &bgColor,
+				Background: style.PColor(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
 			})
 
-			// 前景としてボタンを一つだけ追加
-			// [改善] 角丸とホバー時の不透明度スタイルを追加して、描画機能のデモを行います。
+			// 前景としてボタンを一つ追加します。
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Style(baseStyle) // 基本スタイルを適用
+				btn.Style(baseStyle)
 
-				// 角丸スタイルを追加
-				radius := float32(8.0)
-				btn.Style(style.Style{BorderRadius: &radius})
-
+				// [改良] PFloat32, PFloat64ヘルパーを使い、より直感的に
+				btn.Style(style.Style{
+					BorderRadius: style.PFloat32(8.0),
+				})
 				btn.Text("Overlay Button")
-				btn.Position(90, 35) // [更新] Y座標を調整
+				btn.Position(90, 35) // ZStack内での相対位置
 				btn.Size(120, 30)
 				btn.OnClick(func() {
 					fmt.Println("Overlay button clicked!")
 				})
-
-				// ホバー時のスタイル（少し半透明にする）
-				opacity := 0.8
-				btn.HoverStyle(style.Style{Opacity: &opacity})
+				btn.HoverStyle(style.Style{
+					Opacity: style.PFloat64(0.8),
+				})
 			})
 		})
 
-		// [追加] グリッドレイアウトのデモ
+		// グリッドレイアウトのデモ
 		b.Grid(func(g *ui.GridContainerBuilder) {
-			// [修正] メソッドチェーンが正しく動作するように修正
-			g.Size(300, 120).
-				Columns(3).
-				HorizontalGap(10).
-				VerticalGap(10)
+			g.Size(300, 120). // グリッドコンテナ自体のサイズ
+						Columns(3).
+						HorizontalGap(10).
+						VerticalGap(10)
 
 			// 3x2のグリッドに6つのボタンを配置
 			for i := 0; i < 6; i++ {
-				// ループ変数をキャプチャして、各ボタンが正しい番号を持つようにする
+				// ループ変数をキャプチャして、各ボタンが正しい番号を持つようにします
 				buttonIndex := i + 1
 				g.Button(func(btn *widget.ButtonBuilder) {
 					btn.Style(baseStyle)
 					btn.Text(fmt.Sprintf("Grid %d", buttonIndex))
-					// サイズはGridLayoutによって自動的に設定されるため、ここでは指定しない
+					// サイズはGridLayoutによって自動的に設定されるため、ここでは指定しません
 					btn.OnClick(func() {
 						fmt.Printf("Grid button %d clicked!\n", buttonIndex)
 					})
@@ -175,13 +168,12 @@ func main() {
 		panic(err)
 	}
 
-	// [修正] Game構造体を初期化する際に、イベントディスパッチャも取得
 	game := &Game{
 		root:       root,
 		dispatcher: event.GetDispatcher(),
 	}
 
-	ebiten.SetWindowSize(400, 450) // [更新] 高さを増やします
+	ebiten.SetWindowSize(400, 450)
 	ebiten.SetWindowTitle("Furoshiki UI Demo")
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)

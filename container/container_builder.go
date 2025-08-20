@@ -16,16 +16,15 @@ type ContainerBuilder struct {
 }
 
 // NewContainerBuilder は、デフォルト値で初期化されたContainerBuilderを返します。
-// [改善] デフォルトのレイアウトを、より汎用性が高く一般的に使用される FlexLayout に変更します。
-// [修正] Containerの初期化を、self参照を渡す新しい方式に変更します。
+// デフォルトのレイアウトは、汎用性が高い FlexLayout (Column方向) に設定されます。
 func NewContainerBuilder() *ContainerBuilder {
-	// まずコンテナのインスタンスを生成
+	// まずコンテナのインスタンスを生成します。
 	c := &Container{
 		children: make([]component.Widget, 0),
 	}
-	// 次に、コンテナ自身をselfとして渡してLayoutableWidgetを初期化
+	// 次に、コンテナ自身をselfとして渡してLayoutableWidgetを初期化します。
 	c.LayoutableWidget = component.NewLayoutableWidget(c)
-	// デフォルトのレイアウトを設定
+	// デフォルトのレイアウトを設定します。
 	c.layout = &layout.FlexLayout{}
 
 	return &ContainerBuilder{
@@ -33,13 +32,13 @@ func NewContainerBuilder() *ContainerBuilder {
 	}
 }
 
-// [追加] GetLayout は、ビルド中のコンテナが現在使用しているレイアウトを返します。
+// GetLayout は、ビルド中のコンテナが現在使用しているレイアウトを返します。
 // これにより、uiパッケージのヘルパーなどが、コンテナをビルドせずにレイアウトプロパティを変更できます。
 func (b *ContainerBuilder) GetLayout() layout.Layout {
 	return b.container.GetLayout()
 }
 
-// [追加] AddError は、ビルドプロセス中に発生したエラーをビルダーに記録します。
+// AddError は、ビルドプロセス中に発生したエラーをビルダーに記録します。
 // uiパッケージのヘルパー関数が、子のビルドエラーを親のビルダーに伝播させるために使用します。
 func (b *ContainerBuilder) AddError(err error) {
 	if err != nil {
@@ -84,7 +83,7 @@ func (b *ContainerBuilder) Layout(layout layout.Layout) *ContainerBuilder {
 	return b
 }
 
-// Style はコンテナのスタイルを設定します。
+// Style はコンテナのスタイルを設定します。既存のスタイルとマージされます。
 func (b *ContainerBuilder) Style(s style.Style) *ContainerBuilder {
 	existingStyle := b.container.GetStyle()
 	b.container.SetStyle(style.Merge(existingStyle, s))
@@ -127,12 +126,12 @@ func (b *ContainerBuilder) AddChildren(children ...component.Widget) *ContainerB
 // 構築中にエラーが発生した場合は、エラーを返します。
 func (b *ContainerBuilder) Build() (*Container, error) {
 	if len(b.errors) > 0 {
+		// 複数のエラーを一つにまとめて返します。
 		joinedErr := errors.Join(b.errors...)
 		return nil, fmt.Errorf("container build errors: %w", joinedErr)
 	}
 
-	// [削除] ビルド時の警告チェックを削除 - Updateメソッド内でチェックするように変更済
-
+	// ビルドが完了したコンテナをダーティマークし、最初のフレームでレイアウトが計算されるようにします。
 	b.container.MarkDirty(true)
 	return b.container, nil
 }

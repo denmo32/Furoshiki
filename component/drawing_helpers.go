@@ -18,7 +18,7 @@ var (
 	initOnce      sync.Once
 )
 
-// ensureWhitePixelImg は、描画に必要な白い1x1画像を初期化します。
+// ensureWhitePixelImg は、描画に必要な白い1x1画像をスレッドセーフに初期化します。
 func ensureWhitePixelImg() {
 	initOnce.Do(func() {
 		whitePixelImg = ebiten.NewImage(1, 1)
@@ -34,13 +34,13 @@ func applyOpacity(c color.Color, opacity *float64) color.Color {
 	if c == nil || opacity == nil {
 		return c
 	}
-	// NRGBAに変換してアルファ値を操作するのが最も安全
+	// NRGBAに変換してアルファ値を操作するのが最も安全な方法です。
 	nrgba := color.NRGBAModel.Convert(c).(color.NRGBA)
 	nrgba.A = uint8(float64(nrgba.A) * (*opacity))
 	return nrgba
 }
 
-// colorToScale は color.Color を ebiten.Vertex で使用する float32 の RGBA スケール値に変換します。
+// colorToScale は color.Color を ebiten.Vertex で使用する float32 の RGBA スケール値([0, 1])に変換します。
 func colorToScale(clr color.Color) (float32, float32, float32, float32) {
 	if clr == nil {
 		return 0, 0, 0, 0
@@ -52,11 +52,11 @@ func colorToScale(clr color.Color) (float32, float32, float32, float32) {
 }
 
 // createRoundedRectPath は、指定された半径で角丸矩形のパスを生成します。
-// vectorパッケージのパス機能を使って図形を定義します。
+// ebitengine/vector パッケージのパス機能を使って図形を定義します。
 func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 	path := &vector.Path{}
 
-	// 半径が矩形の幅や高さの半分を超える場合は調整
+	// 半径が矩形の幅や高さの半分を超える場合は、描画が崩れないように調整します。
 	maxRadius := width / 2
 	if height/2 < maxRadius {
 		maxRadius = height / 2
@@ -66,7 +66,7 @@ func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 	}
 
 	if radius <= 0 {
-		// 角丸が不要な場合は、単純な四角形のパスを生成
+		// 角丸が不要な場合は、単純な四角形のパスを生成します。
 		path.MoveTo(x, y)
 		path.LineTo(x+width, y)
 		path.LineTo(x+width, y+height)
@@ -75,7 +75,7 @@ func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 		return path
 	}
 
-	// 4つの角を円弧で結んで角丸矩形のパスを生成
+	// 4つの角を円弧(QuadTo)で結んで角丸矩形のパスを生成します。
 	path.MoveTo(x+radius, y)
 	path.LineTo(x+width-radius, y)
 	path.QuadTo(x+width, y, x+width, y+radius)
@@ -91,13 +91,12 @@ func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 }
 
 // DrawStyledBackground は、指定されたスタイルでウィジェットの背景と境界線を描画します。
-// [改善] Opacity(不透明度)とBorderRadius(角丸)に対応しました。
-// [修正] Ebitengineのバージョンに依存しにくい、基本的な描画APIのみを使用するように修正しました。
+// Opacity(不透明度)とBorderRadius(角丸)に対応しています。
 func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.Style) {
 	if width <= 0 || height <= 0 {
 		return
 	}
-	// 描画に必要な1x1の白ピクセル画像を準備
+	// 描画に必要な1x1の白ピクセル画像を準備します。
 	ensureWhitePixelImg()
 
 	// スタイルから値を取得 (nilの場合はゼロ値を使用)
@@ -112,12 +111,12 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 		radius = *s.BorderRadius
 	}
 
-	// DrawTrianglesのオプションは共通
+	// DrawTrianglesのオプションは背景と境界線で共通です。
 	drawTrianglesOptions := &ebiten.DrawTrianglesOptions{
 		AntiAlias: true,
 	}
 
-	// 背景色の描画
+	// 1. 背景色の描画
 	if bgColorPtr != nil && *bgColorPtr != color.Transparent {
 		bgColor := *bgColorPtr
 		if s.Opacity != nil {
@@ -125,27 +124,27 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 		}
 
 		if radius > 0 {
-			// 角丸矩形のパスを生成して塗りつぶし
+			// 角丸矩形のパスを生成して塗りつぶします。
 			path := createRoundedRectPath(float32(x), float32(y), float32(width), float32(height), radius)
-			// 塗りつぶし用の頂点とインデックスを生成
+			// 塗りつぶし用の頂点とインデックスを生成します。
 			vertices, indices := path.AppendVerticesAndIndicesForFilling(nil, nil)
 
-			// 全ての頂点に背景色を設定
+			// 全ての頂点に背景色を設定します。
 			cr, cg, cb, ca := colorToScale(bgColor)
 			for i := range vertices {
 				vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
 			}
 
-			// 三角形を描画
+			// 三角形を描画します。
 			dst.DrawTriangles(vertices, indices, whitePixelImg, drawTrianglesOptions)
 
 		} else {
-			// 通常の矩形を描画
+			// 通常の矩形（角丸なし）を描画します。
 			vector.DrawFilledRect(dst, float32(x), float32(y), float32(width), float32(height), bgColor, false)
 		}
 	}
 
-	// 境界線の描画
+	// 2. 境界線の描画
 	if borderColorPtr != nil && *borderColorPtr != color.Transparent && borderWidth > 0 {
 		borderColor := *borderColorPtr
 		if s.Opacity != nil {
@@ -153,7 +152,7 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 		}
 
 		if radius > 0 {
-			// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせる
+			// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせます。
 			halfBw := borderWidth / 2
 			fx, fy := float32(x)+halfBw, float32(y)+halfBw
 			fw, fh := float32(width)-borderWidth, float32(height)-borderWidth
@@ -163,40 +162,41 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 			}
 			insetPath := createRoundedRectPath(fx, fy, fw, fh, r)
 
-			// 線描画用の頂点とインデックスを生成
+			// 線描画用の頂点とインデックスを生成します。
 			strokeOpts := &vector.StrokeOptions{Width: borderWidth, MiterLimit: 10}
 			vertices, indices := insetPath.AppendVerticesAndIndicesForStroke(nil, nil, strokeOpts)
 
-			// 全ての頂点に境界線の色を設定
+			// 全ての頂点に境界線の色を設定します。
 			cr, cg, cb, ca := colorToScale(borderColor)
 			for i := range vertices {
 				vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
 			}
 
-			// 三角形を描画して線を描画
+			// 三角形を描画して線を描画します。
 			dst.DrawTriangles(vertices, indices, whitePixelImg, drawTrianglesOptions)
 
 		} else {
-			// 通常の矩形の境界線を描画
+			// 通常の矩形の境界線を描画します。
 			vector.StrokeRect(dst, float32(x), float32(y), float32(width), float32(height), borderWidth, borderColor, false)
 		}
 	}
 }
 
 // DrawAlignedText は、指定された矩形領域内にテキストを揃えて描画します。
-// [修正] スタイルプロパティがポインタになったため、nilチェックを追加して安全に値を取得します。
+// 現在は水平・垂直方向の中央揃えをサポートしています。
 func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
-	// [改善] s.Fontがポインタになったため、nilチェックを追加。
+	// フォントが未設定、またはテキストが空の場合は何も描画しません。
 	if textContent == "" || s.Font == nil || *s.Font == nil {
 		return
 	}
 
-	// パディングの値を取得（nilの場合は0として扱う）
+	// パディングの値を取得（nilの場合は0として扱います）
 	padding := style.Insets{}
 	if s.Padding != nil {
 		padding = *s.Padding
 	}
 
+	// パディングを考慮した、実際にテキストを描画できるコンテンツ領域を計算します。
 	contentRect := image.Rect(
 		area.Min.X+padding.Left,
 		area.Min.Y+padding.Top,
@@ -204,14 +204,15 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 		area.Max.Y-padding.Bottom,
 	)
 	if contentRect.Dx() <= 0 || contentRect.Dy() <= 0 {
-		return
+		return // 描画領域がない場合は終了します。
 	}
-	// テキストの描画範囲を計算
+	// テキストの描画範囲を計算します。
 	bounds := text.BoundString(*s.Font, textContent)
-	// 水平方向の中央揃え
+
+	// 水平方向の中央揃えのためのX座標を計算します。
 	textX := contentRect.Min.X + (contentRect.Dx()-bounds.Dx())/2
 
-	// [改善] 垂直方向の中央揃えをより正確に計算
+	// 垂直方向の中央揃えをより正確に計算します。
 	// font.Metrics を使用して、アセント（ベースラインより上の高さ）とディセント（ベースラインより下の高さ）を取得します。
 	metrics := (*s.Font).Metrics()
 	textHeight := (metrics.Ascent + metrics.Descent).Ceil()
@@ -219,14 +220,16 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 	// contentRectの中心にテキストの中心が来るように調整し、アセント分を足すことで正しいベースライン位置を求めます。
 	textY := contentRect.Min.Y + (contentRect.Dy()-textHeight)/2 + metrics.Ascent.Ceil()
 
-	// [改善] s.TextColorがポインタになったため、nilチェックとデリファレンスを追加。
-	textColor := color.Color(color.Black) // デフォルトは黒
+	// テキストの色を取得（nilの場合は黒をデフォルトとします）。
+	textColor := color.Color(color.Black)
 	if s.TextColor != nil {
 		textColor = *s.TextColor
 	}
-	// [追加] テキストにもOpacityを適用
+	// テキストにもOpacityを適用します。
 	if s.Opacity != nil {
 		textColor = applyOpacity(textColor, s.Opacity)
 	}
+
+	// テキストを描画します。
 	text.Draw(screen, textContent, *s.Font, textX, textY, textColor)
 }

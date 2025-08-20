@@ -1,14 +1,15 @@
 package layout
 
-// [追加] AbsoluteLayoutが子の相対位置を取得するために使用するインターフェース。
-// これにより、具体的なウィジェット型への依存を避けつつ、必要な機能にアクセスできます。
+// positionRequester は、AbsoluteLayoutが子の相対位置を取得するために使用するインターフェースです。
+// これにより、layoutパッケージが具体的なウィジェット型(component.LayoutableWidget)への直接的な依存を避けつつ、
+// 必要な機能にアクセスできます。
 type positionRequester interface {
 	GetRequestedPosition() (int, int)
 }
 
 // AbsoluteLayout は、子要素をコンテナ内の指定された相対座標に基づいて配置します。
 // 各子要素のビルダーで設定された Position(x, y) が、コンテナの左上からのオフセットとして使用されます。
-// [改善] レイアウト計算のたびに位置がずれていくバグを修正しました。
+// ZStack (重ね合わせ) のようなUIを実装するのに適しています。
 type AbsoluteLayout struct{}
 
 // Layout は AbsoluteLayout のレイアウトロジックを実装します。
@@ -18,7 +19,7 @@ func (l *AbsoluteLayout) Layout(container Container) {
 	padding := container.GetPadding()
 
 	for _, child := range container.GetChildren() {
-		// 非表示のコンポーネントはレイアウト処理をスキップ
+		// 非表示のコンポーネントはレイアウト処理をスキップします。
 		if !child.IsVisible() {
 			continue
 		}
@@ -27,6 +28,8 @@ func (l *AbsoluteLayout) Layout(container Container) {
 		var requestedX, requestedY int
 		if pr, ok := child.(positionRequester); ok {
 			requestedX, requestedY = pr.GetRequestedPosition()
+		} else {
+			// インターフェースを満たさない場合、(0,0)に配置されます。
 		}
 
 		// 子要素の最終的な絶対座標を、コンテナの絶対座標、パディング、子の要求相対座標から計算します。

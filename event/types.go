@@ -8,19 +8,24 @@ import "github.com/hajimehoshi/ebiten/v2"
 type EventType int
 
 const (
-	EventClick EventType = iota
-	MouseEnter
-	MouseLeave
-	MouseMove
+	EventClick EventType = iota // マウスクリックイベント
+	MouseEnter                 // マウスカーソルが要素に入ったイベント
+	MouseLeave                 // マウスカーソルが要素から離れたイベント
+	MouseMove                  // マウスカーソルが要素上で移動したイベント
 )
 
 // Event は、UIコンポーネント間でやり取りされるイベント情報を保持します。
 type Event struct {
+	// Type はイベントの種類を示します。
 	Type EventType
-	// [改善] Targetの型を interface{} から公開された EventTarget に変更し、型安全性を向上させます。
-	Target      EventTarget // イベントが発生したコンポーネント
-	X, Y        int         // マウスイベントの場合の座標
-	Timestamp   int64
+	// Target はイベントが発生したコンポーネントへの参照です。
+	// 型安全性を向上させるため、公開された EventTarget インターフェースを使用します。
+	Target EventTarget
+	// X, Y はマウスイベントが発生したスクリーン座標です。
+	X, Y int
+	// Timestamp はイベントが発生した時刻です。
+	Timestamp int64
+	// MouseButton は押されたマウスのボタンを示します。
 	MouseButton ebiten.MouseButton
 }
 

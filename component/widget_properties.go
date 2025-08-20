@@ -2,6 +2,8 @@ package component
 
 import "furoshiki/style"
 
+// SetPosition はウィジェットの絶対座標を設定します。
+// 座標が変更された場合、再描画を要求します（レイアウトの再計算は不要）。
 func (w *LayoutableWidget) SetPosition(x, y int) {
 	if w.x != x || w.y != y {
 		w.x = x
@@ -14,8 +16,10 @@ func (w *LayoutableWidget) GetPosition() (x, y int) {
 	return w.x, w.y
 }
 
+// SetSize はウィジェットのサイズを設定します。
+// サイズが変更された場合、親コンテナにレイアウトの再計算を要求します。
 func (w *LayoutableWidget) SetSize(width, height int) {
-	// サイズが負の値の場合は処理しない
+	// サイズが負の値の場合は処理しません。
 	if width < 0 || height < 0 {
 		return
 	}
@@ -31,8 +35,10 @@ func (w *LayoutableWidget) GetSize() (width, height int) {
 	return w.width, w.height
 }
 
+// SetMinSize はウィジェットの最小サイズを設定します。
+// 最小サイズが変更された場合、親コンテナにレイアウトの再計算を要求します。
 func (w *LayoutableWidget) SetMinSize(width, height int) {
-	// 最小サイズが負の値の場合は処理しない
+	// 最小サイズが負の値の場合は処理しません。
 	if width < 0 || height < 0 {
 		return
 	}
@@ -57,7 +63,7 @@ func (w *LayoutableWidget) SetRequestedPosition(x, y int) {
 	if w.requestedX != x || w.requestedY != y {
 		w.requestedX = x
 		w.requestedY = y
-		// 希望位置の変更は再レイアウトをトリガーすべき
+		// 希望位置の変更は再レイアウトをトリガーすべきです。
 		w.MarkDirty(true)
 	}
 }
@@ -68,6 +74,8 @@ func (w *LayoutableWidget) GetRequestedPosition() (int, int) {
 }
 
 
+// SetStyle はウィジェットのスタイルを設定します。
+// スタイルの変更はレイアウトに影響する可能性があるため、再レイアウトを要求します。
 func (w *LayoutableWidget) SetStyle(style style.Style) {
 	w.style = style
 	// スタイルの変更はパディングやマージンに影響し、レイアウトが変わる可能性があるため、
@@ -82,9 +90,10 @@ func (w *LayoutableWidget) GetStyle() style.Style {
 	return w.style
 }
 
+// SetFlex はFlexLayoutにおけるウィジェットの伸縮係数を設定します。
 func (w *LayoutableWidget) SetFlex(flex int) {
 	if flex < 0 {
-		flex = 0
+		flex = 0 // flex値は0以上である必要があります。
 	}
 	if w.flex != flex {
 		w.flex = flex
