@@ -44,10 +44,6 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), styleToUse)
 }
 
-// [削除] HitTestメソッドは、component.LayoutableWidgetの汎用的な実装で十分なため、削除します。
-// LayoutableWidgetは初期化時に具象ウィジェット(self)への参照を受け取り、
-// HitTestが成功した際にその参照を返すため、具象型でのオーバーライドは不要です。
-
 // --- ButtonBuilder ---
 // ButtonBuilder は、Buttonを安全かつ流れるように構築するためのビルダーです。
 type ButtonBuilder struct {
@@ -65,7 +61,6 @@ func NewButtonBuilder() *ButtonBuilder {
 		Padding: style.PInsets(style.Insets{
 			Top: 5, Right: 10, Bottom: 5, Left: 10,
 		}),
-		// [追加] ボタンテキストのデフォルト揃えは中央
 		TextAlign:     style.PTextAlignType(style.TextAlignCenter),
 		VerticalAlign: style.PVerticalAlignType(style.VerticalAlignMiddle),
 	}
@@ -76,22 +71,22 @@ func NewButtonBuilder() *ButtonBuilder {
 
 	button.SetSize(100, 40)
 	button.SetStyle(defaultStyle)
-	// 初期状態では、ホバースタイルは基本スタイルと同じ
-	button.hoverStyle = defaultStyle
+	// [修正] hoverStyleの初期化はBuild()メソッドで行われるため、ここでの設定は不要です。
+	// これにより、ロジックがBuild()内に集約され、より見通しが良くなります。
+	// button.hoverStyle = defaultStyle
 
 	b := &ButtonBuilder{}
 	b.Builder.Init(b, button)
 	return b
 }
 
-// [改良] OnClick は、ボタンがクリックされたときに実行されるイベントハンドラを設定します。
+// OnClick は、ボタンがクリックされたときに実行されるイベントハンドラを設定します。
 // ハンドラは event.Event を引数として受け取るため、クリック座標などの詳細情報にアクセスできます。
 // イベント情報が不要な場合は、引数を無視して `func(_ event.Event) { ... }` のように記述できます。
 func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
 	if handler != nil {
-		// [修正] イベントハンドラ内のパニック回復処理を削除しました。
-		// この責務は、component.LayoutableWidgetのHandleEventメソッドが一括して担うため、
-		// ここでの二重の回復処理は不要です。これにより、コードがシンプルになり、責務が明確になります。
+		// イベントハンドラ内のパニック回復処理は、component.LayoutableWidgetのHandleEventメソッドが
+		// 一括して担うため、ここでの二重の回復処理は不要です。
 		b.Widget.AddEventHandler(event.EventClick, handler)
 	}
 	return b
@@ -123,6 +118,6 @@ func (b *ButtonBuilder) Build() (*Button, error) {
 		b.Widget.hoverStyle = b.Widget.GetStyle()
 	}
 
-	// 汎用ビルダーのBuildを呼び出して、最終的なサイズ調整などを行います。
+	// 汎用ビルダーのBuildを呼び出して、最終的なエラーチェックなどを行います。
 	return b.Builder.Build("Button")
 }
