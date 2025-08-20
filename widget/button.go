@@ -3,8 +3,6 @@ package widget
 import (
 	"image"
 	"image/color"
-	"log"           // ログ出力のために追加
-	"runtime/debug" // スタックトレース取得のために追加
 
 	"furoshiki/component"
 	"furoshiki/event"
@@ -68,7 +66,7 @@ func NewButtonBuilder() *ButtonBuilder {
 			Top: 5, Right: 10, Bottom: 5, Left: 10,
 		}),
 		// [追加] ボタンテキストのデフォルト揃えは中央
-		TextAlign:    style.PTextAlignType(style.TextAlignCenter),
+		TextAlign:     style.PTextAlignType(style.TextAlignCenter),
 		VerticalAlign: style.PVerticalAlignType(style.VerticalAlignMiddle),
 	}
 	// まずボタンインスタンスを作成
@@ -91,15 +89,10 @@ func NewButtonBuilder() *ButtonBuilder {
 // イベント情報が不要な場合は、引数を無視して `func(_ event.Event) { ... }` のように記述できます。
 func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
 	if handler != nil {
-		b.Widget.AddEventHandler(event.EventClick, func(e event.Event) {
-			// ハンドラ内でパニックが発生してもアプリケーションがクラッシュしないようにリカバリします。
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Recovered from panic in button click handler: %v\n%s", r, debug.Stack())
-				}
-			}()
-			handler(e)
-		})
+		// [修正] イベントハンドラ内のパニック回復処理を削除しました。
+		// この責務は、component.LayoutableWidgetのHandleEventメソッドが一括して担うため、
+		// ここでの二重の回復処理は不要です。これにより、コードがシンプルになり、責務が明確になります。
+		b.Widget.AddEventHandler(event.EventClick, handler)
 	}
 	return b
 }

@@ -46,6 +46,14 @@ func (b *ContainerBuilder) AddError(err error) {
 	}
 }
 
+// [追加] MarkDirty は、ビルド中のコンテナに再レイアウトが必要であることをマークします。
+// uiパッケージのヘルパーなどがレイアウトプロパティを変更した際に使用します。
+func (b *ContainerBuilder) MarkDirty(relayout bool) {
+	if b.container != nil {
+		b.container.MarkDirty(relayout)
+	}
+}
+
 // RelayoutBoundary は、このコンテナをレイアウトの境界として設定します。
 // これにより、このコンテナ内部の変更が親コンテナのレイアウトに影響を与えなくなります。
 // 動的なコンテンツを持つコンテナ（例：スクロールリスト）のパフォーマンスを向上させるのに役立ちます。

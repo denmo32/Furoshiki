@@ -145,25 +145,36 @@ func (b *ContainerBuilder) Grid(buildFunc func(*GridContainerBuilder)) *Containe
 
 // Gap はFlexLayoutの子要素間の間隔を設定します。
 func (b *ContainerBuilder) Gap(gap int) *ContainerBuilder {
-	if flexLayout, ok := b.ContainerBuilder.GetLayout().(*layout.FlexLayout); ok {
-		flexLayout.Gap = gap
-		b.ContainerBuilder.AddError(nil) // Mark dirty?
+	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.Gap != gap {
+			flexLayout.Gap = gap
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
+		}
 	}
 	return b
 }
 
 // Justify はFlexLayoutの主軸方向の揃え位置を設定します。
 func (b *ContainerBuilder) Justify(alignment layout.Alignment) *ContainerBuilder {
-	if flexLayout, ok := b.ContainerBuilder.GetLayout().(*layout.FlexLayout); ok {
-		flexLayout.Justify = alignment
+	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.Justify != alignment {
+			flexLayout.Justify = alignment
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
+		}
 	}
 	return b
 }
 
 // AlignItems はFlexLayoutの交差軸方向の揃え位置を設定します。
 func (b *ContainerBuilder) AlignItems(alignment layout.Alignment) *ContainerBuilder {
-	if flexLayout, ok := b.ContainerBuilder.GetLayout().(*layout.FlexLayout); ok {
-		flexLayout.AlignItems = alignment
+	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.AlignItems != alignment {
+			flexLayout.AlignItems = alignment
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
+		}
 	}
 	return b
 }
@@ -241,8 +252,10 @@ type GridContainerBuilder struct {
 // Columns はグリッドの列数を設定します。
 func (b *GridContainerBuilder) Columns(count int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		if count > 0 {
+		if count > 0 && gridLayout.Columns != count {
 			gridLayout.Columns = count
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
 		}
 	}
 	return b
@@ -251,7 +264,11 @@ func (b *GridContainerBuilder) Columns(count int) *GridContainerBuilder {
 // Rows はグリッドの行数を設定します。0以下で自動計算されます。
 func (b *GridContainerBuilder) Rows(count int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		gridLayout.Rows = count
+		if gridLayout.Rows != count {
+			gridLayout.Rows = count
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
+		}
 	}
 	return b
 }
@@ -259,7 +276,11 @@ func (b *GridContainerBuilder) Rows(count int) *GridContainerBuilder {
 // HorizontalGap はセル間の水平方向の間隔を設定します。
 func (b *GridContainerBuilder) HorizontalGap(gap int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		gridLayout.HorizontalGap = gap
+		if gridLayout.HorizontalGap != gap {
+			gridLayout.HorizontalGap = gap
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
+		}
 	}
 	return b
 }
@@ -267,7 +288,11 @@ func (b *GridContainerBuilder) HorizontalGap(gap int) *GridContainerBuilder {
 // VerticalGap はセル間の垂直方向の間隔を設定します。
 func (b *GridContainerBuilder) VerticalGap(gap int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		gridLayout.VerticalGap = gap
+		if gridLayout.VerticalGap != gap {
+			gridLayout.VerticalGap = gap
+			// [修正] レイアウトプロパティの変更は再レイアウトを必要とするため、ダーティフラグを立てます。
+			b.MarkDirty(true)
+		}
 	}
 	return b
 }
