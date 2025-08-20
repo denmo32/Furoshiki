@@ -85,8 +85,12 @@ func main() {
 			l.Text("Furoshiki UI Demo")
 			l.Size(300, 40)
 			// 色のスタイルをマージします
-			// ui.Styleヘルパーは内部でポインタヘルパーを使うように改良済
 			l.Style(ui.Style(color.RGBA{R: 70, G: 130, B: 180, A: 255}, color.White))
+			// [改良] 新しいテキスト揃えAPIの使用例
+			l.Style(style.Style{
+				TextAlign:    style.PTextAlignType(style.TextAlignCenter),
+				VerticalAlign: style.PVerticalAlignType(style.VerticalAlignMiddle),
+			})
 		})
 
 		// ボタンを水平に配置
@@ -97,8 +101,9 @@ func main() {
 				btn.Style(baseStyle)
 				btn.Text("OK")
 				btn.Size(100, 40)
-				btn.OnClick(func() {
-					fmt.Println("OK button clicked!")
+				// [改良] OnClickの新しいシグネチャを使用。イベント引数eは無視できます。
+				btn.OnClick(func(e event.Event) {
+					fmt.Printf("OK button clicked at (%d, %d)!\n", e.X, e.Y)
 				})
 			})
 
@@ -106,7 +111,7 @@ func main() {
 				btn.Style(baseStyle)
 				btn.Text("Cancel")
 				btn.Size(100, 40)
-				btn.OnClick(func() {
+				btn.OnClick(func(_ event.Event) { // 引数を `_` で無視する例
 					fmt.Println("Cancel button clicked!")
 				})
 			})
@@ -130,8 +135,8 @@ func main() {
 				})
 				btn.Text("Overlay Button")
 				btn.Position(90, 35) // ZStack内での相対位置
-				btn.Size(120, 30)
-				btn.OnClick(func() {
+				btn.Size(130, 30)
+				btn.OnClick(func(_ event.Event) {
 					fmt.Println("Overlay button clicked!")
 				})
 				btn.HoverStyle(style.Style{
@@ -155,7 +160,7 @@ func main() {
 					btn.Style(baseStyle)
 					btn.Text(fmt.Sprintf("Grid %d", buttonIndex))
 					// サイズはGridLayoutによって自動的に設定されるため、ここでは指定しません
-					btn.OnClick(func() {
+					btn.OnClick(func(_ event.Event) {
 						fmt.Printf("Grid button %d clicked!\n", buttonIndex)
 					})
 				})

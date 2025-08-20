@@ -28,6 +28,7 @@ type flexItemInfo struct {
 // コンテナのサイズと子のプロパティに基づいて、すべての子要素のサイズと位置を計算し、設定します。
 func (l *FlexLayout) Layout(container Container) {
 	// ステップ 1: 初期設定と可視コンポーネントのフィルタリング
+	// [改良] 共通化された getVisibleChildren を使用します。
 	children := getVisibleChildren(container)
 	if len(children) == 0 {
 		return
@@ -66,17 +67,7 @@ func (l *FlexLayout) Layout(container Container) {
 	l.positionItems(items, container, mainSize, crossSize, isRow)
 }
 
-// getVisibleChildren は、コンテナから表示状態の子ウィジェットのみを抽出します。
-func getVisibleChildren(container Container) []component.Widget {
-	allChildren := container.GetChildren()
-	visibleChildren := make([]component.Widget, 0, len(allChildren))
-	for _, child := range allChildren {
-		if child.IsVisible() {
-			visibleChildren = append(visibleChildren, child)
-		}
-	}
-	return visibleChildren
-}
+// [削除] getVisibleChildren は共通の layout/utils.go に移動しました。
 
 // calculateInitialSizes は、各子要素の初期サイズとマージンを計算します。
 func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bool) ([]flexItemInfo, int, float64) {

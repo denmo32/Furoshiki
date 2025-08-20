@@ -183,7 +183,7 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 }
 
 // DrawAlignedText は、指定された矩形領域内にテキストを揃えて描画します。
-// 現在は水平・垂直方向の中央揃えをサポートしています。
+// [改良] 水平・垂直方向の揃え位置をスタイルで指定できるようになりました。
 func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
 	// フォントが未設定、またはテキストが空の場合は何も描画しません。
 	if textContent == "" || s.Font == nil || *s.Font == nil {
@@ -209,16 +209,39 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 	// テキストの描画範囲を計算します。
 	bounds := text.BoundString(*s.Font, textContent)
 
-	// 水平方向の中央揃えのためのX座標を計算します。
-	textX := contentRect.Min.X + (contentRect.Dx()-bounds.Dx())/2
+	// [改良] 水平方向の揃え位置を計算します。
+	var textX int
+	textAlign := style.TextAlignLeft // デフォルトは左揃え
+	if s.TextAlign != nil {
+		textAlign = *s.TextAlign
+	}
+	switch textAlign {
+	case style.TextAlignCenter:
+		textX = contentRect.Min.X + (contentRect.Dx()-bounds.Dx())/2
+	case style.TextAlignRight:
+		textX = contentRect.Max.X - bounds.Dx()
+	default: // style.TextAlignLeft
+		textX = contentRect.Min.X
+	}
 
-	// 垂直方向の中央揃えをより正確に計算します。
-	// font.Metrics を使用して、アセント（ベースラインより上の高さ）とディセント（ベースラインより下の高さ）を取得します。
+	// [改良] 垂直方向の揃え位置を計算します。
+	var textY int
 	metrics := (*s.Font).Metrics()
 	textHeight := (metrics.Ascent + metrics.Descent).Ceil()
-	// テキストの描画基準点（ベースライン）のY座標を計算します。
-	// contentRectの中心にテキストの中心が来るように調整し、アセント分を足すことで正しいベースライン位置を求めます。
-	textY := contentRect.Min.Y + (contentRect.Dy()-textHeight)/2 + metrics.Ascent.Ceil()
+	verticalAlign := style.VerticalAlignMiddle // デフォルトは中央揃え
+	if s.VerticalAlign != nil {
+		verticalAlign = *s.VerticalAlign
+	}
+	switch verticalAlign {
+	case style.VerticalAlignTop:
+		textY = contentRect.Min.Y + metrics.Ascent.Ceil()
+	case style.VerticalAlignBottom:
+		textY = contentRect.Max.Y - metrics.Descent.Ceil()
+	default: // style.VerticalAlignMiddle
+		// テキストの描画基準点（ベースライン）のY座標を計算します。
+		// contentRectの中心にテキストの中心が来るように調整し、アセント分を足すことで正しいベースライン位置を求めます。
+		textY = contentRect.Min.Y + (contentRect.Dy()-textHeight)/2 + metrics.Ascent.Ceil()
+	}
 
 	// テキストの色を取得（nilの場合は黒をデフォルトとします）。
 	textColor := color.Color(color.Black)

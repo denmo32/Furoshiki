@@ -57,36 +57,51 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), currentStyle)
 }
 
-// CalculateMinSize は、現在のテキストとスタイルに基づいてウィジェットが表示されるべき最小サイズを計算します。
-// この値はレイアウトシステムによって利用されます。
-func (t *TextWidget) CalculateMinSize() (int, int) {
+// [改良] calculateContentMinSize は、現在のテキストとスタイルに基づいてコンテンツが表示されるべき最小サイズを計算します。
+// このメソッドはGetMinSizeから内部的に呼び出されます。
+func (t *TextWidget) calculateContentMinSize() (int, int) {
 	s := t.GetStyle()
 	// テキストとフォントが存在する場合のみ、コンテンツに基づいたサイズを計算します。
 	if t.text != "" && s.Font != nil && *s.Font != nil {
 		bounds := text.BoundString(*s.Font, t.text)
 
 		// パディングの値を取得（nilの場合はゼロ値として扱います）
-		padding := s.Padding
-		if s.Padding == nil {
-			padding = &style.Insets{}
+		padding := style.Insets{}
+		if s.Padding != nil {
+			padding = *s.Padding
 		}
 
-		// テキストの幅と高さにパディングを加えたものを最小サイズとします。
-		minWidth := bounds.Dx() + padding.Left + padding.Right
+		// テキストの幅と高さにパディングを加えたものをコンテンツの最小サイズとします。
+		contentMinWidth := bounds.Dx() + padding.Left + padding.Right
 		metrics := (*s.Font).Metrics()
-		minHeight := (metrics.Ascent + metrics.Descent).Ceil() + padding.Top + padding.Bottom
+		contentMinHeight := (metrics.Ascent + metrics.Descent).Ceil() + padding.Top + padding.Bottom
 
-		// ユーザーによって明示的に設定された最小サイズ(minWidth, minHeight)がある場合は、
-		// 計算値と比べて大きい方を最終的な最小サイズとします。
-		if t.minWidth > minWidth {
-			minWidth = t.minWidth
-		}
-		if t.minHeight > minHeight {
-			minHeight = t.minHeight
-		}
-
-		return minWidth, minHeight
+		return contentMinWidth, contentMinHeight
 	}
-	// テキストがない場合でも、ユーザー設定の最小サイズは尊重します。
-	return t.minWidth, t.minHeight
+	// テキストがない場合は、コンテンツの最小サイズは0です。
+	return 0, 0
+}
+
+// [改良] GetMinSize は、ウィジェットが表示されるべき最小サイズを返します。
+// LayoutableWidgetのGetMinSizeをオーバーライドし、テキストコンテンツのサイズを考慮に入れます。
+// 最終的な最小サイズは、「コンテンツから計算されるサイズ」と「ユーザーが明示的に設定した最小サイズ」のうち、大きい方になります。
+func (t *TextWidget) GetMinSize() (int, int) {
+	// コンテンツ（テキストとパディング）から要求される最小サイズを計算します。
+	contentMinWidth, contentMinHeight := t.calculateContentMinSize()
+
+	// ユーザーが .MinSize() で明示的に設定した最小サイズを取得します。
+	userMinWidth, userMinHeight := t.LayoutableWidget.GetMinSize()
+
+	// 両者を比較し、各次元で大きい方を最終的な最小サイズとします。
+	finalMinWidth := contentMinWidth
+	if userMinWidth > contentMinWidth {
+		finalMinWidth = userMinWidth
+	}
+
+	finalMinHeight := contentMinHeight
+	if userMinHeight > contentMinHeight {
+		finalMinHeight = userMinHeight
+	}
+
+	return finalMinWidth, finalMinHeight
 }

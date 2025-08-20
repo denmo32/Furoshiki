@@ -7,6 +7,24 @@ import (
 	"golang.org/x/image/font"
 )
 
+// [追加] テキストの水平方向の揃え位置を定義します。
+type TextAlignType int
+
+const (
+	TextAlignLeft   TextAlignType = iota // 左揃え
+	TextAlignCenter                      // 中央揃え
+	TextAlignRight                       // 右揃え
+)
+
+// [追加] テキストの垂直方向の揃え位置を定義します。
+type VerticalAlignType int
+
+const (
+	VerticalAlignTop    VerticalAlignType = iota // 上揃え
+	VerticalAlignMiddle                          // 中央揃え (垂直)
+	VerticalAlignBottom                          // 下揃え
+)
+
 // Styleはコンポーネントの視覚的プロパティを定義します。
 // ゼロ値（例: 0, nil）と「未設定」を区別できるように、
 // 多くのフィールドをポインタ型に変更しています。これにより、Merge関数がより柔軟になります。
@@ -20,6 +38,9 @@ type Style struct {
 	TextColor    *color.Color
 	BorderRadius *float32
 	Opacity      *float64 // 0.0 (完全に透明) から 1.0 (完全に不透明)
+	// [追加] テキストの水平・垂直方向の揃え位置
+	TextAlign    *TextAlignType
+	VerticalAlign *VerticalAlignType
 }
 
 // Insetsはマージンやパディングの四方の値を表します。
@@ -59,6 +80,13 @@ func Merge(base, overlay Style) Style {
 	}
 	if overlay.Opacity != nil {
 		result.Opacity = overlay.Opacity
+	}
+	// [追加] テキスト揃えプロパティのマージ
+	if overlay.TextAlign != nil {
+		result.TextAlign = overlay.TextAlign
+	}
+	if overlay.VerticalAlign != nil {
+		result.VerticalAlign = overlay.VerticalAlign
 	}
 
 	return result
@@ -117,4 +145,14 @@ func PInsets(i Insets) *Insets {
 // PFont は font.Face の値からそのポインタを生成して返します。
 func PFont(f font.Face) *font.Face {
 	return &f
+}
+
+// [追加] PTextAlignType は TextAlignType の値からそのポインタを生成して返します。
+func PTextAlignType(t TextAlignType) *TextAlignType {
+	return &t
+}
+
+// [追加] PVerticalAlignType は VerticalAlignType の値からそのポインタを生成して返します。
+func PVerticalAlignType(v VerticalAlignType) *VerticalAlignType {
+	return &v
 }

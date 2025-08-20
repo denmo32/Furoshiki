@@ -20,6 +20,7 @@ type GridLayout struct {
 // Layout は GridLayout のレイアウトロジックを実装します。
 // コンテナの利用可能なスペースを列数と行数で均等に分割し、各子要素をセルに配置します。
 func (l *GridLayout) Layout(container Container) {
+	// [改良] 共通化された getVisibleChildren を使用します。
 	children := getVisibleChildren(container)
 	childCount := len(children)
 	if childCount == 0 {
@@ -66,7 +67,7 @@ func (l *GridLayout) Layout(container Container) {
 
 	// すべての子をループし、位置とサイズを設定します。
 	for i, child := range children {
-		// 非表示の子はスキップ
+		// 非表示の子はスキップ (getVisibleChildrenでフィルタリング済みですが念のため)
 		if !child.IsVisible() {
 			continue
 		}
@@ -90,9 +91,4 @@ func (l *GridLayout) Layout(container Container) {
 	}
 }
 
-// getVisibleChildren は、コンテナから表示状態の子ウィジェットのみを抽出します。
-// このヘルパーはFlexLayoutと共通ですが、循環インポートを避けるため、
-// 各レイアウトパッケージ内に保持するか、共通のヘルパーパッケージに移動することが考えられます。
-// 現状はシンプルにするため、ここにコピーを保持します。
-// func getVisibleChildren(container Container) []component.Widget { ... }
-// (FlexLayoutの同名関数と同一のため、ここでは省略)
+// [削除] getVisibleChildren は共通の layout/utils.go に移動しました。

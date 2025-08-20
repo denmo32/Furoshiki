@@ -67,6 +67,9 @@ func NewButtonBuilder() *ButtonBuilder {
 		Padding: style.PInsets(style.Insets{
 			Top: 5, Right: 10, Bottom: 5, Left: 10,
 		}),
+		// [追加] ボタンテキストのデフォルト揃えは中央
+		TextAlign:    style.PTextAlignType(style.TextAlignCenter),
+		VerticalAlign: style.PVerticalAlignType(style.VerticalAlignMiddle),
 	}
 	// まずボタンインスタンスを作成
 	button := &Button{}
@@ -83,9 +86,11 @@ func NewButtonBuilder() *ButtonBuilder {
 	return b
 }
 
-// OnClick は、ボタンがクリックされたときに実行されるイベントハンドラを設定します。
-func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
-	if onClick != nil {
+// [改良] OnClick は、ボタンがクリックされたときに実行されるイベントハンドラを設定します。
+// ハンドラは event.Event を引数として受け取るため、クリック座標などの詳細情報にアクセスできます。
+// イベント情報が不要な場合は、引数を無視して `func(_ event.Event) { ... }` のように記述できます。
+func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
+	if handler != nil {
 		b.Widget.AddEventHandler(event.EventClick, func(e event.Event) {
 			// ハンドラ内でパニックが発生してもアプリケーションがクラッシュしないようにリカバリします。
 			defer func() {
@@ -93,7 +98,7 @@ func (b *ButtonBuilder) OnClick(onClick func()) *ButtonBuilder {
 					log.Printf("Recovered from panic in button click handler: %v\n%s", r, debug.Stack())
 				}
 			}()
-			onClick()
+			handler(e)
 		})
 	}
 	return b

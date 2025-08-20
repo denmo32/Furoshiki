@@ -23,9 +23,11 @@ type Widget interface {
 	SetSize(width, height int)
 	// GetSizeはウィジェットのサイズを取得します。
 	GetSize() (width, height int)
-	// SetMinSizeはウィジェットの最小サイズを設定します。レイアウト計算時に考慮されます。
+	// SetMinSizeはウィジェットの最小サイズを明示的に設定します。レイアウト計算時に考慮されます。
 	SetMinSize(width, height int)
-	// GetMinSizeはウィジェットの最小サイズを取得します。
+	// GetMinSizeはウィジェットが取るべき最小サイズを取得します。
+	// [改良] この値は、ウィジェットのコンテンツ（テキストなど）と、SetMinSizeでユーザーが
+	// 明示的に設定した値の両方を考慮して決定されます。
 	GetMinSize() (width, height int)
 	// SetStyleはウィジェットのスタイルを設定します。
 	SetStyle(style style.Style)

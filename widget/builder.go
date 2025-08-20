@@ -12,7 +12,8 @@ import (
 type textWidget interface {
 	component.Widget
 	SetText(string)
-	CalculateMinSize() (int, int)
+	// [変更] CalculateMinSizeはGetMinSizeに統合されたため、ここでは不要になります。
+	// GetMinSizeはcomponent.Widgetインターフェースに含まれています。
 	// SetRequestedPositionはcomponent.LayoutableWidgetに実装されているため、
 	// それを埋め込むことでこのインターフェースを満たします。
 	SetRequestedPosition(x, y int)
@@ -49,6 +50,8 @@ func (b *Builder[T, W]) Position(x, y int) T {
 }
 
 // Size はウィジェットのサイズを設定します。
+// FlexLayout内では、この値はflex値が設定されていない場合の「基本サイズ」として扱われ、
+// レイアウト計算によって上書きされる可能性があります。
 func (b *Builder[T, W]) Size(width, height int) T {
 	if width < 0 || height < 0 {
 		b.errors = append(b.errors, fmt.Errorf("size must be non-negative, got %dx%d", width, height))
@@ -85,36 +88,27 @@ func (b *Builder[T, W]) Flex(flex int) T {
 	return b.self
 }
 
-// Build はウィジェットの構築を完了します。
-// ユーザーが設定したサイズとコンテンツに必要な最小サイズを比較し、
-// ウィジェットがコンテンツを完全に表示できるサイズになるように調整します。
+// [改良] Build はウィジェットの構築を完了します。
+// 以前はここでサイズ計算を行っていましたが、レイアウトシステムとの責務を明確に分離するため、
+// このメソッドはエラーチェックのみを行い、ウィジェットインスタンスを返すように変更されました。
+// 最終的なサイズと位置は、UIツリーに追加された後、親コンテナのレイアウトシステムによって決定されます。
 func (b *Builder[T, W]) Build(typeName string) (W, error) {
 	if len(b.errors) > 0 {
 		var zero W
 		return zero, fmt.Errorf("%s build errors: %w", typeName, errors.Join(b.errors...))
 	}
 
-	// 1. コンテンツ（テキスト等）に基づいて必要な最小サイズを計算します。
-	calculatedMinWidth, calculatedMinHeight := b.Widget.CalculateMinSize()
-	// この計算値をウィジェットの最小サイズとして設定します。これはレイアウトシステムにとって重要です。
-	b.Widget.SetMinSize(calculatedMinWidth, calculatedMinHeight)
+	// ビルダーの責務はウィジェットのプロパティを設定することまで。
+	// 最終的なサイズ計算と適用は、親コンテナのレイアウトシステムの役割です。
 
-	// 2. ユーザーが .Size() で明示的に設定したサイズを取得します。
-	currentWidth, currentHeight := b.Widget.GetSize()
-
-	// 3. 最終的なウィジェットのサイズを決定します。
-	//    - 明示的なサイズが最小サイズより大きい場合は、明示的なサイズを使用します。
-	//    - 明示的なサイズが最小サイズより小さい場合は、コンテンツがはみ出さないように最小サイズに引き上げます。
-	finalWidth := max(currentWidth, calculatedMinWidth)
-	finalHeight := max(currentHeight, calculatedMinHeight)
-
-	// 4. 決定した最終サイズをウィジェットに設定します。
-	b.Widget.SetSize(finalWidth, finalHeight)
+	// ウィジェットがダーティマークされていることを保証し、最初のフレームでレイアウトが実行されるようにします。
+	b.Widget.MarkDirty(true)
 
 	return b.Widget, nil
 }
 
 // max は2つの整数のうち大きい方を返します。
+// (この関数はcomponent.text_widgetでも使用するため、将来的に共通パッケージに移動することを検討しても良いでしょう)
 func max(a, b int) int {
 	if a > b {
 		return a
