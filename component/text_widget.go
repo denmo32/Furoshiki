@@ -2,6 +2,7 @@ package component
 
 import (
 	"furoshiki/style"
+	"furoshiki/utils" // [修正] インポート先を layout から utils に変更
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -57,7 +58,7 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), currentStyle)
 }
 
-// [改良] calculateContentMinSize は、現在のテキストとスタイルに基づいてコンテンツが表示されるべき最小サイズを計算します。
+// calculateContentMinSize は、現在のテキストとスタイルに基づいてコンテンツが表示されるべき最小サイズを計算します。
 // このメソッドはGetMinSizeから内部的に呼び出されます。
 func (t *TextWidget) calculateContentMinSize() (int, int) {
 	s := t.GetStyle()
@@ -82,7 +83,7 @@ func (t *TextWidget) calculateContentMinSize() (int, int) {
 	return 0, 0
 }
 
-// [改良] GetMinSize は、ウィジェットが表示されるべき最小サイズを返します。
+// GetMinSize は、ウィジェットが表示されるべき最小サイズを返します。
 // LayoutableWidgetのGetMinSizeをオーバーライドし、テキストコンテンツのサイズを考慮に入れます。
 // 最終的な最小サイズは、「コンテンツから計算されるサイズ」と「ユーザーが明示的に設定した最小サイズ」のうち、大きい方になります。
 func (t *TextWidget) GetMinSize() (int, int) {
@@ -92,16 +93,10 @@ func (t *TextWidget) GetMinSize() (int, int) {
 	// ユーザーが .MinSize() で明示的に設定した最小サイズを取得します。
 	userMinWidth, userMinHeight := t.LayoutableWidget.GetMinSize()
 
+	// [修正] utilsパッケージのMax関数を使用します。
 	// 両者を比較し、各次元で大きい方を最終的な最小サイズとします。
-	finalMinWidth := contentMinWidth
-	if userMinWidth > contentMinWidth {
-		finalMinWidth = userMinWidth
-	}
-
-	finalMinHeight := contentMinHeight
-	if userMinHeight > contentMinHeight {
-		finalMinHeight = userMinHeight
-	}
+	finalMinWidth := utils.Max(contentMinWidth, userMinWidth)
+	finalMinHeight := utils.Max(contentMinHeight, userMinHeight)
 
 	return finalMinWidth, finalMinHeight
 }

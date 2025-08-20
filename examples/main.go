@@ -41,19 +41,30 @@ func (g *Game) Update() error {
 
 // Draw はゲームを描画します
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{R: 240, G: 240, B: 240, A: 255})
+	// 背景色はルートコンテナのスタイルで設定するため、ここでのFillは不要になります。
+	// screen.Fill(color.RGBA{R: 240, G: 240, B: 240, A: 255})
 	g.root.Draw(screen)
-	ebitenutil.DebugPrint(screen, "Furoshiki UI Demo")
+
+	// FPSなどのデバッグ情報を表示
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS()))
 }
 
 // Layout はゲームの画面サイズを返します
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 400, 450
+	return 400, 500
 }
 
 var mplusFont font.Face
 
+// アプリケーション全体で共有する基本スタイルを定義
+var baseTextStyle style.Style
+var baseButtonStyle style.Style
+var steelBlue = color.RGBA{R: 70, G: 130, B: 180, A: 255}
+var lightGray = color.RGBA{R: 220, G: 220, B: 220, A: 255}
+var darkGray = color.RGBA{R: 105, G: 105, B: 105, A: 255}
+
 func main() {
+	// --- フォントの読み込み ---
 	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
 	if err != nil {
 		log.Fatal(err)
@@ -67,102 +78,110 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// [改良] スタイル設定にstyle.PFontヘルパーを使用
-	baseStyle := style.Style{
+	// --- スタイルの事前定義 ---
+	baseTextStyle = style.Style{
 		Font: style.PFont(mplusFont),
 	}
+	baseButtonStyle = style.Merge(baseTextStyle, style.Style{
+		Background:  style.PColor(lightGray),
+		TextColor:   style.PColor(color.Black),
+		BorderColor: style.PColor(darkGray),
+		BorderWidth: style.PFloat32(1),
+		Padding:     style.PInsets(style.Insets{Top: 5, Right: 10, Bottom: 5, Left: 10}),
+	})
 
-	// uiパッケージのヘルパーを使って宣言的にUIを構築します
+	// --- UIの構築 ---
+	// [大幅改良] uiパッケージの宣言的ヘルパーと新しいスタイルAPIで、より直感的にUIを構築します。
 	root, err := ui.VStack(func(b *ui.ContainerBuilder) {
-		b.Padding(20).Gap(15).
+		b.Size(400, 500). // ウィンドウサイズに合わせる
+			Padding(20).    // 全体にパディング
+			Gap(15).        // 子要素間のギャップ
 			Justify(layout.AlignStart).
 			AlignItems(layout.AlignCenter).
-			Size(400, 450)
+			BackgroundColor(color.RGBA{R: 245, G: 245, B: 245, A: 255})
 
-		// タイトルラベル
+		// 1. タイトルラベル
 		b.Label(func(l *widget.LabelBuilder) {
-			l.Style(baseStyle) // 基本スタイルを適用
-			l.Text("Furoshiki UI Demo")
-			l.Size(300, 40)
-			// 色のスタイルをマージします
-			l.Style(ui.Style(color.RGBA{R: 70, G: 130, B: 180, A: 255}, color.White))
-			// [改良] 新しいテキスト揃えAPIの使用例
-			l.Style(style.Style{
-				TextAlign:    style.PTextAlignType(style.TextAlignCenter),
-				VerticalAlign: style.PVerticalAlignType(style.VerticalAlignMiddle),
-			})
+			l.Text("Furoshiki UI Demo").
+				Style(baseTextStyle). // フォントスタイルを適用
+				Size(360, 40).
+				BackgroundColor(steelBlue).
+				TextColor(color.White).
+				TextAlign(style.TextAlignCenter).
+				VerticalAlign(style.VerticalAlignMiddle).
+				BorderRadius(8)
 		})
 
-		// ボタンを水平に配置
+		// 2. ボタンを配置する水平コンテナ
 		b.HStack(func(b *ui.ContainerBuilder) {
-			b.Gap(20).Size(300, 50)
+			b.Size(360, 50).
+				Gap(20) // ボタン間のギャップ
 
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Style(baseStyle)
-				btn.Text("OK")
-				btn.Size(100, 40)
-				// [改良] OnClickの新しいシグネチャを使用。イベント引数eは無視できます。
-				btn.OnClick(func(e event.Event) {
-					fmt.Printf("OK button clicked at (%d, %d)!\n", e.X, e.Y)
-				})
+				btn.Text("OK").
+					Style(baseButtonStyle).
+					Flex(1). // Flex=1でスペースを均等に分け合う
+					HoverStyle(style.Style{Opacity: style.PFloat64(0.8)}).
+					OnClick(func(e event.Event) {
+						fmt.Printf("OK button clicked at (%d, %d)!\n", e.X, e.Y)
+					})
 			})
 
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Style(baseStyle)
-				btn.Text("Cancel")
-				btn.Size(100, 40)
-				btn.OnClick(func(_ event.Event) { // 引数を `_` で無視する例
-					fmt.Println("Cancel button clicked!")
-				})
+				btn.Text("Cancel").
+					Style(baseButtonStyle).
+					Flex(1). // Flex=1でスペースを均等に分け合う
+					HoverStyle(style.Style{Opacity: style.PFloat64(0.8)}).
+					OnClick(func(_ event.Event) {
+						fmt.Println("Cancel button clicked!")
+					})
 			})
 		})
 
-		// 重ね合わせコンテナ (ZStack)
+		// 3. 重ね合わせコンテナ (ZStack)
 		b.ZStack(func(b *ui.ContainerBuilder) {
-			b.Size(300, 100)
-			// [改良] style.PColorヘルパーを使い、一時変数が不要に
-			b.Style(style.Style{
-				Background: style.PColor(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
+			b.Size(360, 100).
+				BackgroundColor(lightGray).
+				BorderRadius(4)
+
+			// ZStack内の要素はPositionで相対位置を指定
+			b.Label(func(l *widget.LabelBuilder) {
+				l.Text("Overlapping Content").
+					Style(baseTextStyle).
+					Position(20, 15) // コンテナ左上からの相対位置
 			})
 
-			// 前景としてボタンを一つ追加します。
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Style(baseStyle)
-
-				// [改良] PFloat32, PFloat64ヘルパーを使い、より直感的に
-				btn.Style(style.Style{
-					BorderRadius: style.PFloat32(8.0),
-				})
-				btn.Text("Overlay Button")
-				btn.Position(90, 35) // ZStack内での相対位置
-				btn.Size(130, 30)
-				btn.OnClick(func(_ event.Event) {
-					fmt.Println("Overlay button clicked!")
-				})
-				btn.HoverStyle(style.Style{
-					Opacity: style.PFloat64(0.8),
-				})
+				btn.Text("Overlay Button").
+					Style(baseButtonStyle).
+					BorderRadius(20). // 丸いボタン
+					Position(180, 50).
+					Size(160, 40).
+					OnClick(func(_ event.Event) {
+						fmt.Println("Overlay button clicked!")
+					})
 			})
 		})
 
-		// グリッドレイアウトのデモ
+		// 4. [新機能] Spacerを使って残りの垂直スペースを埋める
+		b.Spacer()
+
+		// 5. グリッドレイアウトのデモ
 		b.Grid(func(g *ui.GridContainerBuilder) {
-			g.Size(300, 120). // グリッドコンテナ自体のサイズ
-						Columns(3).
-						HorizontalGap(10).
-						VerticalGap(10)
+			g.Size(360, 120).
+				Columns(3).
+				HorizontalGap(10).
+				VerticalGap(10)
 
 			// 3x2のグリッドに6つのボタンを配置
 			for i := 0; i < 6; i++ {
-				// ループ変数をキャプチャして、各ボタンが正しい番号を持つようにします
 				buttonIndex := i + 1
 				g.Button(func(btn *widget.ButtonBuilder) {
-					btn.Style(baseStyle)
-					btn.Text(fmt.Sprintf("Grid %d", buttonIndex))
-					// サイズはGridLayoutによって自動的に設定されるため、ここでは指定しません
-					btn.OnClick(func(_ event.Event) {
-						fmt.Printf("Grid button %d clicked!\n", buttonIndex)
-					})
+					btn.Text(fmt.Sprintf("Grid %d", buttonIndex)).
+						Style(baseButtonStyle).
+						OnClick(func(_ event.Event) {
+							fmt.Printf("Grid button %d clicked!\n", buttonIndex)
+						})
 				})
 			}
 		})
@@ -170,7 +189,7 @@ func main() {
 	}).Build()
 
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to build UI: %v", err)
 	}
 
 	game := &Game{
@@ -178,9 +197,9 @@ func main() {
 		dispatcher: event.GetDispatcher(),
 	}
 
-	ebiten.SetWindowSize(400, 450)
-	ebiten.SetWindowTitle("Furoshiki UI Demo")
+	ebiten.SetWindowSize(400, 500)
+	ebiten.SetWindowTitle("Furoshiki UI Demo (Improved)")
 	if err := ebiten.RunGame(game); err != nil {
-		panic(err)
+		log.Fatalf("Ebiten run game failed: %v", err)
 	}
 }
