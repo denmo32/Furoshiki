@@ -25,8 +25,16 @@ func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
 
 // HandleEvent は、ディスパッチャから渡されたイベントを処理します。
 // 対応するイベントタイプのハンドラが存在すれば、それを実行します。
-func (w *LayoutableWidget) HandleEvent(event event.Event) {
-	if handler, exists := w.eventHandlers[event.Type]; exists {
+func (w *LayoutableWidget) HandleEvent(e event.Event) {
+	// 状態管理: マウスの押下状態を更新
+	switch e.Type {
+	case event.MouseDown:
+		w.SetPressed(true)
+	case event.MouseUp:
+		w.SetPressed(false)
+	}
+
+	if handler, exists := w.eventHandlers[e.Type]; exists {
 		// イベントハンドラの実行中にパニックが発生してもアプリケーション全体がクラッシュしないようにリカバリします。
 		defer func() {
 			if r := recover(); r != nil {
@@ -34,7 +42,7 @@ func (w *LayoutableWidget) HandleEvent(event event.Event) {
 				log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
 			}
 		}()
-		handler(event)
+		handler(e)
 	}
 }
 

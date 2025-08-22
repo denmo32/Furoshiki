@@ -14,46 +14,7 @@ import (
 // Button は、クリック可能なUI要素です。TextWidgetを拡張し、状態に基づいたスタイル管理機能を追加します。
 type Button struct {
 	*component.TextWidget
-	stateStyles  map[component.WidgetState]style.Style
-	currentState component.WidgetState
-	isPressed    bool // マウスボタンが現在このウィジェット上で押されているか
-}
-
-// Update はボタンの状態を更新します。LayoutableWidgetのUpdateをオーバーライドします。
-func (b *Button) Update() {
-	if b.IsDisabled() {
-		if b.currentState != component.StateDisabled {
-			b.currentState = component.StateDisabled
-			b.MarkDirty(false)
-		}
-		return
-	}
-
-	newState := component.StateNormal
-	if b.IsHovered() {
-		newState = component.StateHovered
-	}
-	if b.isPressed {
-		newState = component.StatePressed
-	}
-
-	if b.currentState != newState {
-		b.currentState = newState
-		b.MarkDirty(false) // スタイル変更は再描画のみ要求
-	}
-}
-
-// HandleEvent はイベントを処理します。LayoutableWidgetのHandleEventをオーバーライドします。
-func (b *Button) HandleEvent(e event.Event) {
-	switch e.Type {
-	case event.MouseDown:
-		b.isPressed = true
-	case event.MouseUp:
-		b.isPressed = false
-	}
-
-	// 元のイベントハンドラ呼び出しロジックも実行
-	b.TextWidget.HandleEvent(e)
+	stateStyles map[component.WidgetState]style.Style
 }
 
 // Draw はButtonを描画します。現在の状態に応じたスタイルを適用します。
@@ -65,9 +26,12 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	width, height := b.GetSize()
 	text := b.Text()
 
+	// 現在の状態を共通コンポーネントから取得します。
+	currentState := b.LayoutableWidget.CurrentState()
+
 	// 現在の状態に最適なスタイルを選択
 	// Pressed -> Hovered -> Normal の優先順位でフォールバック
-	styleToUse, ok := b.stateStyles[b.currentState]
+	styleToUse, ok := b.stateStyles[currentState]
 	if !ok {
 		styleToUse, ok = b.stateStyles[component.StateHovered]
 		if !ok {

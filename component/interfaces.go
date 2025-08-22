@@ -48,7 +48,7 @@ type Widget interface {
 	// RemoveEventHandlerは指定されたイベントタイプのハンドラを削除します。
 	RemoveEventHandler(eventType event.EventType)
 	// HandleEventはイベントを処理します。通常、イベントディスパッチャによって呼び出されます。
-	HandleEvent(event event.Event)
+	HandleEvent(e event.Event)
 	// SetFlexはFlexLayoutにおけるウィジェットの伸縮係数を設定します。
 	SetFlex(flex int)
 	// GetFlexはウィジェットの伸縮係数を取得します。

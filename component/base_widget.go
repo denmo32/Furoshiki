@@ -27,6 +27,7 @@ type LayoutableWidget struct {
 	dirty         bool // 再描画が必要かどうかのフラグ
 	relayoutDirty bool // 再レイアウトが必要かどうかのフラグ
 	isHovered     bool
+	isPressed     bool
 	isVisible     bool // 可視性フラグ
 	isDisabled    bool // 無効フラグ
 

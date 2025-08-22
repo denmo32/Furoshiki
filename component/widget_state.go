@@ -77,6 +77,34 @@ func (w *LayoutableWidget) IsHovered() bool {
 	return w.isHovered
 }
 
+// SetPressed は押下状態を設定し、再描画を要求します。
+func (w *LayoutableWidget) SetPressed(pressed bool) {
+	if w.isPressed != pressed {
+		w.isPressed = pressed
+		// 押下状態の変更は見た目にのみ影響するため、再描画のみを要求します（relayoutはfalse）。
+		w.MarkDirty(false)
+	}
+}
+
+// IsPressed はウィジェットが押下状態であるかを返します。
+func (w *LayoutableWidget) IsPressed() bool {
+	return w.isPressed
+}
+
+// CurrentState はウィジェットの現在のインタラクティブな状態を返します。
+func (w *LayoutableWidget) CurrentState() WidgetState {
+	if w.isDisabled {
+		return StateDisabled
+	}
+	if w.isPressed {
+		return StatePressed
+	}
+	if w.isHovered {
+		return StateHovered
+	}
+	return StateNormal
+}
+
 // SetDisabled はウィジェットの有効・無効状態を設定します。
 func (w *LayoutableWidget) SetDisabled(disabled bool) {
 	if w.isDisabled != disabled {
