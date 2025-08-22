@@ -27,7 +27,7 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	currentState := b.LayoutableWidget.CurrentState()
 
 	// 状態に対応するスタイルをマップから取得します。
-	// Build()メソッドで全ての状態のスタイルが設定されることが保証されているため、
+	// NewButtonBuilder()で全ての状態のスタイルが設定されることが保証されているため、
 	// ここで存在チェックを行う必要はありません。
 	styleToUse := b.stateStyles[currentState]
 
@@ -53,6 +53,8 @@ func NewButtonBuilder() *ButtonBuilder {
 	button.TextWidget = component.NewTextWidget(button, "")
 
 	// --- テーマから各状態のデフォルトスタイルを取得し、設定します ---
+	// この時点で全てのインタラクティブな状態に対応するスタイルがマップに設定されるため、
+	// 実行時にスタイルが見つからないという状況を防ぎます。
 	t := theme.GetCurrent()
 	button.stateStyles[component.StateNormal] = t.Button.Normal.DeepCopy()
 	button.stateStyles[component.StateHovered] = t.Button.Hovered.DeepCopy()
@@ -74,8 +76,8 @@ func (b *ButtonBuilder) SetStyleForState(state component.WidgetState, s style.St
 	// 既存の状態スタイルをベースに、新しいスタイルをマージします。
 	baseStyle, ok := b.Widget.stateStyles[state]
 	if !ok {
-		// 万が一ベーススタイルが存在しない場合は、Normal状態のスタイルをコピーして使用します。
 		// 通常、コンストラクタで全状態が初期化されるため、このパスは通りません。
+		// 安全策として、万が一ベースが存在しない場合はNormal状態のスタイルをコピーして使用します。
 		baseStyle = b.Widget.stateStyles[component.StateNormal]
 	}
 	b.Widget.stateStyles[state] = style.Merge(baseStyle, s)
@@ -91,9 +93,10 @@ func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
 }
 
 // Style は、ボタンのすべてのインタラクティブな状態（Normal, Hovered, Pressed, Disabled）に
-// 共通で適用される基本スタイルを設定します。
-// 例えば、ここでTextColorを設定すると、すべての状態でテキストの色が変更されます。
-// 特定の状態のスタイルを個別に変更したい場合は、HoverStyle()やPressedStyle()を使用してください。
+// 共通のスタイル変更を適用します。
+// 例えば、`Style(style.Style{TextColor: style.PColor(c)})` を呼び出すと、
+// すべての状態のテキストの色が変更されますが、背景色など他のプロパティは各状態の既存の設定が維持されます。
+// 特定の状態のみスタイルを変更したい場合は、`HoverStyle()` や `SetStyleForState()` を使用してください。
 func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
 	// 管理しているすべての状態スタイルに対して、渡されたスタイルをマージします。
 	for state, baseStyle := range b.Widget.stateStyles {
@@ -105,7 +108,7 @@ func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
 }
 
 // HoverStyle は、マウスカーソルがボタン上にあるとき（Hovered状態）のスタイルを個別に設定します。
-// これは、Style()で設定された基本スタイルをさらに上書きするために使用します。
+// これは、Style()で設定されたスタイルをさらに上書きするために使用します。
 func (b *ButtonBuilder) HoverStyle(s style.Style) *ButtonBuilder {
 	return b.SetStyleForState(component.StateHovered, s)
 }
@@ -117,39 +120,14 @@ func (b *ButtonBuilder) PressedStyle(s style.Style) *ButtonBuilder {
 }
 
 // Build は、設定に基づいて最終的なButtonを構築して返します。
-// このメソッドは、各状態のスタイルが適切に設定されていることを保証します。
+// Buttonのスタイルは、コンストラクタ(NewButtonBuilder)でテーマに基づいて
+// 全てのインタラクティブな状態に対して初期化済みです。
+// その後、Style(), HoverStyle(), PressedStyle() などのメソッドを通じて個別にカスタマイズできます。
 func (b *ButtonBuilder) Build() (*Button, error) {
-	styles := b.Widget.stateStyles
+	// 以前のバージョンに存在した、各状態のスタイルに対するフォールバック処理は、
+	// NewButtonBuilderで全ての状態がテーマから確実に初期化される設計となったため不要となり、削除されました。
+	// これにより、ビルドプロセスが簡素化され、コードの意図がより明確になっています。
 
-	// ビルド時に、ユーザーによって明示的に設定されていない状態のスタイルを、
-	// 合理的なデフォルト値で確実に埋めます。これにより、実行時のスタイル解決が不要になります。
-
-	// Normalがなければテーマから取得します (通常はコンストラクタで設定済み)。
-	normalStyle, ok := styles[component.StateNormal]
-	if !ok {
-		normalStyle = theme.GetCurrent().Button.Normal
-		styles[component.StateNormal] = normalStyle
-	}
-
-	// Hoveredスタイルが設定されていなければ、Normalスタイルを継承します。
-	if _, ok := styles[component.StateHovered]; !ok {
-		styles[component.StateHovered] = normalStyle
-	}
-
-	// Pressedスタイルが設定されていなければ、Hoveredスタイルを継承します。
-	// これにより、Hover -> Press の自然な視覚的変化が生まれます。
-	if _, ok := styles[component.StatePressed]; !ok {
-		styles[component.StatePressed] = styles[component.StateHovered]
-	}
-
-	// Disabledスタイルが設定されていなければ、Normalスタイルをベースに半透明にします。
-	if _, ok := styles[component.StateDisabled]; !ok {
-		// テーマのDisabledスタイルは既に半透明ですが、ユーザーがNormalスタイルのみを
-		// カスタマイズした場合のフォールバックとして機能します。
-		disabledStyle := style.Merge(normalStyle, style.Style{Opacity: style.PFloat64(0.5)})
-		styles[component.StateDisabled] = disabledStyle
-	}
-
-	// 汎用ビルダーのBuildを呼び出して、最終的なエラーチェックなどを行います。
+	// 汎用ビルダーのBuildを呼び出して、エラーチェックなどを行い、最終的なウィジェットを返します。
 	return b.Builder.Build()
 }
