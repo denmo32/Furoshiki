@@ -67,6 +67,7 @@ type StyleGetterSetter interface {
 type DirtyManager interface {
 	MarkDirty(relayout bool)
 	IsDirty() bool
+	NeedsRelayout() bool // ウィジェットがレイアウトの再計算を必要とするかを返します。
 	ClearDirty()
 }
 

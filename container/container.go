@@ -45,21 +45,25 @@ func (c *Container) Update() {
 	// ルートコンテナのサイズに関する警告を一度だけチェックします。
 	c.checkSizeWarning()
 
-	// このコンテナ、またはその子孫のいずれかで再レイアウトが必要な場合、IsDirty()はtrueを返します。
-	// その場合、レイアウトを再計算します。
+	// このコンテナ、またはその子孫のいずれかがダーティな場合、処理を行います。
 	if c.IsDirty() {
-		if c.layout != nil {
-			// レイアウト計算は複雑なため、予期せぬ状況でパニックする可能性があります。
-			// このdeferは、特定のレイアウト実装のバグがアプリケーション全体をクラッシュさせるのを防ぎます。
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Recovered from panic during layout calculation: %v\n%s", r, debug.Stack())
-				}
-			}()
-			c.layout.Layout(c)
+		// NeedsRelayout() は、ダーティレベルが「レイアウト再計算」を要求しているかチェックします。
+		// これにより、ホバー状態の変更など、再描画のみを要求するダーティ状態では
+		// 無駄なレイアウト計算が実行されないようになります。
+		if c.NeedsRelayout() {
+			if c.layout != nil {
+				// レイアウト計算は複雑なため、予期せぬ状況でパニックする可能性があります。
+				// このdeferは、特定のレイアウト実装のバグがアプリケーション全体をクラッシュさせるのを防ぎます。
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from panic during layout calculation: %v\n%s", r, debug.Stack())
+					}
+				}()
+				c.layout.Layout(c)
+			}
 		}
-		// レイアウトが完了したので、ダーティフラグをクリアします。
-		// これにより、次のフレームで不要な再計算が行われるのを防ぎます。
+		// レイアウト計算の有無にかかわらず、このフレームで処理されたダーティフラグはクリアします。
+		// これにより、次のフレームで不要な処理が走るのを防ぎます。
 		c.ClearDirty()
 	}
 
