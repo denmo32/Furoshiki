@@ -24,9 +24,9 @@ type Game struct {
 	root *container.Container
 
 	// デモ用の状態管理
-	dynamicContainer *container.Container
-	buttonsToDisable []component.Widget
-	widgetCount      int
+	dynamicContainer   *container.Container
+	buttonsToDisable   []component.Widget
+	widgetCount        int
 	areButtonsDisabled bool
 }
 
@@ -46,7 +46,9 @@ func NewGame() *Game {
 	theme.SetCurrent(appTheme)
 
 	// --- UIの構築 ---
-	root, err := ui.VStack(func(b *ui.ContainerBuilder) {
+	// [修正] VStackが受け取る関数の引数の型を *ui.FlexContainerBuilder に変更しました。
+	// これにより、Gap()のようなFlexLayout専用のメソッドが型安全に呼び出せます。
+	root, err := ui.VStack(func(b *ui.FlexContainerBuilder) {
 		b.Size(400, 600).Padding(10).Gap(10).BackgroundColor(appTheme.BackgroundColor)
 
 		// 1. タイトル
@@ -55,7 +57,8 @@ func NewGame() *Game {
 		})
 
 		// 2. 動的ウィジェット操作パネル
-		b.HStack(func(b *ui.ContainerBuilder) {
+		// [修正] HStackが受け取る関数の引数の型を *ui.FlexContainerBuilder に変更しました。
+		b.HStack(func(b *ui.FlexContainerBuilder) {
 			b.Size(380, 40).Gap(10)
 			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("Add Widget").Flex(1).OnClick(func(e event.Event) { g.addWidget() })
@@ -67,14 +70,16 @@ func NewGame() *Game {
 
 		// 3. 動的ウィジェットが追加されるコンテナ
 		// RelayoutBoundaryをtrueにすることで、このコンテナ内の変更が親に影響しなくなります。
-		dynamicBuilder := ui.VStack(func(b *ui.ContainerBuilder) {
+		// [修正] VStackが受け取る関数の引数の型を *ui.FlexContainerBuilder に変更しました。
+		dynamicBuilder := ui.VStack(func(b *ui.FlexContainerBuilder) {
 			b.Size(380, 200).Padding(10).Gap(5).BackgroundColor(appTheme.SecondaryColor).RelayoutBoundary(true)
 		})
 		g.dynamicContainer, _ = dynamicBuilder.Build()
 		b.AddChild(g.dynamicContainer)
 
 		// 4. 無効化機能のデモ
-		b.HStack(func(b *ui.ContainerBuilder) {
+		// [修正] HStackが受け取る関数の引数の型を *ui.FlexContainerBuilder に変更しました。
+		b.HStack(func(b *ui.FlexContainerBuilder) {
 			b.Size(380, 40).Gap(10)
 			okBtn, _ := widget.NewButtonBuilder().Text("OK").Flex(1).Build()
 			cancelBtn, _ := widget.NewButtonBuilder().Text("Cancel").Flex(1).Build()
