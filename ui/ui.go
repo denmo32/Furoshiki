@@ -235,13 +235,29 @@ func newContainerBuilder(cb *container.ContainerBuilder) *ContainerBuilder {
 }
 
 // FlexContainerBuilder は、FlexLayoutを持つコンテナ（VStack, HStack）に特化した設定メソッドを提供します。
+// [改善] 内部に *layout.FlexLayout への直接参照を保持することで、メソッド呼び出しごとの
+// 型アサーションを不要にし、コードの冗長性を排除し、堅牢性を向上させています。
 type FlexContainerBuilder struct {
 	BaseBuilder[*FlexContainerBuilder]
+	flexLayout *layout.FlexLayout
 }
 
+// newFlexContainerBuilder は、新しいFlexContainerBuilderを生成します。
+// このコンストラクタ内で、コンテナが持つレイアウトが実際に *layout.FlexLayout であることを
+// 一度だけ検証し、内部フィールドにキャッシュします。
 func newFlexContainerBuilder(cb *container.ContainerBuilder) *FlexContainerBuilder {
 	b := &FlexContainerBuilder{}
 	b.Init(b, cb)
+
+	// コンストラクタでレイアウトの型を一度だけチェックし、参照を保持します。
+	// これにより、各メソッドでの冗長な型アサーションが不要になります。
+	if flexLayout, ok := cb.GetLayout().(*layout.FlexLayout); ok {
+		b.flexLayout = flexLayout
+	} else {
+		// このエラーは、VStack/HStackの内部実装が変更されない限り発生しませんが、
+		// 将来の変更に対する安全策として追加しています。
+		b.AddError(fmt.Errorf("internal error: FlexContainerBuilder initialized with a non-FlexLayout"))
+	}
 	return b
 }
 
@@ -249,45 +265,70 @@ func newFlexContainerBuilder(cb *container.ContainerBuilder) *FlexContainerBuild
 
 // Gap はFlexLayoutの子要素間の間隔を設定します。
 func (b *FlexContainerBuilder) Gap(gap int) *FlexContainerBuilder {
-	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
-		if flexLayout.Gap != gap {
-			flexLayout.Gap = gap
-			b.Widget.MarkDirty(true)
-		}
+	// コンストラクタでエラーが発生した場合に備えてnilチェックを行います。
+	if b.flexLayout == nil {
+		return b
+	}
+	// キャッシュされたflexLayoutフィールドを直接操作します。
+	if b.flexLayout.Gap != gap {
+		b.flexLayout.Gap = gap
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
 
 // Justify はFlexLayoutの主軸方向の揃え位置を設定します。
 func (b *FlexContainerBuilder) Justify(alignment layout.Alignment) *FlexContainerBuilder {
-	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
-		if flexLayout.Justify != alignment {
-			flexLayout.Justify = alignment
-			b.Widget.MarkDirty(true)
-		}
+	// コンストラクタでエラーが発生した場合に備えてnilチェックを行います。
+	if b.flexLayout == nil {
+		return b
+	}
+	// キャッシュされたflexLayoutフィールドを直接操作します。
+	if b.flexLayout.Justify != alignment {
+		b.flexLayout.Justify = alignment
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
 
 // AlignItems はFlexLayoutの交差軸方向の揃え位置を設定します。
 func (b *FlexContainerBuilder) AlignItems(alignment layout.Alignment) *FlexContainerBuilder {
-	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
-		if flexLayout.AlignItems != alignment {
-			flexLayout.AlignItems = alignment
-			b.Widget.MarkDirty(true)
-		}
+	// コンストラクタでエラーが発生した場合に備えてnilチェックを行います。
+	if b.flexLayout == nil {
+		return b
+	}
+	// キャッシュされたflexLayoutフィールドを直接操作します。
+	if b.flexLayout.AlignItems != alignment {
+		b.flexLayout.AlignItems = alignment
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
 
 // GridContainerBuilder はGridLayoutコンテナに特化した設定メソッドを提供します。
+// [改善] 内部に *layout.GridLayout への直接参照を保持することで、メソッド呼び出しごとの
+// 型アサーションを不要にし、コードの冗長性を排除し、堅牢性を向上させています。
 type GridContainerBuilder struct {
 	BaseBuilder[*GridContainerBuilder]
+	gridLayout *layout.GridLayout
 }
 
+// newGridContainerBuilder は、新しいGridContainerBuilderを生成します。
+// このコンストラクタ内で、コンテナが持つレイアウトが実際に *layout.GridLayout であることを
+// 一度だけ検証し、内部フィールドにキャッシュします。
 func newGridContainerBuilder(cb *container.ContainerBuilder) *GridContainerBuilder {
 	b := &GridContainerBuilder{}
 	b.Init(b, cb)
+
+	// コンストラクタでレイアウトの型を一度だけチェックし、参照を保持します。
+	// これにより、各メソッドでの冗長な型アサーションが不要になります。
+	if gridLayout, ok := cb.GetLayout().(*layout.GridLayout); ok {
+		b.gridLayout = gridLayout
+	} else {
+		// このエラーは、Gridの内部実装が変更されない限り発生しませんが、
+		// 将来の変更に対する安全策として追加しています。
+		b.AddError(fmt.Errorf("internal error: GridContainerBuilder initialized with a non-GridLayout"))
+	}
 	return b
 }
 
@@ -295,52 +336,49 @@ func newGridContainerBuilder(cb *container.ContainerBuilder) *GridContainerBuild
 
 // Columns はグリッドの列数を設定します。
 func (b *GridContainerBuilder) Columns(count int) *GridContainerBuilder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		if count > 0 && gridLayout.Columns != count {
-			gridLayout.Columns = count
-			b.Widget.MarkDirty(true)
-		}
-	} else {
-		b.AddError(fmt.Errorf("Columns() can only be used on a Grid container"))
+	// コンストラクタでエラーが発生した場合に備えてnilチェックを行います。
+	if b.gridLayout == nil {
+		return b
+	}
+	if count > 0 && b.gridLayout.Columns != count {
+		b.gridLayout.Columns = count
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
 
 // Rows はグリッドの行数を設定します。0以下で自動計算されます。
 func (b *GridContainerBuilder) Rows(count int) *GridContainerBuilder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		if gridLayout.Rows != count {
-			gridLayout.Rows = count
-			b.Widget.MarkDirty(true)
-		}
-	} else {
-		b.AddError(fmt.Errorf("Rows() can only be used on a Grid container"))
+	if b.gridLayout == nil {
+		return b
+	}
+	if b.gridLayout.Rows != count {
+		b.gridLayout.Rows = count
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
 
 // HorizontalGap はセル間の水平方向の間隔を設定します。
 func (b *GridContainerBuilder) HorizontalGap(gap int) *GridContainerBuilder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		if gridLayout.HorizontalGap != gap {
-			gridLayout.HorizontalGap = gap
-			b.Widget.MarkDirty(true)
-		}
-	} else {
-		b.AddError(fmt.Errorf("HorizontalGap() can only be used on a Grid container"))
+	if b.gridLayout == nil {
+		return b
+	}
+	if b.gridLayout.HorizontalGap != gap {
+		b.gridLayout.HorizontalGap = gap
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
 
 // VerticalGap はセル間の垂直方向の間隔を設定します。
 func (b *GridContainerBuilder) VerticalGap(gap int) *GridContainerBuilder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
-		if gridLayout.VerticalGap != gap {
-			gridLayout.VerticalGap = gap
-			b.Widget.MarkDirty(true)
-		}
-	} else {
-		b.AddError(fmt.Errorf("VerticalGap() can only be used on a Grid container"))
+	if b.gridLayout == nil {
+		return b
+	}
+	if b.gridLayout.VerticalGap != gap {
+		b.gridLayout.VerticalGap = gap
+		b.Widget.MarkDirty(true)
 	}
 	return b
 }
