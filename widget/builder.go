@@ -39,7 +39,11 @@ func (b *Builder[T, W]) Text(text string) T {
 }
 
 // Positionは、ウィジェットの希望する相対位置を設定します。
-// [重要] この設定は、親コンテナが `AbsoluteLayout` (例: `ui.ZStack`) を使用している場合にのみ有効です。
+//
+// 重要: このメソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) を
+// 使用している場合にのみ有効です。`FlexLayout` (`VStack`, `HStack`) や `GridLayout` の
+// 中にあるウィジェットに対してこのメソッドを使用しても、設定はレイアウトシステムによって
+// 無視されるため効果はありません。
 func (b *Builder[T, W]) Position(x, y int) T {
 	b.Widget.SetRequestedPosition(x, y)
 	return b.self
