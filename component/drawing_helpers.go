@@ -91,7 +91,8 @@ func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 }
 
 // DrawStyledBackground は、指定されたスタイルでウィジェットの背景と境界線を描画します。
-// Opacity(不透明度)とBorderRadius(角丸)に対応しています。
+// この関数は、描画ロジックを内部ヘルパー関数(drawBackground, drawBorder)に委譲することで、
+// コードの関心事を分離し、可読性を高めています。
 func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.Style) {
 	if width <= 0 || height <= 0 {
 		return
@@ -99,17 +100,9 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 	// 描画に必要な1x1の白ピクセル画像を準備します。
 	ensureWhitePixelImg()
 
-	// スタイルから値を取得 (nilの場合はゼロ値を使用)
-	bgColorPtr := s.Background
-	borderColorPtr := s.BorderColor
-	borderWidth := float32(0)
-	if s.BorderWidth != nil {
-		borderWidth = *s.BorderWidth
-	}
-	radius := float32(0)
-	if s.BorderRadius != nil {
-		radius = *s.BorderRadius
-	}
+	// 座標とサイズをfloat32に変換してヘルパー関数に渡します。
+	fx, fy := float32(x), float32(y)
+	fw, fh := float32(width), float32(height)
 
 	// DrawTrianglesのオプションは背景と境界線で共通です。
 	drawTrianglesOptions := &ebiten.DrawTrianglesOptions{
@@ -117,68 +110,99 @@ func DrawStyledBackground(dst *ebiten.Image, x, y, width, height int, s style.St
 	}
 
 	// 1. 背景色の描画
-	if bgColorPtr != nil && *bgColorPtr != color.Transparent {
-		bgColor := *bgColorPtr
-		if s.Opacity != nil {
-			bgColor = applyOpacity(bgColor, s.Opacity)
-		}
-
-		if radius > 0 {
-			// 角丸矩形のパスを生成して塗りつぶします。
-			path := createRoundedRectPath(float32(x), float32(y), float32(width), float32(height), radius)
-			// 塗りつぶし用の頂点とインデックスを生成します。
-			vertices, indices := path.AppendVerticesAndIndicesForFilling(nil, nil)
-
-			// 全ての頂点に背景色を設定します。
-			cr, cg, cb, ca := colorToScale(bgColor)
-			for i := range vertices {
-				vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
-			}
-
-			// 三角形を描画します。
-			dst.DrawTriangles(vertices, indices, whitePixelImg, drawTrianglesOptions)
-
-		} else {
-			// 通常の矩形（角丸なし）を描画します。
-			vector.DrawFilledRect(dst, float32(x), float32(y), float32(width), float32(height), bgColor, false)
-		}
-	}
+	drawBackground(dst, fx, fy, fw, fh, s, drawTrianglesOptions)
 
 	// 2. 境界線の描画
-	if borderColorPtr != nil && *borderColorPtr != color.Transparent && borderWidth > 0 {
-		borderColor := *borderColorPtr
-		if s.Opacity != nil {
-			borderColor = applyOpacity(borderColor, s.Opacity)
+	drawBorder(dst, fx, fy, fw, fh, s, drawTrianglesOptions)
+}
+
+// drawBackground は、ウィジェットの背景を描画する内部ヘルパーです。
+// 角丸と不透明度を考慮します。
+func drawBackground(dst *ebiten.Image, x, y, width, height float32, s style.Style, opts *ebiten.DrawTrianglesOptions) {
+	// スタイルから背景色を取得します。未設定または透明の場合は何も描画しません。
+	bgColorPtr := s.Background
+	if bgColorPtr == nil || *bgColorPtr == color.Transparent {
+		return
+	}
+
+	// スタイルから背景色と不透明度を取得し、適用します。
+	bgColor := *bgColorPtr
+	if s.Opacity != nil {
+		bgColor = applyOpacity(bgColor, s.Opacity)
+	}
+
+	// スタイルから角丸の半径を取得します。
+	radius := float32(0)
+	if s.BorderRadius != nil {
+		radius = *s.BorderRadius
+	}
+
+	if radius > 0 {
+		// --- 角丸矩形の背景描画 ---
+		path := createRoundedRectPath(x, y, width, height, radius)
+		// 塗りつぶし用の頂点とインデックスを生成します。
+		vertices, indices := path.AppendVerticesAndIndicesForFilling(nil, nil)
+
+		// 全ての頂点に背景色を設定します。
+		cr, cg, cb, ca := colorToScale(bgColor)
+		for i := range vertices {
+			vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
 		}
 
-		if radius > 0 {
-			// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせます。
-			halfBw := borderWidth / 2
-			fx, fy := float32(x)+halfBw, float32(y)+halfBw
-			fw, fh := float32(width)-borderWidth, float32(height)-borderWidth
-			r := radius - halfBw
-			if r < 0 {
-				r = 0
-			}
-			insetPath := createRoundedRectPath(fx, fy, fw, fh, r)
+		// 三角形を描画します。
+		dst.DrawTriangles(vertices, indices, whitePixelImg, opts)
+	} else {
+		// --- 通常の矩形（角丸なし）の背景描画 ---
+		vector.DrawFilledRect(dst, x, y, width, height, bgColor, false)
+	}
+}
 
-			// 線描画用の頂点とインデックスを生成します。
-			strokeOpts := &vector.StrokeOptions{Width: borderWidth, MiterLimit: 10}
-			vertices, indices := insetPath.AppendVerticesAndIndicesForStroke(nil, nil, strokeOpts)
+// drawBorder は、ウィジェットの境界線を描画する内部ヘルパーです。
+// 角丸と不透明度を考慮します。
+func drawBorder(dst *ebiten.Image, x, y, width, height float32, s style.Style, opts *ebiten.DrawTrianglesOptions) {
+	// スタイルから境界線の情報を取得します。色がない、幅が0以下の場合は何も描画しません。
+	borderColorPtr := s.BorderColor
+	borderWidth := float32(0)
+	if s.BorderWidth != nil {
+		borderWidth = *s.BorderWidth
+	}
+	if borderColorPtr == nil || *borderColorPtr == color.Transparent || borderWidth <= 0 {
+		return
+	}
 
-			// 全ての頂点に境界線の色を設定します。
-			cr, cg, cb, ca := colorToScale(borderColor)
-			for i := range vertices {
-				vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
-			}
+	// スタイルから境界線の色と不透明度を取得し、適用します。
+	borderColor := *borderColorPtr
+	if s.Opacity != nil {
+		borderColor = applyOpacity(borderColor, s.Opacity)
+	}
 
-			// 三角形を描画して線を描画します。
-			dst.DrawTriangles(vertices, indices, whitePixelImg, drawTrianglesOptions)
+	// スタイルから角丸の半径を取得します。
+	radius := float32(0)
+	if s.BorderRadius != nil {
+		radius = *s.BorderRadius
+	}
 
-		} else {
-			// 通常の矩形の境界線を描画します。
-			vector.StrokeRect(dst, float32(x), float32(y), float32(width), float32(height), borderWidth, borderColor, false)
+	if radius > 0 {
+		// --- 角丸矩形の境界線描画 ---
+		// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせます。
+		halfBw := borderWidth / 2
+		insetPath := createRoundedRectPath(x+halfBw, y+halfBw, width-borderWidth, height-borderWidth, radius-halfBw)
+
+		// 線描画用の頂点とインデックスを生成します。
+		strokeOpts := &vector.StrokeOptions{Width: borderWidth, MiterLimit: 10}
+		vertices, indices := insetPath.AppendVerticesAndIndicesForStroke(nil, nil, strokeOpts)
+
+		// 全ての頂点に境界線の色を設定します。
+		cr, cg, cb, ca := colorToScale(borderColor)
+		for i := range vertices {
+			vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
 		}
+
+		// 三角形を描画して線を描画します。
+		dst.DrawTriangles(vertices, indices, whitePixelImg, opts)
+	} else {
+		// --- 通常の矩形の境界線描画 ---
+		vector.StrokeRect(dst, x, y, width, height, borderWidth, borderColor, false)
 	}
 }
 
