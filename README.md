@@ -9,7 +9,7 @@ Furoshikiは、以下の設計思想に基づいています。
 -   **宣言的なAPI**: UIの構造を、手続き的なコードではなく、見たままの階層構造として記述できるAPIを提供します。これにより、コードの可読性が向上し、UIの全体像を把握しやすくなります。
 -   **柔軟性と拡張性**: Web技術で広く受け入れられているFlexboxレイアウトをコアに採用し、レスポンシブで複雑なレイアウトを簡単に実現します。また、すべてのコンポーネントは共通のインターフェースを実装しており、Goの「Composition over Inheritance（継承より合成）」の哲学に基づき、独自のカスタムコンポーネントを容易に作成・組み込みできます。
 -   **関心の分離**: ライブラリは `component`, `container`, `layout`, `style`, `event`, `theme` といった責務が明確なパッケージに分割されています。これにより、ライブラリの各機能が理解しやすくなり、メンテナンス性も向上します。
--   **直感的なビルダー**: `ui`パッケージの高レベルなビルダーとメソッドチェーンにより、少ないコードで流れるようにUIを構築できます。`BackgroundColor()`や`Padding()`のようなヘルパーメソッドが、冗長なスタイル定義を不要にします。
+-   **直感的なビルダー**: `ui`パッケージの高レベルなビルダーとメソッドチェーンにより、少ないコードで流れるようにUIを構築できます。`BackgroundColor()`, `Padding()`, `Margin()`, `Border()` のようなヘルパーメソッドが、冗長なスタイル定義を不要にします。
 
 ## コアコンセプト (Core Concepts)
 
@@ -77,7 +77,7 @@ func main() {
           AlignItems(layout.AlignCenter).
           BackgroundColor(appTheme.BackgroundColor)
 
-        // タイトル (テーマの色を部分的に上書き)
+        // タイトル (テーマの色を部分的に上書きし、枠線を追加)
         b.Label(func(l *widget.LabelBuilder) {
             l.Text("Furoshiki UI Demo").
               Size(360, 40).
@@ -85,7 +85,8 @@ func main() {
               TextColor(color.White).
               TextAlign(style.TextAlignCenter).
               VerticalAlign(style.VerticalAlignMiddle).
-              BorderRadius(8)
+              BorderRadius(8).
+              Border(1, color.Gray{Y: 180})
         })
 
         // ボタン (スタイルはテーマから自動適用)
@@ -120,7 +121,7 @@ func main() {
 
 ウィジェットの `.Position(x, y)` メソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) の場合にのみ有効です。
 
-`FlexLayout` (`VStack` や `HStack`) の中では、子の位置はレイアウトシステムによって自動的に計算・管理されるため、`.Position()` の設定は無視されます。これは意図された挙動です。
+`FlexLayout` (`VStack` や `HStack`) や `GridLayout` の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で `.Position()` を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
 
 ## 今後のロードマップ (Roadmap)
 
