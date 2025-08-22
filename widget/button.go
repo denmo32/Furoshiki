@@ -137,5 +137,5 @@ func (b *ButtonBuilder) Build() (*Button, error) {
 	}
 
 	// 汎用ビルダーのBuildを呼び出して、最終的なエラーチェックなどを行います。
-	return b.Builder.Build("Button")
+	return b.Builder.Build()
 }

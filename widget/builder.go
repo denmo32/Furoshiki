@@ -6,6 +6,7 @@ import (
 	"furoshiki/component"
 	"furoshiki/style"
 	"image/color"
+	"reflect"
 )
 
 // textWidget は、component.TextWidget を埋め込むウィジェットが満たすインターフェースです。
@@ -38,13 +39,13 @@ func (b *Builder[T, W]) Text(text string) T {
 	return b.self
 }
 
-// Positionは、ウィジェットの希望する相対位置を設定します。
+// AbsolutePosition は、ウィジェットの希望する相対位置を設定します。
 //
-// 重要: このメソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) を
+// このメソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) を
 // 使用している場合にのみ有効です。`FlexLayout` (`VStack`, `HStack`) や `GridLayout` の
 // 中にあるウィジェットに対してこのメソッドを使用しても、設定はレイアウトシステムによって
 // 無視されるため効果はありません。
-func (b *Builder[T, W]) Position(x, y int) T {
+func (b *Builder[T, W]) AbsolutePosition(x, y int) T {
 	b.Widget.SetRequestedPosition(x, y)
 	return b.self
 }
@@ -146,9 +147,11 @@ func (b *Builder[T, W]) VerticalAlign(align style.VerticalAlignType) T {
 }
 
 // Build はウィジェットの構築を完了します。
-func (b *Builder[T, W]) Build(typeName string) (W, error) {
+func (b *Builder[T, W]) Build() (W, error) {
 	if len(b.errors) > 0 {
 		var zero W
+		// reflectを使用してウィジェットの型名を取得
+		typeName := reflect.TypeOf(b.Widget).Elem().Name()
 		return zero, fmt.Errorf("%s build errors: %w", typeName, errors.Join(b.errors...))
 	}
 	// ウィジェットがダーティマークされていることを保証し、最初のフレームでレイアウトが実行されるようにします。

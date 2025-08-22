@@ -117,11 +117,11 @@ func main() {
 }
 ```
 
-## 注意点：レイアウトとPosition
+## 注意点：レイアウトとAbsolutePosition
 
-ウィジェットの `.Position(x, y)` メソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) の場合にのみ有効です。
+ウィジェットの `.AbsolutePosition(x, y)` メソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) の場合にのみ有効です。
 
-`FlexLayout` (`VStack` や `HStack`) や `GridLayout` の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で `.Position()` を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
+`FlexLayout` (`VStack` や `HStack`) や `GridLayout` の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で `.AbsolutePosition()` を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
 
 ## 今後のロードマップ (Roadmap)
 

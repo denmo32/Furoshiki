@@ -55,8 +55,11 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 }
 
 // SetRequestedPosition は、レイアウトに対する希望の相対位置を設定します。
-// このメソッドは `AbsoluteLayout` のような特定のレイアウトと協調するために存在します。
-// `FlexLayout` など他のレイアウトでは効果がありません。
+//
+// 重要: このメソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) を
+// 使用している場合にのみ有効です。`FlexLayout` (`VStack`, `HStack`) や `GridLayout` の
+// 中にあるウィジェットに対してこのメソッドを使用しても、設定はレイアウトシステムによって
+// 無視されるため効果はありません。これは意図された挙動です。
 func (w *LayoutableWidget) SetRequestedPosition(x, y int) {
 	if w.requestedX != x || w.requestedY != y {
 		w.requestedX = x

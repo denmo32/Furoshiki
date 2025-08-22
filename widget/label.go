@@ -39,5 +39,5 @@ func NewLabelBuilder() *LabelBuilder {
 
 // Build は、設定に基づいて最終的なLabelを構築して返します。
 func (b *LabelBuilder) Build() (*Label, error) {
-	return b.Builder.Build("Label")
+	return b.Builder.Build()
 }
