@@ -9,13 +9,12 @@ import (
 	"image/color"
 )
 
-// VStack は垂直方向に子要素を配置するFlexLayoutコンテナを作成するビルダーです。
-func VStack(buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
-	// containerパッケージの基本的なビルダーを作成し、レイアウトを設定します。
-	builder := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
-			Direction: layout.DirectionColumn,
-		})
+// newContainer は、指定されたレイアウトでコンテナビルダーを生成し、
+// ユーザー提供のビルド関数を実行する内部ヘルパーです。
+// これにより、VStack, HStack, ZStack といった類似のコンテナ生成関数のコード重複を排除します。
+func newContainer(layout layout.Layout, buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
+	// containerパッケージの基本的なビルダーを作成し、指定されたレイアウトを設定します。
+	builder := container.NewContainerBuilder().Layout(layout)
 
 	if buildFunc != nil {
 		// uiパッケージの高レベルなラッパービルダーを生成し、ユーザー提供の関数を実行します。
@@ -27,35 +26,36 @@ func VStack(buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
 	return builder
 }
 
+// VStack は垂直方向に子要素を配置するFlexLayoutコンテナを作成するビルダーです。
+func VStack(buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
+	// 共通ヘルパー関数を、垂直方向のFlexLayoutで呼び出します。
+	return newContainer(
+		&layout.FlexLayout{
+			Direction: layout.DirectionColumn,
+		},
+		buildFunc,
+	)
+}
+
 // HStack は水平方向に子要素を配置するFlexLayoutコンテナを作成するビルダーです。
 func HStack(buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
-	builder := container.NewContainerBuilder().
-		Layout(&layout.FlexLayout{
+	// 共通ヘルパー関数を、水平方向のFlexLayoutで呼び出します。
+	return newContainer(
+		&layout.FlexLayout{
 			Direction: layout.DirectionRow,
-		})
-
-	if buildFunc != nil {
-		uiBuilder := newContainerBuilder(builder)
-		buildFunc(uiBuilder)
-	}
-
-	return builder
+		},
+		buildFunc,
+	)
 }
 
 // ZStack は子要素を重ねて配置するAbsoluteLayoutコンテナを作成するビルダーです。
 func ZStack(buildFunc func(*ContainerBuilder)) *container.ContainerBuilder {
-	builder := container.NewContainerBuilder().
-		Layout(&layout.AbsoluteLayout{})
-
-	if buildFunc != nil {
-		uiBuilder := newContainerBuilder(builder)
-		buildFunc(uiBuilder)
-	}
-
-	return builder
+	// 共通ヘルパー関数を、AbsoluteLayoutで呼び出します。
+	return newContainer(&layout.AbsoluteLayout{}, buildFunc)
 }
 
 // Grid は子要素を格子状に配置するGridLayoutコンテナを作成するビルダーです。
+// この関数は buildFunc の引数の型が異なるため、newContainer ヘルパーは使用しません。
 func Grid(buildFunc func(*GridContainerBuilder)) *container.ContainerBuilder {
 	builder := container.NewContainerBuilder().
 		Layout(&layout.GridLayout{
