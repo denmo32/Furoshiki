@@ -122,6 +122,7 @@ func main() {
 					Style(baseButtonStyle).
 					Flex(1). // Flex=1でスペースを均等に分け合う
 					HoverStyle(style.Style{Opacity: style.PFloat64(0.8)}).
+					PressedStyle(style.Style{Background: style.PColor(darkGray), TextColor: style.PColor(color.White)}).
 					OnClick(func(e event.Event) {
 						fmt.Printf("OK button clicked at (%d, %d)!\n", e.X, e.Y)
 					})
@@ -132,6 +133,7 @@ func main() {
 					Style(baseButtonStyle).
 					Flex(1). // Flex=1でスペースを均等に分け合う
 					HoverStyle(style.Style{Opacity: style.PFloat64(0.8)}).
+					PressedStyle(style.Style{Background: style.PColor(darkGray), TextColor: style.PColor(color.White)}).
 					OnClick(func(_ event.Event) {
 						fmt.Println("Cancel button clicked!")
 					})

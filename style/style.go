@@ -110,6 +110,49 @@ func (s *Style) Validate() error {
 	return nil
 }
 
+// DeepCopy はスタイルのディープコピーを生成します。
+// ポインタフィールドが指す先の値もコピーされるため、
+// コピー元のスタイルに影響を与えることなく安全に変更できます。
+// font.Faceはインターフェースでありコピーできないため、ポインタは共有されます。
+func (s Style) DeepCopy() Style {
+	newStyle := s // シャローコピーで基本構造をコピー
+
+	if s.Background != nil {
+		newStyle.Background = PColor(*s.Background)
+	}
+	if s.BorderColor != nil {
+		newStyle.BorderColor = PColor(*s.BorderColor)
+	}
+	if s.BorderWidth != nil {
+		newStyle.BorderWidth = PFloat32(*s.BorderWidth)
+	}
+	if s.Margin != nil {
+		newStyle.Margin = PInsets(*s.Margin)
+	}
+	if s.Padding != nil {
+		newStyle.Padding = PInsets(*s.Padding)
+	}
+	// s.Font (*font.Face) はインターフェースなのでディープコピーしない（できない）
+	// ポインタのコピー（シャローコピー）のままとする
+	if s.TextColor != nil {
+		newStyle.TextColor = PColor(*s.TextColor)
+	}
+	if s.BorderRadius != nil {
+		newStyle.BorderRadius = PFloat32(*s.BorderRadius)
+	}
+	if s.Opacity != nil {
+		newStyle.Opacity = PFloat64(*s.Opacity)
+	}
+	if s.TextAlign != nil {
+		newStyle.TextAlign = PTextAlignType(*s.TextAlign)
+	}
+	if s.VerticalAlign != nil {
+		newStyle.VerticalAlign = PVerticalAlignType(*s.VerticalAlign)
+	}
+
+	return newStyle
+}
+
 // --- Pointer Helpers ---
 // 以下のヘルパー関数は、スタイル設定をより直感的かつシンプルにするために提供されます。
 // これらを使用することで、一時変数を宣言することなく、直接スタイル構造体に値を設定できます。

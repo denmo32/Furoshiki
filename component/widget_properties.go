@@ -81,10 +81,10 @@ func (w *LayoutableWidget) SetStyle(style style.Style) {
 	w.MarkDirty(true)
 }
 
-// GetStyle はウィジェットの現在のスタイルを返します。
-// 詳細は component.Widget インターフェースのコメントを参照してください。
+// GetStyle はウィジェットの現在のスタイルの安全なコピーを返します。
+// 内部の値もコピーされるため、この戻り値を変更しても元のウィジェットには影響しません。
 func (w *LayoutableWidget) GetStyle() style.Style {
-	return w.style
+	return w.style.DeepCopy()
 }
 
 // SetFlex はFlexLayoutにおけるウィジェットの伸縮係数を設定します。
