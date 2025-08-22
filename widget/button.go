@@ -62,6 +62,7 @@ func NewButtonBuilder() *ButtonBuilder {
 	button.stateStyles[component.StateDisabled] = t.Button.Disabled.DeepCopy()
 
 	// デフォルトのスタイルとしてNormalを適用
+	// これにより、レイアウト計算などで使用される基本スタイルが設定されます。
 	button.SetStyle(t.Button.Normal)
 	button.SetSize(100, 40) // TODO: Consider moving size to theme
 
@@ -81,6 +82,13 @@ func (b *ButtonBuilder) SetStyleForState(state component.WidgetState, s style.St
 		baseStyle = b.Widget.stateStyles[component.StateNormal]
 	}
 	b.Widget.stateStyles[state] = style.Merge(baseStyle, s)
+
+	// もし更新したのがNormal状態のスタイルであれば、ウィジェットの基本スタイルも更新します。
+	// これにより、レイアウト計算が常に最新のNormal状態のスタイルプロパティ（パディング等）を
+	// 使用することが保証されます。
+	if state == component.StateNormal {
+		b.Widget.SetStyle(b.Widget.stateStyles[component.StateNormal])
+	}
 	return b
 }
 
@@ -92,18 +100,29 @@ func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
 	return b
 }
 
-// Style は、ボタンのすべてのインタラクティブな状態（Normal, Hovered, Pressed, Disabled）に
-// 共通のスタイル変更を適用します。
-// 例えば、`Style(style.Style{TextColor: style.PColor(c)})` を呼び出すと、
-// すべての状態のテキストの色が変更されますが、背景色など他のプロパティは各状態の既存の設定が維持されます。
-// 特定の状態のみスタイルを変更したい場合は、`HoverStyle()` や `SetStyleForState()` を使用してください。
+// Style は、ボタンの通常時（Normal状態）のスタイルを設定します。
+// これは最も一般的に使用されるスタイル設定メソッドです。
+// レイアウトに影響を与えるプロパティ（Padding, Marginなど）を変更する場合は、このメソッドを使用してください。
+//
+// 全ての状態に共通のスタイル変更を適用したい場合は `StyleAllStates()` を、
+// 特定の状態のスタイルのみを変更したい場合は `HoverStyle()` や `PressedStyle()` を使用してください。
 func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
+	// Normal状態のスタイルを更新します。内部でウィジェットの基本スタイルも更新されます。
+	return b.SetStyleForState(component.StateNormal, s)
+}
+
+// StyleAllStates は、ボタンの全てのインタラクティブな状態（Normal, Hovered, Pressed, Disabled）に
+// 共通のスタイル変更を適用します。
+// 例えば、`StyleAllStates(style.Style{BorderRadius: style.PFloat32(10)})` を呼び出すと、
+// 全ての状態の角丸が変更されますが、背景色など他のプロパティは各状態の既存の設定が維持されます。
+func (b *ButtonBuilder) StyleAllStates(s style.Style) *ButtonBuilder {
 	// 管理しているすべての状態スタイルに対して、渡されたスタイルをマージします。
 	for state, baseStyle := range b.Widget.stateStyles {
 		b.Widget.stateStyles[state] = style.Merge(baseStyle, s)
 	}
-	// 変更をウィジェットに反映させ、再レイアウト・再描画を要求します。
-	b.Widget.MarkDirty(true)
+	// Normal状態のスタイルが変更されたため、ウィジェットの基本スタイルも更新し、
+	// レイアウトへの変更を反映させます。
+	b.Widget.SetStyle(b.Widget.stateStyles[component.StateNormal])
 	return b
 }
 
@@ -117,6 +136,11 @@ func (b *ButtonBuilder) HoverStyle(s style.Style) *ButtonBuilder {
 // これは、Style()やHoverStyle()で設定されたスタイルをさらに上書きするために使用します。
 func (b *ButtonBuilder) PressedStyle(s style.Style) *ButtonBuilder {
 	return b.SetStyleForState(component.StatePressed, s)
+}
+
+// DisabledStyle は、ボタンが無効化されているとき（Disabled状態）のスタイルを個別に設定します。
+func (b *ButtonBuilder) DisabledStyle(s style.Style) *ButtonBuilder {
+	return b.SetStyleForState(component.StateDisabled, s)
 }
 
 // Build は、設定に基づいて最終的なButtonを構築して返します。
