@@ -26,24 +26,16 @@ func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
 // HandleEvent は、ディスパッチャから渡されたイベントを処理します。
 // 対応するイベントタイプのハンドラが存在すれば、それを実行します。
 func (w *LayoutableWidget) HandleEvent(e event.Event) {
-    // 状態管理: マウスの押下状態を更新
-    switch e.Type {
-    case event.MouseDown:
-        w.SetPressed(true)
-    case event.MouseUp:
-        w.SetPressed(false)
-    }
-
-    if handler, exists := w.eventHandlers[e.Type]; exists {
-        // イベントハンドラの実行中にパニックが発生してもアプリケーション全体がクラッシュしないようにリカバリします。
-        defer func() {
-            if r := recover(); r != nil {
-                // パニック発生時に、より詳細なデバッグ情報（スタックトレース）をログに出力します。
-                log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
-            }
-        }()
-        handler(e)
-    }
+	// 状態管理ロジックはDispatcherに集約されたため削除。
+	// このメソッドは、登録されたカスタムイベントハンドラの実行に専念します。
+	if handler, exists := w.eventHandlers[e.Type]; exists {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
+			}
+		}()
+		handler(e)
+	}
 }
 
 // HitTest は、指定された座標がウィジェットの領域内にあるかを判定します。

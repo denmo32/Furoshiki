@@ -13,6 +13,7 @@ import (
 // component.Widgetは（構造的に）このインターフェースを満たします。
 type EventTarget interface {
 	SetHovered(bool)
+	SetPressed(bool) // ウィジェットの押下状態を設定するメソッドを追加
 	HandleEvent(Event)
 }
 
@@ -72,6 +73,13 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if d.hoveredComponent != nil {
 			d.pressedComponent = d.hoveredComponent // 押されたコンポーネントを記憶
+
+			// --- 改善点 ---
+			// ウィジェットの押下状態(Pressed)の管理をDispatcherが一元的に行うように変更。
+			// これにより、状態遷移のロジックがDispatcherに集約され、
+			// 各ウィジェットのHandleEvent実装がシンプルになります。
+			d.pressedComponent.SetPressed(true)
+
 			d.pressedComponent.HandleEvent(Event{
 				Type:        MouseDown,
 				Target:      d.pressedComponent,
@@ -85,14 +93,16 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 
 	// 4. マウスボタン解放イベント (MouseUp and Click)
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
-		// --- 修正箇所 ---
-		// MouseUpイベントは、現在ホバーしているコンポーネントではなく、
-		// 最初に「押された」コンポーネント(pressedComponent)に送る必要があります。
-		// これにより、ボタンの外でマウスを離した場合でも、押されたボタンが確実に
-		// 解放イベントを受け取り、自身の「押下状態」を解除できるようになります。
 		if d.pressedComponent != nil {
-			// まず、押されていたコンポーネントに MouseUp イベントを送信します。
-			// これが押下状態を解除するトリガーとなります。
+			// --- 改善点 ---
+			// マウスボタンが解放されたタイミングで、押されていたウィジェットの
+			// 押下状態(Pressed)を解除します。これにより状態管理の責務がDispatcherに集約されます。
+			d.pressedComponent.SetPressed(false)
+
+			// MouseUpイベントは、現在ホバーしているコンポーネントではなく、
+			// 最初に「押された」コンポーネント(pressedComponent)に送る必要があります。
+			// これにより、ボタンの外でマウスを離した場合でも、押されたボタンが確実に
+			// MouseUpイベントを受け取れるようになります。
 			d.pressedComponent.HandleEvent(Event{
 				Type:        MouseUp,
 				Target:      d.pressedComponent, // イベントのターゲットは押されていたコンポーネント
@@ -115,7 +125,6 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 				})
 			}
 		}
-		// --- 修正ここまで ---
 
 		// イベント処理が完了したら、押下状態をリセットします。
 		d.pressedComponent = nil
