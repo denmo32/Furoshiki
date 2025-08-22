@@ -28,6 +28,7 @@ type LayoutableWidget struct {
 	relayoutDirty bool // 再レイアウトが必要かどうかのフラグ
 	isHovered     bool
 	isVisible     bool // 可視性フラグ
+	isDisabled    bool // 無効フラグ
 
 	// --- Hierarchy & Events ---
 	parent        Container // 親コンテナへの参照

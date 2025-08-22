@@ -67,6 +67,10 @@ type Widget interface {
 	SetVisible(visible bool)
 	// IsVisibleはウィジェットが可視状態であるかを返します。
 	IsVisible() bool
+	// SetDisabledはウィジェットの有効・無効状態を設定します。無効なウィジェットはユーザー入力を受け付けません。
+	SetDisabled(disabled bool)
+	// IsDisabledはウィジェットが無効状態であるかを返します。
+	IsDisabled() bool
 	// SetRelayoutBoundaryは、このウィジェットをレイアウト計算の境界とするか設定します。
 	// trueに設定すると、このウィジェット内部の変更が親コンテナの再レイアウトを引き起こさなくなり、パフォーマンスが向上します。
 	SetRelayoutBoundary(isBoundary bool)

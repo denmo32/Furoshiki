@@ -4,8 +4,8 @@ import (
 	"furoshiki/component"
 	"furoshiki/event"
 	"furoshiki/style"
+	"furoshiki/theme"
 	"image"
-	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -21,6 +21,14 @@ type Button struct {
 
 // Update はボタンの状態を更新します。LayoutableWidgetのUpdateをオーバーライドします。
 func (b *Button) Update() {
+	if b.IsDisabled() {
+		if b.currentState != component.StateDisabled {
+			b.currentState = component.StateDisabled
+			b.MarkDirty(false)
+		}
+		return
+	}
+
 	newState := component.StateNormal
 	if b.IsHovered() {
 		newState = component.StateHovered
@@ -28,7 +36,6 @@ func (b *Button) Update() {
 	if b.isPressed {
 		newState = component.StatePressed
 	}
-	// TODO: Disabled state
 
 	if b.currentState != newState {
 		b.currentState = newState
@@ -88,21 +95,16 @@ func NewButtonBuilder() *ButtonBuilder {
 	// ボタン自身をselfとして渡してTextWidgetを初期化
 	button.TextWidget = component.NewTextWidget(button, "")
 
-	// デフォルトのNormal状態のスタイルを設定
-	defaultStyle := style.Style{
-		Background:  style.PColor(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
-		TextColor:   style.PColor(color.Black),
-		BorderColor: style.PColor(color.Gray{Y: 150}),
-		BorderWidth: style.PFloat32(1),
-		Padding: style.PInsets(style.Insets{
-			Top: 5, Right: 10, Bottom: 5, Left: 10,
-		}),
-		TextAlign:     style.PTextAlignType(style.TextAlignCenter),
-		VerticalAlign: style.PVerticalAlignType(style.VerticalAlignMiddle),
-	}
-	button.stateStyles[component.StateNormal] = defaultStyle
+	// --- テーマからスタイルを取得 ---
+	t := theme.GetCurrent()
+	button.stateStyles[component.StateNormal] = t.Button.Normal
+	button.stateStyles[component.StateHovered] = t.Button.Hovered
+	button.stateStyles[component.StatePressed] = t.Button.Pressed
+	button.stateStyles[component.StateDisabled] = t.Button.Disabled
 
-	button.SetSize(100, 40)
+	// デフォルトのスタイルとしてNormalを適用
+	button.SetStyle(t.Button.Normal)
+	button.SetSize(100, 40) // TODO: Consider moving size to theme
 
 	b := &ButtonBuilder{}
 	b.Builder.Init(b, button)
@@ -154,7 +156,12 @@ func (b *ButtonBuilder) PressedStyle(s style.Style) *ButtonBuilder {
 // Build は、設定に基づいて最終的なButtonを構築して返します。
 func (b *ButtonBuilder) Build() (*Button, error) {
 	// Build時に、設定されていない状態のスタイルをフォールバックで埋めます。
-	normalStyle := b.Widget.stateStyles[component.StateNormal]
+	normalStyle, ok := b.Widget.stateStyles[component.StateNormal]
+	if !ok {
+		// テーマが空の場合など、万が一Normalが設定されていなかった場合の安全策
+		normalStyle = theme.GetCurrent().Button.Normal
+		b.Widget.stateStyles[component.StateNormal] = normalStyle
+	}
 
 	// HoveredがなければNormalをコピー
 	if _, ok := b.Widget.stateStyles[component.StateHovered]; !ok {

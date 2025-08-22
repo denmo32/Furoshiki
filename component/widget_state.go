@@ -77,6 +77,20 @@ func (w *LayoutableWidget) IsHovered() bool {
 	return w.isHovered
 }
 
+// SetDisabled はウィジェットの有効・無効状態を設定します。
+func (w *LayoutableWidget) SetDisabled(disabled bool) {
+	if w.isDisabled != disabled {
+		w.isDisabled = disabled
+		// 無効状態の変更は見た目に影響するため、再描画を要求します。
+		w.MarkDirty(false)
+	}
+}
+
+// IsDisabled はウィジェットが無効状態であるかを返します。
+func (w *LayoutableWidget) IsDisabled() bool {
+	return w.isDisabled
+}
+
 // SetVisible はウィジェットの可視性を設定します。
 func (w *LayoutableWidget) SetVisible(visible bool) {
 	if w.isVisible != visible {

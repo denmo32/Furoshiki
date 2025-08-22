@@ -42,8 +42,8 @@ func (w *LayoutableWidget) HandleEvent(event event.Event) {
 // 戻り値として、初期化時に設定された具象ウィジェットへの参照(w.self)を返します。
 // これにより、ButtonやLabelなどの具象ウィジェット側でこのメソッドをオーバーライドする必要がなくなります。
 func (w *LayoutableWidget) HitTest(x, y int) Widget {
-	// 非表示のウィジェットはヒットテストの対象外です。
-	if !w.isVisible {
+	// 非表示または無効のウィジェットはヒットテストの対象外です。
+	if !w.isVisible || w.isDisabled {
 		return nil
 	}
 	// ウィジェットの矩形領域を定義します。

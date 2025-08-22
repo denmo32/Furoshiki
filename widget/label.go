@@ -2,8 +2,7 @@ package widget
 
 import (
 	"furoshiki/component"
-	"furoshiki/style"
-	"image/color"
+	"furoshiki/theme"
 )
 
 // --- Label component ---
@@ -27,16 +26,11 @@ func NewLabelBuilder() *LabelBuilder {
 	// 次に、ラベル自身をselfとして渡してTextWidgetを初期化
 	label.TextWidget = component.NewTextWidget(label, "")
 
-	label.SetSize(100, 30)
+	// --- テーマからスタイルを取得 ---
+	t := theme.GetCurrent()
+	label.SetStyle(t.Label.Default)
 
-	defaultStyle := style.Style{
-		Background: style.PColor(color.Transparent),
-		TextColor:  style.PColor(color.Black),
-		Padding: style.PInsets(style.Insets{
-			Top: 2, Right: 5, Bottom: 2, Left: 5,
-		}),
-	}
-	label.SetStyle(defaultStyle)
+	label.SetSize(100, 30) // TODO: Consider moving size to theme
 
 	b := &LabelBuilder{}
 	b.Builder.Init(b, label)
