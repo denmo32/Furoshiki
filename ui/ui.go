@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"furoshiki/container"
 	"furoshiki/layout"
 	"furoshiki/style"
@@ -226,6 +227,18 @@ func (b *ContainerBuilder) BorderRadius(radius float32) *ContainerBuilder {
 	return b.Style(style.Style{BorderRadius: style.PFloat32(radius)})
 }
 
+// Border はコンテナの境界線を設定します。
+func (b *ContainerBuilder) Border(width float32, c color.Color) *ContainerBuilder {
+	if width < 0 {
+		b.AddError(fmt.Errorf("border width must be non-negative, got %f", width))
+		return b
+	}
+	return b.Style(style.Style{
+		BorderWidth: style.PFloat32(width),
+		BorderColor: style.PColor(c),
+	})
+}
+
 // --- GridContainerBuilder ---
 
 // GridContainerBuilder はGridLayoutコンテナに特化した設定メソッドを提供します。
@@ -297,5 +310,10 @@ func (b *GridContainerBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *Gr
 }
 func (b *GridContainerBuilder) Label(buildFunc func(*widget.LabelBuilder)) *GridContainerBuilder {
 	b.ContainerBuilder.Label(buildFunc)
+	return b
+}
+
+func (b *GridContainerBuilder) Border(width float32, c color.Color) *GridContainerBuilder {
+	b.ContainerBuilder.Border(width, c)
 	return b
 }

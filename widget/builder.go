@@ -109,6 +109,18 @@ func (b *Builder[T, W]) BorderRadius(radius float32) T {
 	return b.Style(style.Style{BorderRadius: style.PFloat32(radius)})
 }
 
+// Border はウィジェットの境界線を設定します。
+func (b *Builder[T, W]) Border(width float32, c color.Color) T {
+	if width < 0 {
+		b.errors = append(b.errors, fmt.Errorf("border width must be non-negative, got %f", width))
+		return b.self
+	}
+	return b.Style(style.Style{
+		BorderWidth: style.PFloat32(width),
+		BorderColor: style.PColor(c),
+	})
+}
+
 // TextAlign はテキストの水平方向の揃えを設定します。
 func (b *Builder[T, W]) TextAlign(align style.TextAlignType) T {
 	return b.Style(style.Style{TextAlign: style.PTextAlignType(align)})
