@@ -149,7 +149,7 @@ func (b *ContainerBuilder) Gap(gap int) *ContainerBuilder {
 	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Gap != gap {
 			flexLayout.Gap = gap
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
@@ -160,7 +160,7 @@ func (b *ContainerBuilder) Justify(alignment layout.Alignment) *ContainerBuilder
 	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Justify != alignment {
 			flexLayout.Justify = alignment
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
@@ -171,7 +171,7 @@ func (b *ContainerBuilder) AlignItems(alignment layout.Alignment) *ContainerBuil
 	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.AlignItems != alignment {
 			flexLayout.AlignItems = alignment
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
@@ -199,7 +199,7 @@ func (b *ContainerBuilder) Flex(flex int) *ContainerBuilder {
 
 // Position はコンテナの絶対位置を設定します。FlexLayout内では上書きされる可能性があります。
 func (b *ContainerBuilder) Position(x, y int) *ContainerBuilder {
-	b.ContainerBuilder.Position(x, y)
+	b.ContainerBuilder.AbsolutePosition(x, y)
 	return b
 }
 
@@ -263,7 +263,7 @@ func (b *GridContainerBuilder) Columns(count int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if count > 0 && gridLayout.Columns != count {
 			gridLayout.Columns = count
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
@@ -274,7 +274,7 @@ func (b *GridContainerBuilder) Rows(count int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.Rows != count {
 			gridLayout.Rows = count
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
@@ -285,7 +285,7 @@ func (b *GridContainerBuilder) HorizontalGap(gap int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.HorizontalGap != gap {
 			gridLayout.HorizontalGap = gap
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
@@ -296,7 +296,7 @@ func (b *GridContainerBuilder) VerticalGap(gap int) *GridContainerBuilder {
 	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.VerticalGap != gap {
 			gridLayout.VerticalGap = gap
-			b.MarkDirty(true)
+			b.Widget.MarkDirty(true)
 		}
 	}
 	return b
