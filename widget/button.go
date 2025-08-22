@@ -19,30 +19,25 @@ type Button struct {
 
 // Draw はButtonを描画します。現在の状態に応じたスタイルを適用します。
 func (b *Button) Draw(screen *ebiten.Image) {
-	// ★修正: エラーの原因となった非公開フィールドへの直接アクセスを、公開メソッドの呼び出しに修正します。
-	// `b.HasBeenLaidOut()`は、埋め込まれたTextWidget -> LayoutableWidgetのメソッドが昇格したものです。
+	// IsVisible() と HasBeenLaidOut() のチェックは、ウィジェットが描画可能かを確認するために不可欠です。
+	// これにより、UIツリーに追加されてから最初のレイアウト計算が完了するまでの1フレーム間、
+	// (0,0)座標に描画されてしまうのを防ぎます。
 	if !b.IsVisible() || !b.HasBeenLaidOut() {
 		return
 	}
+
+	// 現在のインタラクティブな状態を取得します。
+	currentState := b.LayoutableWidget.CurrentState()
+
+	// Build()で全ての状態のスタイルが保証されているため、実行時にフォールバックは不要です。
+	// これにより、描画ループ内のロジックが簡潔かつ高速になります。
+	styleToUse := b.stateStyles[currentState]
 
 	x, y := b.GetPosition()
 	width, height := b.GetSize()
 	text := b.Text()
 
-	// 現在の状態を共通コンポーネントから取得します。
-	currentState := b.LayoutableWidget.CurrentState()
-
-	// 現在の状態に最適なスタイルを選択
-	// Pressed -> Hovered -> Normal の優先順位でフォールバック
-	styleToUse, ok := b.stateStyles[currentState]
-	if !ok {
-		styleToUse, ok = b.stateStyles[component.StateHovered]
-		if !ok {
-			styleToUse = b.stateStyles[component.StateNormal]
-		}
-	}
-
-	// 選択したスタイルで背景とテキストを描画
+	// 選択したスタイルで背景とテキストを描画します。
 	component.DrawStyledBackground(screen, x, y, width, height, styleToUse)
 	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), styleToUse)
 }
@@ -122,21 +117,35 @@ func (b *ButtonBuilder) PressedStyle(s style.Style) *ButtonBuilder {
 
 // Build は、設定に基づいて最終的なButtonを構築して返します。
 func (b *ButtonBuilder) Build() (*Button, error) {
-	// Build時に、設定されていない状態のスタイルをフォールバックで埋めます。
-	normalStyle, ok := b.Widget.stateStyles[component.StateNormal]
+	styles := b.Widget.stateStyles
+
+	// ビルド時に、ユーザーによって明示的に設定されていない状態のスタイルを、
+	// 合理的なデフォルト値で確実に埋めます。これにより、実行時のスタイル解決が不要になります。
+
+	// Normalがなければテーマから取得します (通常はコンストラクタで設定済み)。
+	normalStyle, ok := styles[component.StateNormal]
 	if !ok {
-		// テーマが空の場合など、万が一Normalが設定されていなかった場合の安全策
 		normalStyle = theme.GetCurrent().Button.Normal
-		b.Widget.stateStyles[component.StateNormal] = normalStyle
+		styles[component.StateNormal] = normalStyle
 	}
 
-	// HoveredがなければNormalをコピー
-	if _, ok := b.Widget.stateStyles[component.StateHovered]; !ok {
-		b.Widget.stateStyles[component.StateHovered] = normalStyle
+	// Hoveredスタイルが設定されていなければ、Normalスタイルを継承します。
+	if _, ok := styles[component.StateHovered]; !ok {
+		styles[component.StateHovered] = normalStyle
 	}
-	// PressedがなければHoveredをコピー
-	if _, ok := b.Widget.stateStyles[component.StatePressed]; !ok {
-		b.Widget.stateStyles[component.StatePressed] = b.Widget.stateStyles[component.StateHovered]
+
+	// Pressedスタイルが設定されていなければ、Hoveredスタイルを継承します。
+	// これにより、Hover -> Press の自然な視覚的変化が生まれます。
+	if _, ok := styles[component.StatePressed]; !ok {
+		styles[component.StatePressed] = styles[component.StateHovered]
+	}
+
+	// Disabledスタイルが設定されていなければ、Normalスタイルをベースに半透明にします。
+	if _, ok := styles[component.StateDisabled]; !ok {
+		// テーマのDisabledスタイルは既に半透明ですが、ユーザーがNormalスタイルのみを
+		// カスタマイズした場合のフォールバックとして機能します。
+		disabledStyle := style.Merge(normalStyle, style.Style{Opacity: style.PFloat64(0.5)})
+		styles[component.StateDisabled] = disabledStyle
 	}
 
 	// 汎用ビルダーのBuildを呼び出して、最終的なエラーチェックなどを行います。

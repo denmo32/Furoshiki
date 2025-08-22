@@ -80,7 +80,7 @@ type InteractiveState interface {
 	IsVisible() bool
 	SetDisabled(disabled bool)
 	IsDisabled() bool
-	HasBeenLaidOut() bool // ★追加: ウィジェットが一度でもレイアウトされたかを返す
+	HasBeenLaidOut() bool // ウィジェットが一度でもレイアウトされたかを返します
 }
 
 // EventHandler はイベント処理のためのインターフェースです

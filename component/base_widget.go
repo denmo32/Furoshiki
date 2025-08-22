@@ -52,7 +52,7 @@ type widgetState struct {
 	isPressed      bool
 	isVisible      bool
 	isDisabled     bool
-	hasBeenLaidOut bool // ★追加: レイアウトが一度でも実行されたかを追跡するフラグ
+	hasBeenLaidOut bool // レイアウトが一度でも実行されたかを追跡するフラグ
 }
 
 // hierarchy はウィジェットの階層構造情報を保持します
@@ -70,7 +70,7 @@ func NewLayoutableWidget(self Widget) *LayoutableWidget {
 	}
 	return &LayoutableWidget{
 		self: self,
-		// ★修正: isVisibleはtrueのまま、hasBeenLaidOutをfalseで初期化
+		// isVisibleはデフォルトでtrue、hasBeenLaidOutはレイアウト計算が行われるまでfalseで初期化します。
 		state:         widgetState{isVisible: true, hasBeenLaidOut: false},
 		eventHandlers: make(map[event.EventType]event.EventHandler),
 	}

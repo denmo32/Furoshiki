@@ -43,10 +43,9 @@ func (t *TextWidget) SetText(text string) {
 // Draw はTextWidgetを描画します。
 // このメソッド内で背景とテキストの両方を描画することで、描画ロジックがこのウィジェット内で完結します。
 func (t *TextWidget) Draw(screen *ebiten.Image) {
-	// ★修正: IsVisible()に加えて、レイアウト済みかどうかもチェックします。
+	// IsVisible() に加えてレイアウト済みかもチェックします。
 	// これにより、ウィジェットがUIツリーに追加されてから最初のレイアウト計算が完了するまでの1フレーム間、
-	// (0,0)座標に描画されてしまうのを防ぎます。
-	// 直接のフィールドアクセス(.state.hasBeenLaidOut)の代わりに、公開メソッド(.HasBeenLaidOut())を使用します。
+	// 意図せず (0,0) 座標に描画されてしまうのを防ぎます。
 	if !t.IsVisible() || !t.HasBeenLaidOut() {
 		return
 	}

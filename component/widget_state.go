@@ -134,7 +134,7 @@ func (w *LayoutableWidget) IsVisible() bool {
 	return w.state.isVisible
 }
 
-// ★追加: HasBeenLaidOut は、ウィジェットが少なくとも一度レイアウト計算されたかを返します。
+// HasBeenLaidOut は、ウィジェットが少なくとも一度レイアウト計算されたかを返します。
 // このメソッドは InteractiveState インターフェースを実装します。
 func (w *LayoutableWidget) HasBeenLaidOut() bool {
 	return w.state.hasBeenLaidOut

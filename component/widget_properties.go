@@ -7,7 +7,7 @@ import "furoshiki/style"
 // このメソッドはレイアウトシステムによって呼び出されるため、ここで初めてウィジェットが
 //「レイアウト済み」であるとマークします。
 func (w *LayoutableWidget) SetPosition(x, y int) {
-	// ★追加: 初めて位置が設定される際に、レイアウト済みフラグを立てる
+	// 初めて位置が設定される（＝最初のレイアウトが完了した）際に、レイアウト済みフラグを立てます。
 	if !w.state.hasBeenLaidOut {
 		w.state.hasBeenLaidOut = true
 	}
