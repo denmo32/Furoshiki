@@ -19,9 +19,12 @@ type Button struct {
 
 // Draw はButtonを描画します。現在の状態に応じたスタイルを適用します。
 func (b *Button) Draw(screen *ebiten.Image) {
-	if !b.IsVisible() {
+	// ★修正: エラーの原因となった非公開フィールドへの直接アクセスを、公開メソッドの呼び出しに修正します。
+	// `b.HasBeenLaidOut()`は、埋め込まれたTextWidget -> LayoutableWidgetのメソッドが昇格したものです。
+	if !b.IsVisible() || !b.HasBeenLaidOut() {
 		return
 	}
+
 	x, y := b.GetPosition()
 	width, height := b.GetSize()
 	text := b.Text()
