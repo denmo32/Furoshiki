@@ -40,9 +40,10 @@ func (t *TextWidget) SetText(text string) {
 	}
 }
 
-// Draw はTextWidgetを描画します。
-// このメソッド内で背景とテキストの両方を描画することで、描画ロジックがこのウィジェット内で完結します。
-func (t *TextWidget) Draw(screen *ebiten.Image) {
+// DrawWithStyleは、指定されたスタイルを用いてウィジェットの背景とテキストを描画する共通ロジックです。
+// 通常のDrawメソッドと分離することで、Buttonのように状態に応じてスタイルを切り替える必要のある
+// 具象ウィジェットが、描画ロジックを再利用しやすくなります。
+func (t *TextWidget) DrawWithStyle(screen *ebiten.Image, styleToUse style.Style) {
 	// IsVisible() に加えてレイアウト済みかもチェックします。
 	// これにより、ウィジェットがUIツリーに追加されてから最初のレイアウト計算が完了するまでの1フレーム間、
 	// 意図せず (0,0) 座標に描画されてしまうのを防ぎます。
@@ -53,13 +54,21 @@ func (t *TextWidget) Draw(screen *ebiten.Image) {
 	// ゲッターメソッドを使用してプロパティを取得
 	x, y := t.GetPosition()
 	width, height := t.GetSize()
-	currentStyle := t.GetStyle()
 
 	// 最初に背景と境界線を描画します。
-	DrawStyledBackground(screen, x, y, width, height, currentStyle)
+	DrawStyledBackground(screen, x, y, width, height, styleToUse)
 
 	// 次にその上にテキストを描画します。
-	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), currentStyle)
+	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), styleToUse)
+}
+
+// Draw はTextWidgetを描画します。
+// このメソッドは、ウィジェット自身の現在のスタイルを使用して、共通の描画ロジック(DrawWithStyle)を呼び出します。
+func (t *TextWidget) Draw(screen *ebiten.Image) {
+	// 自身の現在のスタイルを取得します。
+	currentStyle := t.GetStyle()
+	// そのスタイルを使って共通の描画ロジックを呼び出します。
+	t.DrawWithStyle(screen, currentStyle)
 }
 
 // calculateContentMinSize は、現在のテキストとスタイルに基づいてコンテンツが表示されるべき最小サイズを計算します。

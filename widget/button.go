@@ -5,7 +5,6 @@ import (
 	"furoshiki/event"
 	"furoshiki/style"
 	"furoshiki/theme"
-	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -17,29 +16,23 @@ type Button struct {
 	stateStyles map[component.WidgetState]style.Style
 }
 
-// Draw はButtonを描画します。現在の状態に応じたスタイルを適用します。
+// Draw はButtonを描画します。
+// ボタンの責務は、現在の状態に応じたスタイルを選択し、そのスタイルを使って
+// 埋め込まれたTextWidgetの描画ロジックを呼び出すことです。
+// これにより、描画コードの重複が排除され、関心の分離が促進されます。
 func (b *Button) Draw(screen *ebiten.Image) {
-	// IsVisible() と HasBeenLaidOut() のチェックは、ウィジェットが描画可能かを確認するために不可欠です。
-	// これにより、UIツリーに追加されてから最初のレイアウト計算が完了するまでの1フレーム間、
-	// (0,0)座標に描画されてしまうのを防ぎます。
-	if !b.IsVisible() || !b.HasBeenLaidOut() {
-		return
-	}
-
-	// 現在のインタラクティブな状態を取得します。
+	// 現在のインタラクティブな状態（Normal, Hovered, Pressed, Disabled）を取得します。
 	currentState := b.LayoutableWidget.CurrentState()
 
-	// Build()で全ての状態のスタイルが保証されているため、実行時にフォールバックは不要です。
-	// これにより、描画ループ内のロジックが簡潔かつ高速になります。
+	// 状態に対応するスタイルをマップから取得します。
+	// Build()メソッドで全ての状態のスタイルが設定されることが保証されているため、
+	// ここで存在チェックを行う必要はありません。
 	styleToUse := b.stateStyles[currentState]
 
-	x, y := b.GetPosition()
-	width, height := b.GetSize()
-	text := b.Text()
-
-	// 選択したスタイルで背景とテキストを描画します。
-	component.DrawStyledBackground(screen, x, y, width, height, styleToUse)
-	component.DrawAlignedText(screen, text, image.Rect(x, y, x+width, y+height), styleToUse)
+	// 埋め込まれたTextWidgetが提供する共通の描画メソッドを、
+	// 選択したスタイルを渡して呼び出します。
+	// IsVisibleやHasBeenLaidOutのチェックはこのメソッド内で行われます。
+	b.TextWidget.DrawWithStyle(screen, styleToUse)
 }
 
 // --- ButtonBuilder ---

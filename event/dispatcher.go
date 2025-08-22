@@ -85,30 +85,39 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 
 	// 4. マウスボタン解放イベント (MouseUp and Click)
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
-		// MouseUpイベントは、ボタンが離された時点のホバー要素に発行
-		if d.hoveredComponent != nil {
-			d.hoveredComponent.HandleEvent(Event{
-				Type:        MouseUp,
-				Target:      d.hoveredComponent,
-				X:           cx,
-				Y:           cy,
-				Timestamp:   time.Now().UnixNano(),
-				MouseButton: ebiten.MouseButtonLeft,
-			})
-		}
-
-		// Clickイベントは、押したコンポーネントと離したコンポーネントが同じ場合に発行
-		if d.pressedComponent != nil && d.pressedComponent == d.hoveredComponent {
+		// --- 修正箇所 ---
+		// MouseUpイベントは、現在ホバーしているコンポーネントではなく、
+		// 最初に「押された」コンポーネント(pressedComponent)に送る必要があります。
+		// これにより、ボタンの外でマウスを離した場合でも、押されたボタンが確実に
+		// 解放イベントを受け取り、自身の「押下状態」を解除できるようになります。
+		if d.pressedComponent != nil {
+			// まず、押されていたコンポーネントに MouseUp イベントを送信します。
+			// これが押下状態を解除するトリガーとなります。
 			d.pressedComponent.HandleEvent(Event{
-				Type:        EventClick,
-				Target:      d.pressedComponent,
+				Type:        MouseUp,
+				Target:      d.pressedComponent, // イベントのターゲットは押されていたコンポーネント
 				X:           cx,
 				Y:           cy,
 				Timestamp:   time.Now().UnixNano(),
 				MouseButton: ebiten.MouseButtonLeft,
 			})
+
+			// 次に、Clickイベントを発行するかどうかを決定します。
+			// クリックが成立するのは、マウスを押したコンポーネントと離したコンポーネントが同じ場合のみです。
+			if d.pressedComponent == d.hoveredComponent {
+				d.pressedComponent.HandleEvent(Event{
+					Type:        EventClick,
+					Target:      d.pressedComponent,
+					X:           cx,
+					Y:           cy,
+					Timestamp:   time.Now().UnixNano(),
+					MouseButton: ebiten.MouseButtonLeft,
+				})
+			}
 		}
-		// 押下状態をリセット
+		// --- 修正ここまで ---
+
+		// イベント処理が完了したら、押下状態をリセットします。
 		d.pressedComponent = nil
 	}
 }
