@@ -94,6 +94,16 @@ func (b *Builder[T, W]) TextColor(c color.Color) T {
 	return b.Style(style.Style{TextColor: style.PColor(c)})
 }
 
+// Margin はウィジェットのマージンを四方同じ値で設定します。
+func (b *Builder[T, W]) Margin(m int) T {
+	return b.Style(style.Style{Margin: style.PInsets(style.Insets{Top: m, Right: m, Bottom: m, Left: m})})
+}
+
+// MarginInsets はウィジェットのマージンを各辺個別に設定します。
+func (b *Builder[T, W]) MarginInsets(i style.Insets) T {
+	return b.Style(style.Style{Margin: style.PInsets(i)})
+}
+
 // Padding はウィジェットのパディングを四方同じ値で設定します。
 func (b *Builder[T, W]) Padding(p int) T {
 	return b.Style(style.Style{Padding: style.PInsets(style.Insets{Top: p, Right: p, Bottom: p, Left: p})})

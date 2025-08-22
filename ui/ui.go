@@ -210,6 +210,18 @@ func (b *ContainerBuilder) BackgroundColor(c color.Color) *ContainerBuilder {
 	return b.Style(style.Style{Background: style.PColor(c)})
 }
 
+// Margin はコンテナのマージンを四方すべてに同じ値で設定します。
+func (b *ContainerBuilder) Margin(margin int) *ContainerBuilder {
+	return b.Style(style.Style{Margin: style.PInsets(style.Insets{
+		Top: margin, Right: margin, Bottom: margin, Left: margin,
+	})})
+}
+
+// MarginInsets はコンテナのマージンを各辺個別に設定します。
+func (b *ContainerBuilder) MarginInsets(insets style.Insets) *ContainerBuilder {
+	return b.Style(style.Style{Margin: style.PInsets(insets)})
+}
+
 // Padding はコンテナのパディングを四方すべてに同じ値で設定します。
 func (b *ContainerBuilder) Padding(padding int) *ContainerBuilder {
 	return b.Style(style.Style{Padding: style.PInsets(style.Insets{
@@ -315,5 +327,17 @@ func (b *GridContainerBuilder) Label(buildFunc func(*widget.LabelBuilder)) *Grid
 
 func (b *GridContainerBuilder) Border(width float32, c color.Color) *GridContainerBuilder {
 	b.ContainerBuilder.Border(width, c)
+	return b
+}
+
+// Margin はグリッドコンテナのマージンを四方すべてに同じ値で設定します。
+func (b *GridContainerBuilder) Margin(margin int) *GridContainerBuilder {
+	b.ContainerBuilder.Margin(margin)
+	return b
+}
+
+// MarginInsets はグリッドコンテナのマージンを各辺個別に設定します。
+func (b *GridContainerBuilder) MarginInsets(insets style.Insets) *GridContainerBuilder {
+	b.ContainerBuilder.MarginInsets(insets)
 	return b
 }
