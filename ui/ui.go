@@ -9,9 +9,8 @@ import (
 )
 
 // Builder は、UI構造を宣言的に構築するための統一されたインターフェースです。
-// 【改善】container.ContainerBuilderのラッパーではなく、component.Builderを直接埋め込みます。
-// これにより、Size(), Padding(), Flex()などの共通メソッドを再定義する必要がなくなり、
-// 大量の冗長なラッパーコードを排除できます。
+// component.Builderを直接埋め込むことで、Size(), Padding(), Flex()などの共通メソッドを
+// 再定義することなく利用でき、冗長なラッパーコードを排除しています。
 // ジェネリクスの型引数により、継承されたメソッドは正しく*Builderを返すようになります。
 type Builder struct {
 	component.Builder[*Builder, *container.Container]
@@ -120,11 +119,14 @@ func (b *Builder) AddChildren(children ...component.Widget) *Builder {
 
 // --- Nested Container Adders ---
 
-// HStack は水平方向に子要素を配置するFlexLayoutコンテナを「子として」追加します。
-func (b *Builder) HStack(buildFunc func(*Builder)) *Builder {
-	// 新しいHStackコンテナを構築するためのビルダーを作成します。
-	nestedBuilder := HStack(buildFunc)
-	// 構築されたコンテナウィジェットを取得します。
+// 【改善】ネストされたコンテナを追加するロジックを共通ヘルパーメソッド `addNestedContainer` に集約し、
+// コードの重複を排除しました。これにより、各メソッドの意図がより明確になり、
+// メンテナンス性が向上します。
+
+// addNestedContainer は、ネストされたコンテナビルダーを受け取り、
+// それをビルドして現在構築中のコンテナの子として追加する共通ロジックです。
+func (b *Builder) addNestedContainer(nestedBuilder *Builder) *Builder {
+	// ネストされたビルダーを使ってコンテナウィジェットを構築します。
 	container, err := nestedBuilder.Build()
 	// エラーがあれば現在のビルダーに記録します。
 	b.AddError(err)
@@ -133,46 +135,42 @@ func (b *Builder) HStack(buildFunc func(*Builder)) *Builder {
 	return b
 }
 
+// HStack は水平方向に子要素を配置するFlexLayoutコンテナを「子として」追加します。
+func (b *Builder) HStack(buildFunc func(*Builder)) *Builder {
+	// トップレベルのHStackビルダー関数を呼び出し、その結果を共通ヘルパーに渡して
+	// 現在のコンテナに子として追加します。
+	return b.addNestedContainer(HStack(buildFunc))
+}
+
 // VStack は垂直方向に子要素を配置するFlexLayoutコンテナを「子として」追加します。
 func (b *Builder) VStack(buildFunc func(*Builder)) *Builder {
-	nestedBuilder := VStack(buildFunc)
-	container, err := nestedBuilder.Build()
-	b.AddError(err)
-	b.AddChild(container)
-	return b
+	// トップレベルのVStackビルダー関数を呼び出し、その結果を共通ヘルパーに渡します。
+	return b.addNestedContainer(VStack(buildFunc))
 }
 
 // ZStack は子要素を重ねて配置するAbsoluteLayoutコンテナを「子として」追加します。
 func (b *Builder) ZStack(buildFunc func(*Builder)) *Builder {
-	nestedBuilder := ZStack(buildFunc)
-	container, err := nestedBuilder.Build()
-	b.AddError(err)
-	b.AddChild(container)
-	return b
+	// トップレベルのZStackビルダー関数を呼び出し、その結果を共通ヘルパーに渡します。
+	return b.addNestedContainer(ZStack(buildFunc))
 }
 
 // Grid は子要素を格子状に配置するGridLayoutコンテナを「子として」追加します。
 func (b *Builder) Grid(buildFunc func(*Builder)) *Builder {
-	nestedBuilder := Grid(buildFunc)
-	container, err := nestedBuilder.Build()
-	b.AddError(err)
-	b.AddChild(container)
-	return b
+	// トップレベルのGridビルダー関数を呼び出し、その結果を共通ヘルパーに渡します。
+	return b.addNestedContainer(Grid(buildFunc))
 }
 
 // --- Container-specific Property Wrappers ---
 
-// 【改善】RelayoutBoundaryメソッドをui.Builderに追加します。
-// このメソッドはcomponent.Builderには存在せず、コンテナ固有の機能であるため、
-// ui.Builderで明示的に実装する必要があります。
-// これにより、`examples/main.go`のコードが正しくコンパイルされるようになります。
+// RelayoutBoundary は、このコンテナをレイアウト計算の境界として設定します。
+// component.Builderには存在しないコンテナ固有の機能であるため、ui.Builderで実装します。
 func (b *Builder) RelayoutBoundary(isBoundary bool) *Builder {
 	b.Widget.SetRelayoutBoundary(isBoundary)
 	return b
 }
 
 // --- FlexLayout Specific Methods ---
-// これらはui.Builderが提供する独自の機能なので、そのまま残します。
+// これらはui.Builderがラップするコンテナのレイアウトプロパティを操作する独自の機能です。
 
 // Gap はFlexLayoutの子要素間の間隔を設定します。
 // VStackまたはHStack内でのみ有効です。
@@ -218,7 +216,7 @@ func (b *Builder) AlignItems(alignment layout.Alignment) *Builder {
 }
 
 // --- GridLayout Specific Methods ---
-// これらもui.Builderが提供する独自の機能なので、そのまま残します。
+// これらもui.Builderが提供する独自の機能です。
 
 // Columns はグリッドの列数を設定します。
 // Grid内でのみ有効です。
@@ -276,9 +274,9 @@ func (b *Builder) VerticalGap(gap int) *Builder {
 	return b
 }
 
-// Build finalizes the container construction.
-// component.BuilderにBuildメソッドがあるため、このメソッドは不要です。
-// ただし、型を*container.Containerに明示したい場合は定義しても良いです。
+// Build はコンテナの構築を完了します。
+// component.BuilderにBuildメソッドがあるため、このメソッドは厳密には不要ですが、
+// 返り値の型を*container.Containerに明示するために定義しています。
 func (b *Builder) Build() (*container.Container, error) {
 	return b.Builder.Build()
 }
