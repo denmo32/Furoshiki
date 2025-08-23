@@ -90,6 +90,35 @@ func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 	return path
 }
 
+// 【改善】drawVectorPath は、vector.Pathを描画するための共通ヘルパー関数です。
+// strokeOptsがnilでない場合は線を描画し、nilの場合は図形を塗りつぶします。
+// これにより、背景と境界線の描画ロジックにおけるコードの重複を削減します。
+func drawVectorPath(dst *ebiten.Image, path *vector.Path, clr color.Color, triOpts *ebiten.DrawTrianglesOptions, strokeOpts *vector.StrokeOptions) {
+	var vertices []ebiten.Vertex
+	var indices []uint16
+
+	// strokeOptsの有無によって、線画か塗りつぶしかを決定します。
+	if strokeOpts != nil {
+		vertices, indices = path.AppendVerticesAndIndicesForStroke(nil, nil, strokeOpts)
+	} else {
+		vertices, indices = path.AppendVerticesAndIndicesForFilling(nil, nil)
+	}
+
+	// 頂点がなければ描画処理は不要です。
+	if len(vertices) == 0 {
+		return
+	}
+
+	// 全ての頂点に指定された色を設定します。
+	cr, cg, cb, ca := colorToScale(clr)
+	for i := range vertices {
+		vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
+	}
+
+	// 三角形を描画します。
+	dst.DrawTriangles(vertices, indices, whitePixelImg, triOpts)
+}
+
 // DrawStyledBackground は、指定されたスタイルでウィジェットの背景と境界線を描画します。
 // この関数は、描画ロジックを内部ヘルパー関数(drawBackground, drawBorder)に委譲することで、
 // コードの関心事を分離し、可読性を高めています。
@@ -138,19 +167,11 @@ func drawBackground(dst *ebiten.Image, x, y, width, height float32, s style.Styl
 	}
 
 	if radius > 0 {
-		// --- 角丸矩形の背景描画 ---
+		// --- 【改善】角丸矩形の背景描画 ---
+		// パスを生成し、新しい共通描画ヘルパーを呼び出します。
+		// 第5引数(strokeOpts)にnilを渡すことで、塗りつぶしモードで描画されます。
 		path := createRoundedRectPath(x, y, width, height, radius)
-		// 塗りつぶし用の頂点とインデックスを生成します。
-		vertices, indices := path.AppendVerticesAndIndicesForFilling(nil, nil)
-
-		// 全ての頂点に背景色を設定します。
-		cr, cg, cb, ca := colorToScale(bgColor)
-		for i := range vertices {
-			vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
-		}
-
-		// 三角形を描画します。
-		dst.DrawTriangles(vertices, indices, whitePixelImg, opts)
+		drawVectorPath(dst, path, bgColor, opts, nil)
 	} else {
 		// --- 通常の矩形（角丸なし）の背景描画 ---
 		vector.DrawFilledRect(dst, x, y, width, height, bgColor, false)
@@ -183,23 +204,14 @@ func drawBorder(dst *ebiten.Image, x, y, width, height float32, s style.Style, o
 	}
 
 	if radius > 0 {
-		// --- 角丸矩形の境界線描画 ---
+		// --- 【改善】角丸矩形の境界線描画 ---
 		// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせます。
 		halfBw := borderWidth / 2
 		insetPath := createRoundedRectPath(x+halfBw, y+halfBw, width-borderWidth, height-borderWidth, radius-halfBw)
 
-		// 線描画用の頂点とインデックスを生成します。
+		// 線描画用のオプションを作成し、共通描画ヘルパーを呼び出します。
 		strokeOpts := &vector.StrokeOptions{Width: borderWidth, MiterLimit: 10}
-		vertices, indices := insetPath.AppendVerticesAndIndicesForStroke(nil, nil, strokeOpts)
-
-		// 全ての頂点に境界線の色を設定します。
-		cr, cg, cb, ca := colorToScale(borderColor)
-		for i := range vertices {
-			vertices[i].ColorR, vertices[i].ColorG, vertices[i].ColorB, vertices[i].ColorA = cr, cg, cb, ca
-		}
-
-		// 三角形を描画して線を描画します。
-		dst.DrawTriangles(vertices, indices, whitePixelImg, opts)
+		drawVectorPath(dst, insetPath, borderColor, opts, strokeOpts)
 	} else {
 		// --- 通常の矩形の境界線描画 ---
 		vector.StrokeRect(dst, x, y, width, height, borderWidth, borderColor, false)
