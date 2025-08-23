@@ -5,65 +5,65 @@ import (
 	"furoshiki/component"
 	"furoshiki/container"
 	"furoshiki/layout"
-	"furoshiki/style"
 	"furoshiki/widget"
-	"image/color"
 )
 
 // Builder は、UI構造を宣言的に構築するための統一されたインターフェースです。
-// メソッドチェーンをサポートし、VStack, HStack, Gridなどのさまざまなコンテナタイプで
-// 一貫した操作を提供します。
+// 【改善】container.ContainerBuilderのラッパーではなく、component.Builderを直接埋め込みます。
+// これにより、Size(), Padding(), Flex()などの共通メソッドを再定義する必要がなくなり、
+// 大量の冗長なラッパーコードを排除できます。
+// ジェネリクスの型引数により、継承されたメソッドは正しく*Builderを返すようになります。
 type Builder struct {
-	*container.ContainerBuilder
+	component.Builder[*Builder, *container.Container]
 }
 
-// newBuilder は内部の container.ContainerBuilder をラップして新しい ui.Builder を作成します。
-func newBuilder(cb *container.ContainerBuilder) *Builder {
-	return &Builder{ContainerBuilder: cb}
+// buildContainerAndBuilder は、指定されたレイアウトでコンテナとビルダーを初期化する内部ヘルパーです。
+func buildContainerAndBuilder(l layout.Layout, buildFunc func(*Builder)) *Builder {
+	// 1. UIの基礎となるContainerウィジェットを作成します。
+	c := &container.Container{}
+	// Container自身をselfとして渡して、基本的なウィジェット機能を初期化します。
+	c.LayoutableWidget = component.NewLayoutableWidget(c)
+	// 指定されたレイアウトを設定します。
+	c.SetLayout(l)
+
+	// 2. 新しいui.Builderインスタンスを作成します。
+	b := &Builder{}
+	// component.BuilderのInitメソッドを呼び出し、
+	// 自分自身(*Builder)と構築対象のウィジェット(*container.Container)を関連付けます。
+	b.Init(b, c)
+
+	// 3. ユーザー提供の構築関数を実行し、コンテナに子要素などを追加します。
+	if buildFunc != nil {
+		buildFunc(b)
+	}
+	return b
 }
 
 // VStack は垂直方向に子要素を配置するFlexLayoutコンテナを作成します。
 func VStack(buildFunc func(*Builder)) *Builder {
-	cb := container.NewContainerBuilder().Layout(&layout.FlexLayout{
+	flexLayout := &layout.FlexLayout{
 		Direction: layout.DirectionColumn,
-	})
-	builder := newBuilder(cb)
-	if buildFunc != nil {
-		buildFunc(builder)
 	}
-	return builder
+	return buildContainerAndBuilder(flexLayout, buildFunc)
 }
 
 // HStack は水平方向に子要素を配置するFlexLayoutコンテナを作成します。
 func HStack(buildFunc func(*Builder)) *Builder {
-	cb := container.NewContainerBuilder().Layout(&layout.FlexLayout{
+	flexLayout := &layout.FlexLayout{
 		Direction: layout.DirectionRow,
-	})
-	builder := newBuilder(cb)
-	if buildFunc != nil {
-		buildFunc(builder)
 	}
-	return builder
+	return buildContainerAndBuilder(flexLayout, buildFunc)
 }
 
 // ZStack は子要素を重ねて配置するAbsoluteLayoutコンテナを作成します。
 func ZStack(buildFunc func(*Builder)) *Builder {
-	cb := container.NewContainerBuilder().Layout(&layout.AbsoluteLayout{})
-	builder := newBuilder(cb)
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	return builder
+	return buildContainerAndBuilder(&layout.AbsoluteLayout{}, buildFunc)
 }
 
 // Grid は子要素を格子状に配置するGridLayoutコンテナを作成します。
 func Grid(buildFunc func(*Builder)) *Builder {
-	cb := container.NewContainerBuilder().Layout(&layout.GridLayout{Columns: 1})
-	builder := newBuilder(cb)
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	return builder
+	// デフォルトで1列のグリッドレイアウトを設定します。
+	return buildContainerAndBuilder(&layout.GridLayout{Columns: 1}, buildFunc)
 }
 
 // --- Child Widget Adders ---
@@ -100,155 +100,85 @@ func (b *Builder) Spacer() *Builder {
 }
 
 // AddChild はコンテナに子ウィジェットを追加します。
+// このメソッドは、ui.Builderがコンテナを操作する能力を持つために必要です。
 func (b *Builder) AddChild(child component.Widget) *Builder {
-	b.ContainerBuilder.AddChild(child)
+	if child != nil {
+		b.Widget.AddChild(child)
+	} else {
+		b.AddError(fmt.Errorf("cannot add a nil child widget"))
+	}
 	return b
 }
 
 // AddChildren はコンテナに複数の子ウィジェットを追加します。
 func (b *Builder) AddChildren(children ...component.Widget) *Builder {
-	b.ContainerBuilder.AddChildren(children...)
+	for _, child := range children {
+		b.AddChild(child) // AddChildを経由することでnilチェックを一元化
+	}
 	return b
 }
 
 // --- Nested Container Adders ---
 
-// HStack は水平方向に子要素を配置するFlexLayoutコンテナを追加します。
+// HStack は水平方向に子要素を配置するFlexLayoutコンテナを「子として」追加します。
 func (b *Builder) HStack(buildFunc func(*Builder)) *Builder {
-	builder := HStack(buildFunc)
-	container, err := builder.Build()
+	// 新しいHStackコンテナを構築するためのビルダーを作成します。
+	nestedBuilder := HStack(buildFunc)
+	// 構築されたコンテナウィジェットを取得します。
+	container, err := nestedBuilder.Build()
+	// エラーがあれば現在のビルダーに記録します。
 	b.AddError(err)
+	// 構築したコンテナを、現在構築中のコンテナの子として追加します。
 	b.AddChild(container)
 	return b
 }
 
-// VStack は垂直方向に子要素を配置するFlexLayoutコンテナを追加します。
+// VStack は垂直方向に子要素を配置するFlexLayoutコンテナを「子として」追加します。
 func (b *Builder) VStack(buildFunc func(*Builder)) *Builder {
-	builder := VStack(buildFunc)
-	container, err := builder.Build()
+	nestedBuilder := VStack(buildFunc)
+	container, err := nestedBuilder.Build()
 	b.AddError(err)
 	b.AddChild(container)
 	return b
 }
 
-// ZStack は子要素を重ねて配置するAbsoluteLayoutコンテナを追加します。
+// ZStack は子要素を重ねて配置するAbsoluteLayoutコンテナを「子として」追加します。
 func (b *Builder) ZStack(buildFunc func(*Builder)) *Builder {
-	builder := ZStack(buildFunc)
-	container, err := builder.Build()
+	nestedBuilder := ZStack(buildFunc)
+	container, err := nestedBuilder.Build()
 	b.AddError(err)
 	b.AddChild(container)
 	return b
 }
 
-// Grid は子要素を格子状に配置するGridLayoutコンテナを追加します。
+// Grid は子要素を格子状に配置するGridLayoutコンテナを「子として」追加します。
 func (b *Builder) Grid(buildFunc func(*Builder)) *Builder {
-	builder := Grid(buildFunc)
-	container, err := builder.Build()
+	nestedBuilder := Grid(buildFunc)
+	container, err := nestedBuilder.Build()
 	b.AddError(err)
 	b.AddChild(container)
 	return b
 }
 
-// --- Common Property Wrappers ---
+// --- Container-specific Property Wrappers ---
 
-// Size はコンテナのサイズを設定します。
-func (b *Builder) Size(width, height int) *Builder {
-	b.ContainerBuilder.Size(width, height)
-	return b
-}
-
-// MinSize はコンテナの最小サイズを設定します。
-func (b *Builder) MinSize(width, height int) *Builder {
-	b.ContainerBuilder.MinSize(width, height)
-	return b
-}
-
-// Style はコンテナのスタイルを設定します。既存のスタイルとマージされます。
-func (b *Builder) Style(s style.Style) *Builder {
-	b.ContainerBuilder.Style(s)
-	return b
-}
-
-// Flex はコンテナのFlexLayoutにおける伸縮係数を設定します。
-func (b *Builder) Flex(flex int) *Builder {
-	b.ContainerBuilder.Flex(flex)
-	return b
-}
-
-// AbsolutePosition はコンテナの絶対位置を設定します。ZStack内でのみ有効です。
-func (b *Builder) AbsolutePosition(x, y int) *Builder {
-	b.ContainerBuilder.AbsolutePosition(x, y)
-	return b
-}
-
-// RelayoutBoundary はコンテナをレイアウト境界として設定します。
+// 【改善】RelayoutBoundaryメソッドをui.Builderに追加します。
+// このメソッドはcomponent.Builderには存在せず、コンテナ固有の機能であるため、
+// ui.Builderで明示的に実装する必要があります。
+// これにより、`examples/main.go`のコードが正しくコンパイルされるようになります。
 func (b *Builder) RelayoutBoundary(isBoundary bool) *Builder {
-	b.ContainerBuilder.RelayoutBoundary(isBoundary)
-	return b
-}
-
-// [新規追加]
-// AssignTo は、ビルド中のコンテナインスタンスへのポインタを変数に代入します。
-// UIの宣言的な構築フローを維持したまま、特定のコンテナへの参照を取得するために使用します。
-// 例: .VStack(func(b *ui.Builder){ b.AssignTo(&myContainer) }) (myContainerは *container.Container 型)
-func (b *Builder) AssignTo(target any) *Builder {
-	// 埋め込まれたContainerBuilderが持つAssignToメソッドを呼び出します。
-	// このメソッドはcomponent.Builderに実装されており、継承を通じて利用可能です。
-	b.ContainerBuilder.AssignTo(target)
-	// メソッドチェーンを継続するために、*Builder型であるb自身を返します。
-	return b
-}
-
-// --- Style Helper Wrappers ---
-
-// BackgroundColor はコンテナの背景色を設定します。
-func (b *Builder) BackgroundColor(c color.Color) *Builder {
-	b.ContainerBuilder.BackgroundColor(c)
-	return b
-}
-
-// Margin はコンテナのマージンを四方すべてに同じ値で設定します。
-func (b *Builder) Margin(margin int) *Builder {
-	b.ContainerBuilder.Margin(margin)
-	return b
-}
-
-// MarginInsets はコンテナのマージンを各辺個別に設定します。
-func (b *Builder) MarginInsets(insets style.Insets) *Builder {
-	b.ContainerBuilder.MarginInsets(insets)
-	return b
-}
-
-// Padding はコンテナのパディングを四方すべてに同じ値で設定します。
-func (b *Builder) Padding(padding int) *Builder {
-	b.ContainerBuilder.Padding(padding)
-	return b
-}
-
-// PaddingInsets はコンテナのパディングを各辺個別に設定します。
-func (b *Builder) PaddingInsets(insets style.Insets) *Builder {
-	b.ContainerBuilder.PaddingInsets(insets)
-	return b
-}
-
-// BorderRadius はコンテナの角丸の半径を設定します。
-func (b *Builder) BorderRadius(radius float32) *Builder {
-	b.ContainerBuilder.BorderRadius(radius)
-	return b
-}
-
-// Border はコンテナの境界線を設定します。
-func (b *Builder) Border(width float32, c color.Color) *Builder {
-	b.ContainerBuilder.Border(width, c)
+	b.Widget.SetRelayoutBoundary(isBoundary)
 	return b
 }
 
 // --- FlexLayout Specific Methods ---
+// これらはui.Builderが提供する独自の機能なので、そのまま残します。
 
 // Gap はFlexLayoutの子要素間の間隔を設定します。
 // VStackまたはHStack内でのみ有効です。
 func (b *Builder) Gap(gap int) *Builder {
-	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
+	// b.Widgetは*container.Container型なので、GetLayout()を呼び出せます。
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Gap != gap {
 			flexLayout.Gap = gap
 			b.Widget.MarkDirty(true)
@@ -262,7 +192,7 @@ func (b *Builder) Gap(gap int) *Builder {
 // Justify はFlexLayoutの主軸方向の揃え位置を設定します。
 // VStackまたはHStack内でのみ有効です。
 func (b *Builder) Justify(alignment layout.Alignment) *Builder {
-	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Justify != alignment {
 			flexLayout.Justify = alignment
 			b.Widget.MarkDirty(true)
@@ -276,7 +206,7 @@ func (b *Builder) Justify(alignment layout.Alignment) *Builder {
 // AlignItems はFlexLayoutの交差軸方向の揃え位置を設定します。
 // VStackまたはHStack内でのみ有効です。
 func (b *Builder) AlignItems(alignment layout.Alignment) *Builder {
-	if flexLayout, ok := b.GetLayout().(*layout.FlexLayout); ok {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.AlignItems != alignment {
 			flexLayout.AlignItems = alignment
 			b.Widget.MarkDirty(true)
@@ -288,11 +218,12 @@ func (b *Builder) AlignItems(alignment layout.Alignment) *Builder {
 }
 
 // --- GridLayout Specific Methods ---
+// これらもui.Builderが提供する独自の機能なので、そのまま残します。
 
 // Columns はグリッドの列数を設定します。
 // Grid内でのみ有効です。
 func (b *Builder) Columns(count int) *Builder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
 		if count > 0 && gridLayout.Columns != count {
 			gridLayout.Columns = count
 			b.Widget.MarkDirty(true)
@@ -306,7 +237,7 @@ func (b *Builder) Columns(count int) *Builder {
 // Rows はグリッドの行数を設定します。0以下で自動計算されます。
 // Grid内でのみ有効です。
 func (b *Builder) Rows(count int) *Builder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.Rows != count {
 			gridLayout.Rows = count
 			b.Widget.MarkDirty(true)
@@ -320,7 +251,7 @@ func (b *Builder) Rows(count int) *Builder {
 // HorizontalGap はセル間の水平方向の間隔を設定します。
 // Grid内でのみ有効です。
 func (b *Builder) HorizontalGap(gap int) *Builder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.HorizontalGap != gap {
 			gridLayout.HorizontalGap = gap
 			b.Widget.MarkDirty(true)
@@ -334,7 +265,7 @@ func (b *Builder) HorizontalGap(gap int) *Builder {
 // VerticalGap はセル間の垂直方向の間隔を設定します。
 // Grid内でのみ有効です。
 func (b *Builder) VerticalGap(gap int) *Builder {
-	if gridLayout, ok := b.GetLayout().(*layout.GridLayout); ok {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
 		if gridLayout.VerticalGap != gap {
 			gridLayout.VerticalGap = gap
 			b.Widget.MarkDirty(true)
@@ -343,4 +274,11 @@ func (b *Builder) VerticalGap(gap int) *Builder {
 		b.AddError(fmt.Errorf("VerticalGap() is only applicable to GridLayout"))
 	}
 	return b
+}
+
+// Build finalizes the container construction.
+// component.BuilderにBuildメソッドがあるため、このメソッドは不要です。
+// ただし、型を*container.Containerに明示したい場合は定義しても良いです。
+func (b *Builder) Build() (*container.Container, error) {
+	return b.Builder.Build()
 }
