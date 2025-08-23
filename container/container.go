@@ -19,8 +19,8 @@ type Container struct {
 	warned   bool // サイズ警告を一度だけ出すためのフラグ
 
 	// [新規追加] クリッピング関連フィールド
-	clipsChildren  bool           // 子要素をクリッピングするかどうか
-	offscreenImage *ebiten.Image  // クリッピング描画用のオフスクリーンバッファ
+	clipsChildren  bool          // 子要素をクリッピングするかどうか
+	offscreenImage *ebiten.Image // クリッピング描画用のオフスクリーンバッファ
 }
 
 // コンパイル時にインターフェースの実装を検証します。
@@ -153,7 +153,7 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	// サイズが変更されていたら、新しいサイズの画像を再生成します。
 	if c.offscreenImage == nil || c.offscreenImage.Bounds().Dx() != containerWidth || c.offscreenImage.Bounds().Dy() != containerHeight {
 		if c.offscreenImage != nil {
-			c.offscreenImage.Dispose()
+			c.offscreenImage.Deallocate()
 		}
 		c.offscreenImage = ebiten.NewImage(containerWidth, containerHeight)
 	}
@@ -162,21 +162,21 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	// 2. コンテナ自身の背景をオフスクリーン画像に描画
 	// オフスクリーン画像への描画なので、描画位置は(0,0)から開始します。
 	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.GetStyle())
-	
+
 	// 3. 子要素をオフスクリーン画像に描画
 	for _, child := range c.children {
 		// 子の描画メソッドは、ウィジェットの絶対座標に基づいて描画を行います。
 		// オフスクリーン画像はコンテナの左上を(0,0)としているため、
 		// 子の描画座標を「コンテナ基準の相対座標」に一時的に変換する必要があります。
 		originalX, originalY := child.GetPosition()
-		
+
 		relativeX := originalX - containerX
 		relativeY := originalY - containerY
-		
+
 		// 座標を一時的に設定して描画
 		child.SetPosition(relativeX, relativeY)
 		child.Draw(c.offscreenImage)
-		
+
 		// 座標を元に戻す
 		child.SetPosition(originalX, originalY)
 	}
@@ -226,7 +226,7 @@ func (c *Container) Cleanup() {
 
 	// [新規追加] オフスクリーン画像が存在すれば、そのリソースを解放します。
 	if c.offscreenImage != nil {
-		c.offscreenImage.Dispose()
+		c.offscreenImage.Deallocate()
 		c.offscreenImage = nil
 	}
 
