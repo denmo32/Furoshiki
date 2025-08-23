@@ -4,6 +4,25 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// 【改善】WidgetStateの定義を、それを利用するロジック（CurrentStateなど）と
+// 同じファイルに統合しました。これにより、状態の定義と実装がまとまり、
+// コードの関連性が明確になって可読性が向上します。
+// （以前は `component/widget_state_types.go` にありました）
+
+// WidgetState は、ウィジェットが取りうるインタラクティブな状態を定義します。
+type WidgetState int
+
+const (
+	// StateNormal は、ユーザー入力がないデフォルトの状態です。
+	StateNormal WidgetState = iota
+	// StateHovered は、マウスカーソルがウィジェット上にある状態です。
+	StateHovered
+	// StatePressed は、ウィジェットがクリックまたはタップされている最中の状態です。
+	StatePressed
+	// StateDisabled は、ウィジェットが無効化され、ユーザー入力を受け付けない状態です。
+	StateDisabled
+)
+
 // Update はウィジェットの状態を更新します。
 // この基本実装は、具象ウィジェット（Button, Labelなど）で利用されます。
 // Container型は自身のUpdateメソッドでこれをオーバーライドして、子の更新やレイアウト処理を行います。
@@ -106,6 +125,7 @@ func (w *LayoutableWidget) IsPressed() bool {
 }
 
 // CurrentState はウィジェットの現在のインタラクティブな状態を返します。
+// このメソッドは InteractiveState インターフェースを実装します。
 func (w *LayoutableWidget) CurrentState() WidgetState {
 	if w.state.isDisabled {
 		return StateDisabled

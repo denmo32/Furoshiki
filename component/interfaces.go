@@ -82,6 +82,10 @@ type InteractiveState interface {
 	SetDisabled(disabled bool)
 	IsDisabled() bool
 	HasBeenLaidOut() bool // ウィジェットが一度でもレイアウトされたかを返します
+	// 【改善】CurrentStateを追加し、ウィジェットのインタラクティブな状態（Normal, Hoveredなど）を
+	// インターフェース経由で安全に取得できるようにします。これにより、ウィジェットの状態に依存する
+	// ロジック（例: Buttonの描画）が、具体的な実装ではなくインターフェースの契約に依存できるようになります。
+	CurrentState() WidgetState
 }
 
 // EventHandler はイベント処理のためのインターフェースです
