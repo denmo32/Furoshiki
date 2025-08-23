@@ -187,6 +187,18 @@ func (b *Builder) RelayoutBoundary(isBoundary bool) *Builder {
 	return b
 }
 
+// [新規追加]
+// AssignTo は、ビルド中のコンテナインスタンスへのポインタを変数に代入します。
+// UIの宣言的な構築フローを維持したまま、特定のコンテナへの参照を取得するために使用します。
+// 例: .VStack(func(b *ui.Builder){ b.AssignTo(&myContainer) }) (myContainerは *container.Container 型)
+func (b *Builder) AssignTo(target any) *Builder {
+	// 埋め込まれたContainerBuilderが持つAssignToメソッドを呼び出します。
+	// このメソッドはcomponent.Builderに実装されており、継承を通じて利用可能です。
+	b.ContainerBuilder.AssignTo(target)
+	// メソッドチェーンを継続するために、*Builder型であるb自身を返します。
+	return b
+}
+
 // --- Style Helper Wrappers ---
 
 // BackgroundColor はコンテナの背景色を設定します。

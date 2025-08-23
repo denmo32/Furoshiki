@@ -137,6 +137,45 @@ func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 	})
 }
 
+// [新規追加]
+// AssignTo は、ビルド中のウィジェットインスタンスへのポインタを変数に代入します。
+// UIの宣言的な構築フローを中断することなく、後から操作したいウィジェットへの参照を
+// 安全に取得するために使用します。
+// 例: .AssignTo(&myButton) (myButton は *widget.Button 型の変数)
+func (b *Builder[T, W]) AssignTo(target any) T {
+	if target == nil {
+		b.AddError(errors.New("AssignTo target cannot be nil"))
+		return b.Self
+	}
+
+	// targetが代入先のポインタ（例: **Button）であることをリフレクションで検証します。
+	targetVal := reflect.ValueOf(target)
+	if targetVal.Kind() != reflect.Ptr || targetVal.IsNil() {
+		b.AddError(fmt.Errorf("AssignTo target must be a non-nil pointer, got %T", target))
+		return b.Self
+	}
+
+	// ポインタが指す先の要素（例: *Button）を取得します。
+	targetElem := targetVal.Elem()
+
+	// ビルド中のウィジェットの型と、代入先の型に互換性があるか確認します。
+	widgetVal := reflect.ValueOf(b.Widget)
+	if !widgetVal.Type().AssignableTo(targetElem.Type()) {
+		// エラーメッセージをより分かりやすくするために、型名を出力します。
+		b.AddError(fmt.Errorf("cannot assign widget of type %s to target of type %s", widgetVal.Type(), targetElem.Type()))
+		return b.Self
+	}
+
+	// 代入可能であることを確認してから、実際に値を設定します。
+	if !targetElem.CanSet() {
+		b.AddError(fmt.Errorf("AssignTo target cannot be set"))
+		return b.Self
+	}
+	targetElem.Set(widgetVal)
+
+	return b.Self
+}
+
 // Build はウィジェットの構築を完了します。
 func (b *Builder[T, W]) Build() (W, error) {
 	if len(b.errors) > 0 {

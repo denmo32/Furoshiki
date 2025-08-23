@@ -46,7 +46,13 @@ func NewGame() *Game {
 	theme.SetCurrent(appTheme)
 
 	// --- UIの構築 ---
-	// [修正] すべてのビルダーコールバックの型を *ui.Builder に統一しました。
+	// [改善] UI構築のフローを、新しい `AssignTo` メソッドを用いてより宣言的で一貫性の
+	// あるものにリファクタリングしました。これにより、UIの階層構造を保ったまま、
+	// 特定のウィジェットへの参照を安全に取得できます。
+	// (※ このコードを動作させるには、まず component.Builder と ui.Builder に
+	//      AssignTo メソッドを追加する必要があります)
+	var okBtn, cancelBtn *widget.Button // 無効化対象のボタンへの参照を保持する変数
+
 	root, err := ui.VStack(func(b *ui.Builder) {
 		b.Size(400, 600).Padding(10).Gap(10).BackgroundColor(appTheme.BackgroundColor)
 
@@ -68,20 +74,35 @@ func NewGame() *Game {
 
 		// 3. 動的ウィジェットが追加されるコンテナ
 		// RelayoutBoundaryをtrueにすることで、このコンテナ内の変更が親に影響しなくなります。
-		dynamicBuilder := ui.VStack(func(b *ui.Builder) {
-			b.Size(380, 200).Padding(10).Gap(5).BackgroundColor(appTheme.SecondaryColor).RelayoutBoundary(true)
+		// [改善] 以前は一時的なビルダーを作成していましたが、ネストされたVStack内で
+		// `AssignTo` を使うことで、コードがシンプルかつ直感的になります。
+		b.VStack(func(b *ui.Builder) {
+			b.Size(380, 200).
+				Padding(10).
+				Gap(5).
+				BackgroundColor(appTheme.SecondaryColor).
+				RelayoutBoundary(true).
+				AssignTo(&g.dynamicContainer) // `AssignTo`でコンテナのインスタンスを直接取得
 		})
-		g.dynamicContainer, _ = dynamicBuilder.Build()
-		b.AddChild(g.dynamicContainer)
 
 		// 4. 無効化機能のデモ
+		// [改善] `AssignTo` を使い、HStackの宣言的な構造の中でボタンへの参照を取得します。
+		// これにより、一時的なビルダーやAddChildrenの呼び出しが不要になります。
 		b.HStack(func(b *ui.Builder) {
 			b.Size(380, 40).Gap(10)
-			okBtn, _ := widget.NewButtonBuilder().Text("OK").Flex(1).Build()
-			cancelBtn, _ := widget.NewButtonBuilder().Text("Cancel").Flex(1).Build()
-			g.buttonsToDisable = []component.Widget{okBtn, cancelBtn}
-			b.AddChildren(okBtn, cancelBtn)
+			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("OK").Flex(1).AssignTo(&okBtn)
+			})
+			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("Cancel").Flex(1).AssignTo(&cancelBtn)
+			})
 		})
+
+		// ボタンへの参照をスライスに格納します。
+		// okBtnとcancelBtnは*widget.Button型ですが、component.Widgetインターフェースを満たすため、
+		// このように代入できます。
+		g.buttonsToDisable = []component.Widget{okBtn, cancelBtn}
+
 		b.Button(func(btn *widget.ButtonBuilder) {
 			btn.Text("Disable/Enable Buttons").Size(380, 40).OnClick(func(e event.Event) { g.toggleButtonsDisabled() })
 		})
