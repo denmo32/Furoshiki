@@ -169,6 +169,17 @@ func (b *Builder) RelayoutBoundary(isBoundary bool) *Builder {
 	return b
 }
 
+// [新規追加]
+// ClipChildren は、コンテナがその境界外に子要素を描画しないように設定します（クリッピング）。
+// component.Builderには存在しないコンテナ固有の機能であるため、ui.Builderで実装します。
+func (b *Builder) ClipChildren(clips bool) *Builder {
+	// b.Widget は *container.Container 型なので、SetClipsChildren を呼び出せます。
+	// container.Container側には対応するメソッドが実装済みです。
+	b.Widget.SetClipsChildren(clips)
+	return b
+}
+
+
 // --- FlexLayout Specific Methods ---
 // これらはui.Builderがラップするコンテナのレイアウトプロパティを操作する独自の機能です。
 

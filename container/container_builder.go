@@ -67,6 +67,16 @@ func (b *ContainerBuilder) RelayoutBoundary(isBoundary bool) *ContainerBuilder {
 	return b
 }
 
+// [新規追加]
+// ClipChildren は、コンテナがその境界外に子要素を描画しないように設定します（クリッピング）。
+// trueに設定すると、子要素はコンテナのパディング領域の内側にのみ描画されます。
+// これは、スクロール可能な領域などを作成する際の基礎となります。
+func (b *ContainerBuilder) ClipChildren(clips bool) *ContainerBuilder {
+	b.Widget.SetClipsChildren(clips)
+	return b
+}
+
+
 // Build finalizes the container construction.
 func (b *ContainerBuilder) Build() (*Container, error) {
 	// The embedded builder's Build method returns (W, error), which is (*Container, error)

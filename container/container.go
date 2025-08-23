@@ -17,11 +17,25 @@ type Container struct {
 	children []component.Widget
 	layout   layout.Layout
 	warned   bool // サイズ警告を一度だけ出すためのフラグ
+
+	// [新規追加] クリッピング関連フィールド
+	clipsChildren  bool           // 子要素をクリッピングするかどうか
+	offscreenImage *ebiten.Image  // クリッピング描画用のオフスクリーンバッファ
 }
 
 // コンパイル時にインターフェースの実装を検証します。
 var _ component.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
+
+// [新規追加]
+// SetClipsChildren はコンテナのクリッピング動作を設定します。
+func (c *Container) SetClipsChildren(clips bool) {
+	if c.clipsChildren != clips {
+		c.clipsChildren = clips
+		// クリッピング設定の変更は再描画を要求します
+		c.MarkDirty(false)
+	}
+}
 
 // GetLayout はコンテナが使用しているレイアウトを返します。
 func (c *Container) GetLayout() layout.Layout {
@@ -96,11 +110,24 @@ func (c *Container) checkSizeWarning() {
 
 // Drawはコンテナ自身と、そのすべての子を描画します。
 // component.LayoutableWidgetのDrawをオーバーライドします。
+// [ロジック更新] クリッピングが有効な場合、オフスクリーンレンダリングを行います。
 func (c *Container) Draw(screen *ebiten.Image) {
 	// コンテナが非表示の場合、自身も子も描画しません。
 	if !c.IsVisible() {
 		return
 	}
+
+	// --- [ロジック更新] クリッピングが有効な場合の処理 ---
+	if c.clipsChildren {
+		c.drawWithClipping(screen)
+	} else {
+		// --- 従来の描画処理（クリッピングなし） ---
+		c.drawWithoutClipping(screen)
+	}
+}
+
+// drawWithoutClipping は、クリッピングを行わずにコンテナと子を描画します。
+func (c *Container) drawWithoutClipping(screen *ebiten.Image) {
 	// まずコンテナ自身の背景などを描画ヘルパーで描画します。
 	x, y := c.GetPosition()
 	width, height := c.GetSize()
@@ -110,6 +137,54 @@ func (c *Container) Draw(screen *ebiten.Image) {
 	for _, child := range c.children {
 		child.Draw(screen)
 	}
+}
+
+// drawWithClipping は、オフスクリーンバッファを利用してクリッピングを行いながら描画します。
+func (c *Container) drawWithClipping(screen *ebiten.Image) {
+	containerX, containerY := c.GetPosition()
+	containerWidth, containerHeight := c.GetSize()
+
+	// 描画領域がない場合は何もしません
+	if containerWidth <= 0 || containerHeight <= 0 {
+		return
+	}
+
+	// 1. オフスクリーン画像の準備
+	// サイズが変更されていたら、新しいサイズの画像を再生成します。
+	if c.offscreenImage == nil || c.offscreenImage.Bounds().Dx() != containerWidth || c.offscreenImage.Bounds().Dy() != containerHeight {
+		if c.offscreenImage != nil {
+			c.offscreenImage.Dispose()
+		}
+		c.offscreenImage = ebiten.NewImage(containerWidth, containerHeight)
+	}
+	c.offscreenImage.Clear() // 前のフレームの描画をクリア
+
+	// 2. コンテナ自身の背景をオフスクリーン画像に描画
+	// オフスクリーン画像への描画なので、描画位置は(0,0)から開始します。
+	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.GetStyle())
+	
+	// 3. 子要素をオフスクリーン画像に描画
+	for _, child := range c.children {
+		// 子の描画メソッドは、ウィジェットの絶対座標に基づいて描画を行います。
+		// オフスクリーン画像はコンテナの左上を(0,0)としているため、
+		// 子の描画座標を「コンテナ基準の相対座標」に一時的に変換する必要があります。
+		originalX, originalY := child.GetPosition()
+		
+		relativeX := originalX - containerX
+		relativeY := originalY - containerY
+		
+		// 座標を一時的に設定して描画
+		child.SetPosition(relativeX, relativeY)
+		child.Draw(c.offscreenImage)
+		
+		// 座標を元に戻す
+		child.SetPosition(originalX, originalY)
+	}
+
+	// 4. 完成したオフスクリーン画像を、スクリーン上の正しい位置に描画
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(containerX), float64(containerY))
+	screen.DrawImage(c.offscreenImage, opts)
 }
 
 // HitTest は、指定された座標がコンテナまたはその子のいずれかにヒットするかをテストします。
@@ -140,6 +215,7 @@ func (c *Container) HitTest(x, y int) component.Widget {
 
 // Cleanup は、コンテナとすべての子ウィジェットのリソースを解放します。
 // UIツリーからコンテナが削除されるときや、アプリケーション終了時に呼び出されるべきです。
+// [ロジック更新] オフスクリーン画像のリソースも解放します。
 func (c *Container) Cleanup() {
 	// まず、すべての子ウィジェットのクリーンアップを再帰的に呼び出します。
 	for _, child := range c.children {
@@ -147,6 +223,12 @@ func (c *Container) Cleanup() {
 	}
 	// 子のリストをクリアします。
 	c.children = nil
+
+	// [新規追加] オフスクリーン画像が存在すれば、そのリソースを解放します。
+	if c.offscreenImage != nil {
+		c.offscreenImage.Dispose()
+		c.offscreenImage = nil
+	}
 
 	// 最後に、埋め込まれたLayoutableWidget自身のクリーンアップ処理（イベントハンドラのクリアなど）を呼び出します。
 	c.LayoutableWidget.Cleanup()

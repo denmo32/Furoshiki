@@ -82,6 +82,9 @@ func NewGame() *Game {
 				Gap(5).
 				BackgroundColor(appTheme.SecondaryColor).
 				RelayoutBoundary(true).
+				// [変更点] ClipChildren(true) を呼び出して、このコンテナの境界外にはみ出す
+				// 子ウィジェット（動的に追加されるラベル）が描画されないようにします。
+				ClipChildren(true).
 				AssignTo(&g.dynamicContainer) // `AssignTo`でコンテナのインスタンスを直接取得
 		})
 
@@ -118,7 +121,8 @@ func NewGame() *Game {
 
 func (g *Game) addWidget() {
 	g.widgetCount++
-	newLabel, _ := widget.NewLabelBuilder().Text(fmt.Sprintf("Dynamic Label #%d", g.widgetCount)).Size(360, 25).BackgroundColor(color.White).Build()
+	// [変更点] ラベルのサイズを少し小さくして、はみ出しをより分かりやすくします
+	newLabel, _ := widget.NewLabelBuilder().Text(fmt.Sprintf("Dynamic Label #%d", g.widgetCount)).Size(360, 25).BackgroundColor(color.White).Padding(5).Build()
 	g.dynamicContainer.AddChild(newLabel)
 }
 
