@@ -4,31 +4,31 @@ import (
 	"furoshiki/component"
 	"furoshiki/style"
 	"furoshiki/utils"
+	// ログは不要になったため削除
+	// "log"
+	// "reflect"
 )
 
 // FlexLayout は、CSS Flexboxにインスパイアされたレイアウトシステムです。
-// Direction, Justify, AlignItems, Gapプロパティに基づいて子要素を柔軟に配置します。
 type FlexLayout struct {
 	Direction  Direction
 	Justify    Alignment
 	AlignItems Alignment
-	Wrap       bool // 現在は未使用ですが、将来的な機能拡張のために残されています
+	Wrap       bool
 	Gap        int
 }
 
 // flexItemInfo は、レイアウト計算中に各子要素の情報を保持するための中間構造体です。
 type flexItemInfo struct {
 	widget                  component.Widget
-	mainSize, crossSize     int // 最終的な主軸・交差軸サイズ
-	mainMargin, crossMargin int // 主軸・交差軸のマージン合計
-	mainMarginStart         int // 主軸の開始側マージン
-	flex                    int // flex値
+	mainSize, crossSize     int
+	mainMargin, crossMargin int
+	mainMarginStart         int
+	flex                    int
 }
 
 // Layout は FlexLayout のレイアウトロジックを実装します。
-// コンテナのサイズと子のプロパティに基づいて、すべての子要素のサイズと位置を計算し、設定します。
 func (l *FlexLayout) Layout(container Container) {
-	// ステップ 1: 初期設定と可視コンポーネントのフィルタリング
 	children := getVisibleChildren(container)
 	if len(children) == 0 {
 		return
@@ -36,8 +36,6 @@ func (l *FlexLayout) Layout(container Container) {
 
 	padding := container.GetPadding()
 	containerWidth, containerHeight := container.GetSize()
-
-	// コンテナに描画領域がない場合はレイアウトをスキップします。
 	if containerWidth <= 0 || containerHeight <= 0 {
 		return
 	}
@@ -51,119 +49,124 @@ func (l *FlexLayout) Layout(container Container) {
 		mainSize, crossSize = availableHeight, availableWidth
 	}
 
-	// ステップ 2: レイアウト情報の収集と初期サイズ計算
-	items, totalFixedMainSize, totalFlex := l.calculateInitialSizes(children, isRow)
-
-	// ステップ 3: 伸縮可能スペースの計算と分配
-	l.distributeRemainingSpace(items, mainSize, totalFixedMainSize, totalFlex, isRow)
-
-	// ステップ 4: 交差軸のサイズ計算
-	l.calculateCrossAxisSizes(items, crossSize, isRow)
-
-	// ステップ 5: 最終的なサイズをウィジェットに設定
+	items := collectItemInfo(children, isRow)
+	totalFlex, totalBaseMainSize := calculateBaseSizes(items, isRow)
+	distributeRemainingSpace(items, mainSize, totalBaseMainSize, totalFlex, l.Gap)
+	calculateCrossAxisSizes(items, crossSize, isRow, l.AlignItems) // ここが修正されました
 	applySizes(items, isRow)
-
-	// ステップ 6: 位置計算と配置
-	l.positionItems(items, container, mainSize, crossSize, isRow)
+	positionItems(items, container, mainSize, crossSize, isRow, l.Justify, l.AlignItems, l.Gap)
 }
 
-// calculateInitialSizes は、各子要素の初期サイズとマージンを計算します。
-func (l *FlexLayout) calculateInitialSizes(children []component.Widget, isRow bool) ([]flexItemInfo, int, float64) {
+// collectItemInfo は、子ウィジェットからレイアウト計算に必要な情報を収集します。
+func collectItemInfo(children []component.Widget, isRow bool) []flexItemInfo {
 	items := make([]flexItemInfo, len(children))
-	var totalFixedMainSize int
-	var totalFlex float64
-
 	for i, child := range children {
 		s := child.GetStyle()
-		minW, minH := child.GetMinSize()
-		w, h := child.GetSize()
-
-		var info flexItemInfo
-		info.widget = child
-		info.flex = child.GetFlex()
-
-		// Marginが設定されていればその値を、なければゼロ値を使用します。
 		margin := style.Insets{}
 		if s.Margin != nil {
 			margin = *s.Margin
 		}
 
+		var mainMargin, crossMargin, mainMarginStart int
 		if isRow {
-			info.mainMarginStart = margin.Left
-			info.mainMargin = margin.Left + margin.Right
-			info.crossMargin = margin.Top + margin.Bottom
+			mainMarginStart = margin.Left
+			mainMargin = margin.Left + margin.Right
+			crossMargin = margin.Top + margin.Bottom
 		} else {
-			info.mainMarginStart = margin.Top
-			info.mainMargin = margin.Top + margin.Bottom
-			info.crossMargin = margin.Left + margin.Right
+			mainMarginStart = margin.Top
+			mainMargin = margin.Top + margin.Bottom
+			crossMargin = margin.Left + margin.Right
 		}
 
-		if info.flex > 0 {
-			totalFlex += float64(info.flex)
-			info.mainSize = utils.Max(0, utils.IfThen(isRow, minW, minH))
-		} else {
-			if isRow {
-				info.mainSize = utils.Max(utils.IfThen(w <= 0, minW, w), minW)
-			} else {
-				info.mainSize = utils.Max(utils.IfThen(h <= 0, minH, h), minH)
-			}
+		items[i] = flexItemInfo{
+			widget:          child,
+			flex:            child.GetFlex(),
+			mainMargin:      mainMargin,
+			crossMargin:     crossMargin,
+			mainMarginStart: mainMarginStart,
 		}
-		totalFixedMainSize += info.mainSize + info.mainMargin
-		items[i] = info
 	}
-	return items, totalFixedMainSize, totalFlex
+	return items
 }
 
-// distributeRemainingSpace は、flex値に基づいて余剰スペースを分配または不足分を縮小します。
-func (l *FlexLayout) distributeRemainingSpace(items []flexItemInfo, mainSize, totalFixedMainSize int, totalFlex float64, isRow bool) {
-	totalGap := 0
-	if len(items) > 1 {
-		totalGap = (len(items) - 1) * l.Gap
-	}
-	remainingSpace := mainSize - totalFixedMainSize - totalGap
+// calculateBaseSizes は、各アイテムの基本サイズを決定し、合計flex値と合計基本サイズを返します。
+func calculateBaseSizes(items []flexItemInfo, isRow bool) (float64, int) {
+	var totalFlex float64
+	var totalBaseMainSize int
+	for i := range items {
+		item := &items[i]
+		if item.flex > 0 {
+			totalFlex += float64(item.flex)
+		}
 
-	if remainingSpace < 0 {
-		// スペースが不足する場合、flexでない要素を縮小する
-		if totalFixedMainSize > 0 {
-			scale := float64(mainSize-totalGap) / float64(totalFixedMainSize)
-			if scale > 0 {
-				for i := range items {
-					if items[i].flex == 0 {
-						newSize := int(float64(items[i].mainSize+items[i].mainMargin) * scale)
-						minW, minH := items[i].widget.GetMinSize()
-						minMainSize := utils.IfThen(isRow, minW, minH)
-						items[i].mainSize = utils.Max(minMainSize, newSize-items[i].mainMargin)
-					}
-				}
+		w, h := item.widget.GetSize()
+		minW, minH := item.widget.GetMinSize()
+
+		if isRow {
+			if item.flex > 0 {
+				item.mainSize = minW
+			} else {
+				item.mainSize = utils.Max(utils.IfThen(w <= 0, minW, w), minW)
+			}
+		} else {
+			if item.flex > 0 {
+				item.mainSize = minH
+			} else {
+				item.mainSize = utils.Max(utils.IfThen(h <= 0, minH, h), minH)
 			}
 		}
-	} else if totalFlex > 0 && remainingSpace > 0 {
-		// スペースが余る場合、flex要素に分配する
+		totalBaseMainSize += item.mainSize + item.mainMargin
+	}
+	return totalFlex, totalBaseMainSize
+}
+
+// distributeRemainingSpace は、残りの空間をflexアイテムに分配します。
+func distributeRemainingSpace(items []flexItemInfo, mainSize, totalBaseMainSize int, totalFlex float64, gap int) {
+	totalGap := 0
+	if len(items) > 1 {
+		totalGap = (len(items) - 1) * gap
+	}
+
+	remainingSpace := mainSize - totalBaseMainSize - totalGap
+
+	if totalFlex > 0 && remainingSpace > 0 {
 		sizePerFlex := float64(remainingSpace) / totalFlex
 		for i := range items {
 			if items[i].flex > 0 {
-				flexSize := int(sizePerFlex * float64(items[i].flex))
-				items[i].mainSize += flexSize
+				items[i].mainSize += int(sizePerFlex * float64(items[i].flex))
 			}
 		}
 	}
 }
 
-// calculateCrossAxisSizes は、交差軸のサイズを計算します（AlignStretch対応）。
-func (l *FlexLayout) calculateCrossAxisSizes(items []flexItemInfo, crossSize int, isRow bool) {
-	if l.AlignItems == AlignStretch {
-		for i := range items {
-			minW, minH := items[i].widget.GetMinSize()
-			items[i].crossSize = utils.Max(utils.IfThen(isRow, minH, minW), crossSize-items[i].crossMargin)
-		}
-	} else {
-		for i := range items {
-			w, h := items[i].widget.GetSize()
-			minW, minH := items[i].widget.GetMinSize()
+// 【ここが根本的な修正箇所です】
+// calculateCrossAxisSizes は、交差軸のサイズを計算します。
+func calculateCrossAxisSizes(items []flexItemInfo, crossSize int, isRow bool, alignItems Alignment) {
+	for i := range items {
+		item := &items[i]
+		
+		// デフォルトでは、子は親の利用可能な交差軸スペース全体を占有します。
+		// これが、右ペインの高さが0になっていた問題の直接的な解決策です。
+		item.crossSize = crossSize - item.crossMargin
+
+		// AlignStretchでない場合、子は自身のコンテンツに合わせたサイズになることができます。
+		if alignItems != AlignStretch {
+			w, h := item.widget.GetSize()
+			minW, minH := item.widget.GetMinSize()
+
+			var intrinsicCrossSize int
 			if isRow {
-				items[i].crossSize = utils.Max(utils.IfThen(h <= 0, minH, h), minH)
+				// 固有の高さ = ユーザー設定の高さ > 0 ? ユーザー設定の高さ : 最小の高さ
+				intrinsicCrossSize = utils.Max(utils.IfThen(h <= 0, minH, h), minH)
 			} else {
-				items[i].crossSize = utils.Max(utils.IfThen(w <= 0, minW, w), minW)
+				// 固有の幅 = ユーザー設定の幅 > 0 ? ユーザー設定の幅 : 最小の幅
+				intrinsicCrossSize = utils.Max(utils.IfThen(w <= 0, minW, w), minW)
+			}
+            
+            // 固有サイズが計算でき（0より大きく）、かつそれが利用可能スペースより小さい場合のみ、
+            // その固有サイズを採用します。
+			if intrinsicCrossSize > 0 && intrinsicCrossSize < item.crossSize {
+				item.crossSize = intrinsicCrossSize
 			}
 		}
 	}
@@ -181,11 +184,11 @@ func applySizes(items []flexItemInfo, isRow bool) {
 }
 
 // positionItems は、主軸と交差軸の揃え位置に基づいて各ウィジェットを配置します。
-func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, mainSize, crossSize int, isRow bool) {
+func positionItems(items []flexItemInfo, container Container, mainSize, crossSize int, isRow bool, justify, alignItems Alignment, gap int) {
 	var currentTotalMainSize int
 	totalGap := 0
 	if len(items) > 1 {
-		totalGap = (len(items) - 1) * l.Gap
+		totalGap = (len(items) - 1) * gap
 	}
 
 	for _, item := range items {
@@ -195,13 +198,14 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 
 	freeSpace := mainSize - currentTotalMainSize
 	mainOffset := 0
-	switch l.Justify {
-	case AlignCenter:
-		mainOffset = freeSpace / 2
-	case AlignEnd:
-		mainOffset = freeSpace
+	if freeSpace > 0 {
+		switch justify {
+		case AlignCenter:
+			mainOffset = freeSpace / 2
+		case AlignEnd:
+			mainOffset = freeSpace
+		}
 	}
-	mainOffset = utils.Max(0, mainOffset)
 
 	padding := container.GetPadding()
 	containerX, containerY := container.GetPosition()
@@ -214,11 +218,14 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 		currentMain += item.mainMarginStart
 
 		crossOffset := 0
-		switch l.AlignItems {
-		case AlignCenter:
-			crossOffset = (crossSize - item.crossSize - item.crossMargin) / 2
-		case AlignEnd:
-			crossOffset = crossSize - item.crossSize - item.crossMargin
+		availableCrossSpace := crossSize - item.crossSize - item.crossMargin
+		if availableCrossSpace > 0 {
+			switch alignItems {
+			case AlignCenter:
+				crossOffset = availableCrossSpace / 2
+			case AlignEnd:
+				crossOffset = availableCrossSpace
+			}
 		}
 
 		finalCrossPos := crossStart + crossOffset
@@ -229,6 +236,6 @@ func (l *FlexLayout) positionItems(items []flexItemInfo, container Container, ma
 			item.widget.SetPosition(containerX+finalCrossPos, containerY+currentMain)
 		}
 
-		currentMain += item.mainSize + (item.mainMargin - item.mainMarginStart) + l.Gap
+		currentMain += item.mainSize + (item.mainMargin - item.mainMarginStart) + gap
 	}
 }

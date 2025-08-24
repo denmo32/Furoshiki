@@ -1,10 +1,10 @@
-// examples/main.go
 package main
 
 import (
 	"fmt"
 	"furoshiki/component"
 	"furoshiki/event"
+	"furoshiki/layout"
 	"furoshiki/style"
 	"furoshiki/theme"
 	"furoshiki/ui"
@@ -48,7 +48,7 @@ func NewGame() *Game {
 		// --- 左ペイン：スクロールビュー ---
 		b.ScrollView(func(sv *widget.ScrollViewBuilder) {
 			sv.Size(250, 580). // 親の高さ(600) - 親のPadding(10*2) = 580
-				Border(1, color.Gray{Y: 200})
+						Border(1, color.Gray{Y: 200})
 
 			// ScrollViewのコンテンツとして、垂直スタック(VStack)を持つコンテナを設定します。
 			// このコンテナがスクロール対象となります。
@@ -83,9 +83,10 @@ func NewGame() *Game {
 		// --- 右ペイン：詳細表示エリア ---
 		b.VStack(func(b *ui.Builder) {
 			b.Flex(1). // 残りの水平スペースをすべて使用します
-				Padding(10).
-				Gap(10).
-				Border(1, color.Gray{Y: 200})
+					Padding(10).
+					Gap(10).
+					Border(1, color.Gray{Y: 200}).
+					AlignItems(layout.AlignStretch)
 
 			// タイトルラベル
 			b.Label(func(l *widget.LabelBuilder) {
