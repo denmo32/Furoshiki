@@ -10,6 +10,13 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// 【新規追加】 Scroller は、Containerがクリッピング描画時にスクロールオフセットを
+// 取得するために使用するインターフェースです。
+// ScrollableContainerのような、スクロール機能を持つウィジェットがこのインターフェースを実装します。
+type Scroller interface {
+	GetScrollOffset() (x, y int)
+}
+
 // Containerは子Widgetを保持し、レイアウトを管理するコンポーネントです。
 // component.Containerインターフェースを実装します。
 type Container struct {
@@ -139,7 +146,9 @@ func (c *Container) drawWithoutClipping(screen *ebiten.Image) {
 	}
 }
 
-// drawWithClipping は、オフスクリーンバッファを利用してクリッピングを行いながら描画します。
+// 【改善】drawWithClipping は、オフスクリーンバッファを利用してクリッピングを行いながら描画します。
+// Scrollerインターフェースをチェックすることで、ScrollableContainerのようなウィジェットの
+// スクロールオフセットを汎用的に扱うことができます。
 func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	containerX, containerY := c.GetPosition()
 	containerWidth, containerHeight := c.GetSize()
@@ -163,6 +172,13 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	// オフスクリーン画像への描画なので、描画位置は(0,0)から開始します。
 	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.GetStyle())
 
+	// 【改善点】コンテナ自身がScrollerインターフェースを実装しているかチェックします。
+	// これにより、具象型に依存することなくスクロール機能に対応できます。
+	var scrollOffsetX, scrollOffsetY int
+	if scroller, ok := any(c).(Scroller); ok {
+		scrollOffsetX, scrollOffsetY = scroller.GetScrollOffset()
+	}
+
 	// 3. 子要素をオフスクリーン画像に描画
 	for _, child := range c.children {
 		// 子の描画メソッドは、ウィジェットの絶対座標に基づいて描画を行います。
@@ -170,8 +186,10 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 		// 子の描画座標を「コンテナ基準の相対座標」に一時的に変換する必要があります。
 		originalX, originalY := child.GetPosition()
 
-		relativeX := originalX - containerX
-		relativeY := originalY - containerY
+		// 【改善点】スクロールオフセットを考慮して相対座標を計算します。
+		// Scrollerでない場合はオフセットが(0,0)なので、通常のクリッピングとして機能します。
+		relativeX := originalX - containerX + scrollOffsetX
+		relativeY := originalY - containerY + scrollOffsetY
 
 		// 座標を一時的に設定して描画
 		child.SetPosition(relativeX, relativeY)

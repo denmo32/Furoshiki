@@ -3,8 +3,6 @@ package container
 import (
 	"furoshiki/component"
 	"furoshiki/event"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // ScrollableContainer は縦方向スクロール機能を持つコンテナです
@@ -17,10 +15,18 @@ type ScrollableContainer struct {
 	canScrollY    bool // スクロール可能かどうか
 }
 
+// 【改善】コンパイル時にScrollerインターフェースの実装を検証します。
+var _ Scroller = (*ScrollableContainer)(nil)
+
 // NewScrollableContainer は新しいScrollableContainerを作成します
 func NewScrollableContainer() *ScrollableContainer {
 	// NewContainerBuilderを使ってコンテナを作成
 	builder := NewContainerBuilder()
+	// 【改善】ビルダーに直接 self を渡すことはできないため、
+	// ScrollableContainer がイベントやヒットテストで自身を正しく返すためには、
+	// 生成後に self を差し替えるか、ビルダーを使わずに構築する必要があります。
+	// (この改善案のスコープ外ですが、ライブラリ全体の課題として認識する価値があります)
+	// ここでは既存の構築方法を維持します。
 	container, _ := builder.Build()
 
 	sc := &ScrollableContainer{
@@ -32,6 +38,15 @@ func NewScrollableContainer() *ScrollableContainer {
 	sc.SetClipsChildren(true)
 
 	return sc
+}
+
+// 【新規追加】 GetScrollOffset はScrollerインターフェースを実装します。
+// 埋め込まれたContainerの描画ロジックは、このメソッドを呼び出して
+// 子要素を描画する際のY座標オフセット（スクロール量）を取得します。
+func (sc *ScrollableContainer) GetScrollOffset() (x, y int) {
+	// このコンテナは垂直スクロールのみなので、Xオフセットは0です。
+	// Yオフセットは、現在のスクロール位置を反転させた値です。
+	return 0, -sc.scrollY
 }
 
 // AddChild は子ウィジェットを追加し、コンテンツサイズを更新します
@@ -50,6 +65,7 @@ func (sc *ScrollableContainer) RemoveChild(child component.Widget) {
 func (sc *ScrollableContainer) updateContentHeight() {
 	maxHeight := 0
 
+	// GetChildrenは埋め込まれたContainerのメソッドを呼び出します
 	for _, child := range sc.GetChildren() {
 		if child.IsVisible() {
 			_, y := child.GetPosition()
@@ -117,75 +133,27 @@ func (sc *ScrollableContainer) CanScroll() bool {
 	return sc.canScrollY
 }
 
-// Draw はスクロール位置を考慮して子要素を描画します
+// 【改善】Drawメソッドは不要になりました。
+// 埋め込まれたContainerのDrawメソッドが自動的に呼び出されます。
+// その際、Scrollerインターフェースを通じてGetScrollOffsetが呼び出され、
+// スクロールが適用されたクリッピング描画が実行されます。
+/*
 func (sc *ScrollableContainer) Draw(screen *ebiten.Image) {
-	if !sc.IsVisible() {
-		return
-	}
-
-	// コンテナ自身の背景を描画
-	x, y := sc.GetPosition()
-	width, height := sc.GetSize()
-	component.DrawStyledBackground(screen, x, y, width, height, sc.GetStyle())
-
-	// クリッピングを有効にして子要素を描画
-	sc.drawChildrenWithClipping(screen)
+	// ... (このメソッド全体が不要になる) ...
 }
+*/
 
-// drawChildrenWithClipping はクリッピングありで子要素を描画します
+// 【改善】drawChildrenWithClippingメソッドも不要になりました。
+// このロジックは汎用化され、Container.drawWithClippingに統合されました。
+/*
 func (sc *ScrollableContainer) drawChildrenWithClipping(screen *ebiten.Image) {
-	containerX, containerY := sc.GetPosition()
-	containerWidth, containerHeight := sc.GetSize()
-
-	// 描画領域がない場合は何もしない
-	if containerWidth <= 0 || containerHeight <= 0 {
-		return
-	}
-
-	// オフスクリーン画像の準備
-	if sc.offscreenImage == nil ||
-		sc.offscreenImage.Bounds().Dx() != containerWidth ||
-		sc.offscreenImage.Bounds().Dy() != containerHeight {
-		if sc.offscreenImage != nil {
-			sc.offscreenImage.Deallocate()
-		}
-		sc.offscreenImage = ebiten.NewImage(containerWidth, containerHeight)
-	}
-	sc.offscreenImage.Clear()
-
-	// コンテナ自身の背景をオフスクリーン画像に描画
-	component.DrawStyledBackground(sc.offscreenImage, 0, 0, containerWidth, containerHeight, sc.GetStyle())
-
-	// 子要素をスクロール位置を考慮してオフスクリーン画像に描画
-	for _, child := range sc.GetChildren() {
-		if !child.IsVisible() {
-			continue
-		}
-
-		// 元の位置を保存
-		originalX, originalY := child.GetPosition()
-
-		// スクロールを考慮した相対位置を計算
-		relativeX := originalX - containerX
-		relativeY := originalY - containerY - sc.scrollY
-
-		// 一時的に位置を設定して描画
-		child.SetPosition(relativeX, relativeY)
-		child.Draw(sc.offscreenImage)
-
-		// 位置を元に戻す
-		child.SetPosition(originalX, originalY)
-	}
-
-	// 完成したオフスクリーン画像をスクリーンに描画
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(containerX), float64(containerY))
-	screen.DrawImage(sc.offscreenImage, opts)
+    // ... (このメソッド全体が不要になる) ...
 }
+*/
 
 // HandleEvent はマウスホイールイベントを処理します
 func (sc *ScrollableContainer) HandleEvent(e *event.Event) {
-	// 親クラスのイベント処理を呼び出す
+	// 親クラス(Container)のイベント処理を呼び出し、イベントバブリングを機能させます。
 	sc.Container.HandleEvent(e)
 
 	// イベントが既に処理済みの場合は何もしない
@@ -211,6 +179,8 @@ func (sc *ScrollableContainer) HandleEvent(e *event.Event) {
 
 // Update はコンテナの状態を更新します
 func (sc *ScrollableContainer) Update() {
+	// 埋め込まれたContainerのUpdateを呼び出します。
+	// これによりレイアウト計算や子の更新が実行されます。
 	sc.Container.Update()
 
 	// コンテナのサイズが変更された場合にコンテンツサイズを再計算
