@@ -11,11 +11,8 @@ import (
 // Widgetは全てのUI要素の基本的な振る舞いを定義するインターフェースです。
 type Widget interface {
 	// --- ライフサイクルメソッド ---
-	// Updateはウィジェットの状態を更新します。通常、毎フレーム呼び出されます。
 	Update()
-	// Drawはウィジェットをスクリーンに描画します。
 	Draw(screen *ebiten.Image)
-	// Cleanupはウィジェットが不要になった際にリソースを解放します。
 	Cleanup()
 
 	// --- 位置とサイズ関連メソッド ---
@@ -38,6 +35,15 @@ type Widget interface {
 	LayoutProperties
 	HierarchyManager
 }
+
+// 【新規追加】 ScrollBarWidget は、ScrollBarが実装すべきメソッドを定義します。
+// これにより、他のパッケージが具体的なScrollBar型に依存することなく、
+// このインターフェースを通じてScrollBarを操作できます。
+type ScrollBarWidget interface {
+	Widget // Widgetの基本機能を継承
+	SetRatios(contentRatio, scrollRatio float64)
+}
+
 
 // PositionSetter はウィジェットの位置を設定・取得するためのインターフェースです
 type PositionSetter interface {
@@ -82,9 +88,6 @@ type InteractiveState interface {
 	SetDisabled(disabled bool)
 	IsDisabled() bool
 	HasBeenLaidOut() bool // ウィジェットが一度でもレイアウトされたかを返します
-	// 【改善】CurrentStateを追加し、ウィジェットのインタラクティブな状態（Normal, Hoveredなど）を
-	// インターフェース経由で安全に取得できるようにします。これにより、ウィジェットの状態に依存する
-	// ロジック（例: Buttonの描画）が、具体的な実装ではなくインターフェースの契約に依存できるようになります。
 	CurrentState() WidgetState
 }
 
@@ -92,7 +95,7 @@ type InteractiveState interface {
 type EventHandler interface {
 	AddEventHandler(eventType event.EventType, handler event.EventHandler)
 	RemoveEventHandler(eventType event.EventType)
-	HandleEvent(e event.Event)
+	HandleEvent(e *event.Event)
 }
 
 // HitTester はヒットテストのためのインターフェースです

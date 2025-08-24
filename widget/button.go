@@ -93,6 +93,7 @@ func (b *ButtonBuilder) SetStyleForState(state component.WidgetState, s style.St
 }
 
 // OnClick は、ボタンがクリックされたときに実行されるイベントハンドラを設定します。
+// [修正] ハンドラのシグネチャが *event.Event を受け取るように変更されました。
 func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
 	if handler != nil {
 		b.Widget.AddEventHandler(event.EventClick, handler)

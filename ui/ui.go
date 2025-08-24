@@ -160,6 +160,21 @@ func (b *Builder) Grid(buildFunc func(*Builder)) *Builder {
 	return b.addNestedContainer(Grid(buildFunc))
 }
 
+// ScrollView はコンテナにScrollViewを追加します。
+func (b *Builder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *Builder {
+	// widgetパッケージのビルダーを使ってScrollViewのインスタンスを構築します。
+	builder := widget.NewScrollViewBuilder()
+	if buildFunc != nil {
+		buildFunc(builder)
+	}
+	// 構築したウィジェットを取得します。
+	w, err := builder.Build()
+	// エラーがあれば記録し、ウィジェットを現在構築中のコンテナの子として追加します。
+	b.AddError(err)
+	b.AddChild(w)
+	return b
+}
+
 // --- Container-specific Property Wrappers ---
 
 // RelayoutBoundary は、このコンテナをレイアウト計算の境界として設定します。

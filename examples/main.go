@@ -1,9 +1,9 @@
+// examples/main.go
 package main
 
 import (
 	"fmt"
 	"furoshiki/component"
-	"furoshiki/container"
 	"furoshiki/event"
 	"furoshiki/style"
 	"furoshiki/theme"
@@ -13,175 +13,159 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/font/basicfont"
 )
 
-// Game はEbitenのゲームインターフェースを実装します
+// Game はEbitenのゲーム構造体を保持します。
 type Game struct {
-	root *container.Container
+	root component.Widget // UIツリーのルート
 
-	// デモ用の状態管理
-	dynamicContainer   *container.Container
-	buttonsToDisable   []component.Widget
-	widgetCount        int
-	areButtonsDisabled bool
+	// AssignToで紐付けられ、動的に更新されるウィジェットへの参照
+	detailTitleLabel *widget.Label
+	detailInfoLabel  *widget.Label
 }
 
-// NewGame は新しいGameインスタンスを初期化して返します。
+// NewGame は新しいGameインスタンスを作成し、UIを構築します。
 func NewGame() *Game {
 	g := &Game{}
 
-	// --- フォントの読み込み ---
-	mplusFont := loadFont()
-
-	// --- テーマの準備と設定 ---
+	// --- 1. テーマとフォントの準備 ---
+	// アプリケーション全体のデフォルトテーマを取得します。
 	appTheme := theme.GetCurrent()
-	appTheme.SetDefaultFont(mplusFont)
-	// ボタンの色をデフォルトから少しカスタマイズ
-	appTheme.Button.Normal.Background = style.PColor(color.RGBA{R: 230, G: 230, B: 240, A: 255})
-	appTheme.Button.Hovered.Background = style.PColor(color.RGBA{R: 220, G: 220, B: 235, A: 255})
+	// basicfontはデモ用です。実際のアプリではより高品質なフォントを読み込むことを推奨します。
+	appTheme.SetDefaultFont(basicfont.Face7x13)
+	// 更新したテーマをアプリケーションの現在のテーマとして設定します。
 	theme.SetCurrent(appTheme)
 
-	// --- UIの構築 ---
-	// [改善] UI構築のフローを、新しい `AssignTo` メソッドを用いてより宣言的で一貫性の
-	// あるものにリファクタリングしました。これにより、UIの階層構造を保ったまま、
-	// 特定のウィジェットへの参照を安全に取得できます。
-	// (※ このコードを動作させるには、まず component.Builder と ui.Builder に
-	//      AssignTo メソッドを追加する必要があります)
-	var okBtn, cancelBtn *widget.Button // 無効化対象のボタンへの参照を保持する変数
+	// --- 2. UIの宣言的な構築 ---
+	// ui.HStackを使用して、UI全体を左右に分割するレイアウトを作成します。
+	root, err := ui.HStack(func(b *ui.Builder) {
+		b.Size(800, 600).
+			BackgroundColor(appTheme.BackgroundColor).
+			Padding(10). // ウィンドウ全体のパディング
+			Gap(10)      // 左右ペイン間のギャップ
 
-	root, err := ui.VStack(func(b *ui.Builder) {
-		b.Size(400, 600).Padding(10).Gap(10).BackgroundColor(appTheme.BackgroundColor)
+		// --- 左ペイン：スクロールビュー ---
+		b.ScrollView(func(sv *widget.ScrollViewBuilder) {
+			sv.Size(250, 580). // 親の高さ(600) - 親のPadding(10*2) = 580
+				Border(1, color.Gray{Y: 200})
 
-		// 1. タイトル
-		b.Label(func(l *widget.LabelBuilder) {
-			l.Text("Furoshiki Demo").Size(380, 40).BackgroundColor(appTheme.PrimaryColor).TextColor(color.White).TextAlign(style.TextAlignCenter).VerticalAlign(style.VerticalAlignMiddle).BorderRadius(8)
+			// ScrollViewのコンテンツとして、垂直スタック(VStack)を持つコンテナを設定します。
+			// このコンテナがスクロール対象となります。
+			content, _ := ui.VStack(func(b *ui.Builder) {
+				b.Padding(8).Gap(5) // スクロール領域内のパディングとアイテム間のギャップ
+
+				// 多数のボタンを動的に生成して、スクロールが必要な状況を作ります。
+				for i := 1; i <= 50; i++ {
+					itemNumber := i
+					b.Button(func(btn *widget.ButtonBuilder) {
+						btn.Text(fmt.Sprintf("Item %d", itemNumber)).
+							Size(220, 30).
+							// OnClickイベントハンドラを設定します。
+							// ボタンがクリックされたら、右ペインのラベルのテキストを更新します。
+							OnClick(func(e *event.Event) {
+								log.Printf("Clicked: Item %d", itemNumber)
+								if g.detailTitleLabel != nil {
+									g.detailTitleLabel.SetText(fmt.Sprintf("Details for Item %d", itemNumber))
+								}
+								if g.detailInfoLabel != nil {
+									g.detailInfoLabel.SetText(fmt.Sprintf("Here you would see more detailed information about item number %d. This text is updated dynamically.", itemNumber))
+								}
+							})
+					})
+				}
+			}).Build()
+
+			// 作成したコンテナをScrollViewのコンテンツとして設定します。
+			sv.Content(content)
 		})
 
-		// 2. 動的ウィジェット操作パネル
-		b.HStack(func(b *ui.Builder) {
-			b.Size(380, 40).Gap(10)
-			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Add Widget").Flex(1).OnClick(func(e event.Event) { g.addWidget() })
-			})
-			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Remove Widget").Flex(1).OnClick(func(e event.Event) { g.removeWidget() })
-			})
-		})
-
-		// 3. 動的ウィジェットが追加されるコンテナ
-		// RelayoutBoundaryをtrueにすることで、このコンテナ内の変更が親に影響しなくなります。
-		// [改善] 以前は一時的なビルダーを作成していましたが、ネストされたVStack内で
-		// `AssignTo` を使うことで、コードがシンプルかつ直感的になります。
+		// --- 右ペイン：詳細表示エリア ---
 		b.VStack(func(b *ui.Builder) {
-			b.Size(380, 200).
+			b.Flex(1). // 残りの水平スペースをすべて使用します
 				Padding(10).
-				Gap(5).
-				BackgroundColor(appTheme.SecondaryColor).
-				RelayoutBoundary(true).
-				// [変更点] ClipChildren(true) を呼び出して、このコンテナの境界外にはみ出す
-				// 子ウィジェット（動的に追加されるラベル）が描画されないようにします。
-				ClipChildren(true).
-				AssignTo(&g.dynamicContainer) // `AssignTo`でコンテナのインスタンスを直接取得
-		})
+				Gap(10).
+				Border(1, color.Gray{Y: 200})
 
-		// 4. 無効化機能のデモ
-		// [改善] `AssignTo` を使い、HStackの宣言的な構造の中でボタンへの参照を取得します。
-		// これにより、一時的なビルダーやAddChildrenの呼び出しが不要になります。
-		b.HStack(func(b *ui.Builder) {
-			b.Size(380, 40).Gap(10)
-			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("OK").Flex(1).AssignTo(&okBtn)
+			// タイトルラベル
+			b.Label(func(l *widget.LabelBuilder) {
+				l.Text("Details").
+					Size(0, 30). // 高さは30, 幅は親に合わせる (Flex未設定のため)
+					TextColor(color.White).
+					BackgroundColor(appTheme.PrimaryColor).
+					// AssignToメソッドを使い、ビルド中のラベルインスタンスへの参照を
+					// Game構造体のフィールドに安全に格納します。
+					AssignTo(&g.detailTitleLabel)
 			})
-			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Cancel").Flex(1).AssignTo(&cancelBtn)
+
+			// 情報表示用ラベル
+			b.Label(func(l *widget.LabelBuilder) {
+				l.Text("Please select an item from the list on the left.").
+					Flex(1). // 垂直方向の余ったスペースを埋めます
+					TextAlign(style.TextAlignLeft).
+					VerticalAlign(style.VerticalAlignTop).
+					AssignTo(&g.detailInfoLabel)
 			})
-		})
 
-		// ボタンへの参照をスライスに格納します。
-		// okBtnとcancelBtnは*widget.Button型ですが、component.Widgetインターフェースを満たすため、
-		// このように代入できます。
-		g.buttonsToDisable = []component.Widget{okBtn, cancelBtn}
+			// SpacerはFlexLayout内で余白を埋めるためのウィジェットです。
+			// ここではFlex(1)のラベルがあるため実質的な効果はありませんが、使用例として示します。
+			b.Spacer()
 
-		b.Button(func(btn *widget.ButtonBuilder) {
-			btn.Text("Disable/Enable Buttons").Size(380, 40).OnClick(func(e event.Event) { g.toggleButtonsDisabled() })
+			// フッター
+			b.Label(func(l *widget.LabelBuilder) {
+				l.Text("Furoshiki UI Demo").
+					Size(0, 20).
+					TextAlign(style.TextAlignRight).
+					TextColor(color.Gray{Y: 128})
+			})
 		})
 
 	}).Build()
 
 	if err != nil {
-		log.Fatalf("Failed to build UI: %v", err)
+		log.Fatalf("UI build failed: %v", err)
 	}
+
 	g.root = root
 	return g
 }
 
-func (g *Game) addWidget() {
-	g.widgetCount++
-	// [変更点] ラベルのサイズを少し小さくして、はみ出しをより分かりやすくします
-	newLabel, _ := widget.NewLabelBuilder().Text(fmt.Sprintf("Dynamic Label #%d", g.widgetCount)).Size(360, 25).BackgroundColor(color.White).Padding(5).Build()
-	g.dynamicContainer.AddChild(newLabel)
-}
-
-func (g *Game) removeWidget() {
-	children := g.dynamicContainer.GetChildren()
-	if len(children) > 0 {
-		lastChild := children[len(children)-1]
-		g.dynamicContainer.RemoveChild(lastChild)
-	}
-}
-
-func (g *Game) toggleButtonsDisabled() {
-	g.areButtonsDisabled = !g.areButtonsDisabled
-	for _, btn := range g.buttonsToDisable {
-		btn.SetDisabled(g.areButtonsDisabled)
-	}
-}
-
-// Update はゲームの状態を更新します
+// Update はゲームの状態を更新します。
 func (g *Game) Update() error {
-	g.root.Update()
-	dispatcher := event.GetDispatcher()
+	// Ebitenから現在のマウスカーソル座標を取得します。
 	cx, cy := ebiten.CursorPosition()
+	// イベントディスパッチャのシングルトンインスタンスを取得します。
+	dispatcher := event.GetDispatcher()
+
+	// UIツリーのルートでヒットテストを実行し、カーソル直下のウィジェットを特定します。
 	target := g.root.HitTest(cx, cy)
+	// マウスイベント（ホバー、クリックなど）を適切なウィジェットにディスパッチします。
 	dispatcher.Dispatch(target, cx, cy)
+
+	// UIツリー全体の更新処理を呼び出します。
+	// これにより、ダーティマークされたウィジェットの再レイアウトや状態更新が行われます。
+	g.root.Update()
 	return nil
 }
 
-// Draw はゲームを描画します
+// Draw はゲームを描画します。
 func (g *Game) Draw(screen *ebiten.Image) {
+	// 背景色で画面をクリアします。
+	screen.Fill(color.RGBA{50, 50, 50, 255})
+	// UIツリーのルートを描画します。これにより、すべての子孫ウィジェットが再帰的に描画されます。
 	g.root.Draw(screen)
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f, FPS: %0.2f, Widgets: %d", ebiten.ActualTPS(), ebiten.ActualFPS(), g.widgetCount))
 }
 
-// Layout はゲームの画面サイズを返します
+// Layout はEbitenにゲームの画面サイズを伝えます。
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 400, 600
+	return 800, 600
 }
 
 func main() {
-	ebiten.SetWindowSize(400, 600)
-	ebiten.SetWindowTitle("Furoshiki UI Demo (Enhanced)")
-	if err := ebiten.RunGame(NewGame()); err != nil {
-		log.Fatalf("Ebiten run game failed: %v", err)
-	}
-}
-
-func loadFont() font.Face {
-	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
-	if err != nil {
+	game := NewGame()
+	ebiten.SetWindowSize(800, 600)
+	ebiten.SetWindowTitle("Furoshiki UI - ScrollView Example")
+	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
-	mplusFont, err := opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    14, // 少し小さくして多くの情報を表示
-		DPI:     72,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	return mplusFont
 }

@@ -8,15 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-// EventTargetは、Dispatcherがイベントをディスパッチするためにウィジェットが満たすべき最低限の振る舞いを定義するインターフェースです。
-// このインターフェースをeventパッケージ内で定義することで、componentパッケージへの依存をなくし、インポートサイクルを回避します。
-// component.Widgetは（構造的に）このインターフェースを満たします。
-type EventTarget interface {
-	SetHovered(bool)
-	SetPressed(bool) // ウィジェットの押下状態を設定するメソッドを追加
-	HandleEvent(Event)
-}
-
 // --- Global Event Dispatcher ---
 
 // Dispatcherは、UIイベントを一元管理し、適切なコンポーネントにディスパッチします。
@@ -45,6 +36,7 @@ func GetDispatcher() *Dispatcher {
 // Dispatch は、マウスイベントを処理し、適切なイベントをコンポーネントに発行します。
 // このメソッドは、アプリケーションのメインUpdateループから毎フレーム呼び出されることを想定しています。
 // target引数には、HitTestによって特定された、現在マウスカーソル下にあるウィジェットを渡します。
+// [修正] イベントの Handled フラグを共有するため、イベントはポインタで渡されます。
 func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -55,18 +47,18 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 	if currentTarget != d.hoveredComponent {
 		if d.hoveredComponent != nil {
 			d.hoveredComponent.SetHovered(false)
-			d.hoveredComponent.HandleEvent(Event{Type: MouseLeave, Target: d.hoveredComponent, X: cx, Y: cy})
+			d.hoveredComponent.HandleEvent(&Event{Type: MouseLeave, Target: d.hoveredComponent, X: cx, Y: cy})
 		}
 		if currentTarget != nil {
 			currentTarget.SetHovered(true)
-			currentTarget.HandleEvent(Event{Type: MouseEnter, Target: currentTarget, X: cx, Y: cy})
+			currentTarget.HandleEvent(&Event{Type: MouseEnter, Target: currentTarget, X: cx, Y: cy})
 		}
 		d.hoveredComponent = currentTarget
 	}
 
 	// 2. マウス移動イベント (MouseMove)
 	if d.hoveredComponent != nil {
-		d.hoveredComponent.HandleEvent(Event{Type: MouseMove, Target: d.hoveredComponent, X: cx, Y: cy})
+		d.hoveredComponent.HandleEvent(&Event{Type: MouseMove, Target: d.hoveredComponent, X: cx, Y: cy})
 	}
 
 	// 3. マウスボタン押下イベント (MouseDown)
@@ -80,7 +72,7 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 			// 各ウィジェットのHandleEvent実装がシンプルになります。
 			d.pressedComponent.SetPressed(true)
 
-			d.pressedComponent.HandleEvent(Event{
+			d.pressedComponent.HandleEvent(&Event{
 				Type:        MouseDown,
 				Target:      d.pressedComponent,
 				X:           cx,
@@ -103,19 +95,20 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 			// 最初に「押された」コンポーネント(pressedComponent)に送る必要があります。
 			// これにより、ボタンの外でマウスを離した場合でも、押されたボタンが確実に
 			// MouseUpイベントを受け取れるようになります。
-			d.pressedComponent.HandleEvent(Event{
+			mouseUpEvent := &Event{
 				Type:        MouseUp,
 				Target:      d.pressedComponent, // イベントのターゲットは押されていたコンポーネント
 				X:           cx,
 				Y:           cy,
 				Timestamp:   time.Now().UnixNano(),
 				MouseButton: ebiten.MouseButtonLeft,
-			})
+			}
+			d.pressedComponent.HandleEvent(mouseUpEvent)
 
 			// 次に、Clickイベントを発行するかどうかを決定します。
 			// クリックが成立するのは、マウスを押したコンポーネントと離したコンポーネントが同じ場合のみです。
 			if d.pressedComponent == d.hoveredComponent {
-				d.pressedComponent.HandleEvent(Event{
+				d.pressedComponent.HandleEvent(&Event{
 					Type:        EventClick,
 					Target:      d.pressedComponent,
 					X:           cx,
@@ -128,6 +121,21 @@ func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 
 		// イベント処理が完了したら、押下状態をリセットします。
 		d.pressedComponent = nil
+	}
+
+	// [新規追加] 5. マウスホイールイベント (MouseScroll)
+	// Ebitenからホイールの移動量を取得します。
+	wheelX, wheelY := ebiten.Wheel()
+	// 移動量があり、かつカーソルが何らかのウィジェット上にある場合にイベントを発行します。
+	if (wheelX != 0 || wheelY != 0) && d.hoveredComponent != nil {
+		d.hoveredComponent.HandleEvent(&Event{
+			Type:    MouseScroll,
+			Target:  d.hoveredComponent,
+			X:       cx,
+			Y:       cy,
+			ScrollX: wheelX,
+			ScrollY: wheelY,
+		})
 	}
 }
 

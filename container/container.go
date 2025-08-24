@@ -236,38 +236,48 @@ func (c *Container) Cleanup() {
 
 // --- Container Methods (from component.Container interface) ---
 
+// detachChildは、親子関係のみを解消する内部ヘルパーです。
+// Cleanupを呼び出さないため、ウィジェットをツリー間で安全に移動させるために使用します。
+func (c *Container) detachChild(child component.Widget) bool {
+	if child == nil {
+		return false
+	}
+	for i, currentChild := range c.children {
+		if currentChild == child {
+			c.children = append(c.children[:i], c.children[i+1:]...)
+			child.SetParent(nil)
+			return true
+		}
+	}
+	return false
+}
+
 // AddChild はコンテナに子ウィジェットを追加します。
 func (c *Container) AddChild(child component.Widget) {
 	if child == nil {
 		return
 	}
-	// 既に親が存在する場合は、その親から子を削除し、新しい親子関係を構築します。
+	// 既に親が存在する場合は、その親から子をデタッチ（親子関係の解消のみ）します。
 	// これにより、ウィジェットをUIツリー間で安全に「移動」させることができます。
 	if oldParent := child.GetParent(); oldParent != nil {
-		oldParent.RemoveChild(child)
+		// Container型にキャストしてdetachChildを呼ぶことで、Cleanupが呼ばれるのを防ぐ
+		if container, ok := oldParent.(*Container); ok {
+			container.detachChild(child)
+		}
 	}
 	child.SetParent(c)
 	c.children = append(c.children, child)
 	c.MarkDirty(true)
 }
 
-// RemoveChild はコンテナから子ウィジェットを削除します。
+// RemoveChild はコンテナから子ウィジェットを削除し、リソースを解放します。
 func (c *Container) RemoveChild(child component.Widget) {
-	if child == nil {
-		return
-	}
-	for i, currentChild := range c.children {
-		if currentChild == child {
-			// スライスから子を削除します。
-			c.children = append(c.children[:i], c.children[i+1:]...)
-			// 親への参照をクリアします。
-			child.SetParent(nil)
-			// 子のリソースを解放します。
-			child.Cleanup()
-			// コンテナの再レイアウトを要求します。
-			c.MarkDirty(true)
-			return
-		}
+	// detachChildで親子関係を解消し、成功した場合のみCleanupを呼び出します。
+	if c.detachChild(child) {
+		// 子のリソースを解放します。
+		child.Cleanup()
+		// コンテナの再レイアウトを要求します。
+		c.MarkDirty(true)
 	}
 }
 
@@ -284,6 +294,7 @@ func (c *Container) GetPadding() layout.Insets {
 	style := c.GetStyle()
 	if style.Padding != nil {
 		return layout.Insets{
+			// [修正] style.Insetsの各フィールドはintなので、キャストは不要です。
 			Top:    style.Padding.Top,
 			Right:  style.Padding.Right,
 			Bottom: style.Padding.Bottom,

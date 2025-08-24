@@ -8,6 +8,12 @@ import (
 	"reflect"
 )
 
+// [修正] パッケージ全体で利用できるよう、共通エラーをエクスポートします。
+var (
+	ErrNilChild             = errors.New("child cannot be nil")
+	ErrWidgetNotInitialized = errors.New("widget not properly initialized")
+)
+
 // requestedPositionSetter は、ウィジェットが要求位置を設定できるかどうかをチェックする非公開インターフェースです。
 type requestedPositionSetter interface {
 	SetRequestedPosition(x, y int)
