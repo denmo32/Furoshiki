@@ -10,10 +10,14 @@ import (
 // 位置、サイズ、スタイル、イベント処理などの共通機能を利用します。
 type LayoutableWidget struct {
 	// --- Position & Size ---
-	position     position
-	size         size
-	minSize      size
-	requestedPos position
+	position           position
+	size               size
+	minSize            size
+	requestedPos       position
+	// 【改善】コンテンツの最小サイズを計算する関数。
+	// これにより、最小サイズ決定ロジック（コンテンツサイズとユーザー設定サイズの比較）を
+	// LayoutableWidgetに集約し、TextWidgetのような具象ウィジェットでのコードの重複を避けます。
+	contentMinSizeFunc func() (width, height int)
 
 	// --- Layout & Style ---
 	layout layoutProperties

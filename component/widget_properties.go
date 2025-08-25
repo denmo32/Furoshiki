@@ -1,6 +1,9 @@
 package component
 
-import "furoshiki/style"
+import (
+	"furoshiki/style"
+	"furoshiki/utils" // 【改善】Max関数を使用するためにインポート
+)
 
 // SetPosition はウィジェットの絶対座標を設定します。
 // 座標が変更された場合、再描画を要求します（レイアウトの再計算は不要）。
@@ -60,8 +63,25 @@ func (w *LayoutableWidget) SetMinSize(width, height int) {
 }
 
 // GetMinSize はウィジェットの最小サイズを返します。
+// ユーザーが明示的に設定した最小サイズ(.MinSize())と、ウィジェットの
+// コンテンツ（テキストなど）から計算される最小サイズのうち、大きい方を返します。
+// コンテンツの最小サイズは、contentMinSizeFuncを通じて取得されます。
 func (w *LayoutableWidget) GetMinSize() (width, height int) {
-	return w.minSize.width, w.minSize.height
+	// ユーザーが .MinSize() で明示的に設定した最小サイズを取得します。
+	userMinWidth, userMinHeight := w.minSize.width, w.minSize.height
+
+	// 【改善】コンテンツサイズを計算する関数が設定されていれば、それを呼び出して
+	// ユーザー設定値と比較し、大きい方を最終的な最小サイズとします。
+	if w.contentMinSizeFunc != nil {
+		contentMinWidth, contentMinHeight := w.contentMinSizeFunc()
+		// utils.Max を使用して、各次元で大きい方の値を採用します。
+		finalMinWidth := utils.Max(contentMinWidth, userMinWidth)
+		finalMinHeight := utils.Max(contentMinHeight, userMinHeight)
+		return finalMinWidth, finalMinHeight
+	}
+
+	// コンテンツサイズ計算関数がない場合は、ユーザー設定値のみを返します。
+	return userMinWidth, userMinHeight
 }
 
 // SetRequestedPosition は、レイアウトに対する希望の相対位置を設定します。
