@@ -4,6 +4,15 @@ import (
 	"furoshiki/style"
 )
 
+// 【改善】このファイル内で頻繁に使用されるため、ヘルパー関数として定義します。
+// これにより、Go 1.21未満の環境でも動作し、コードの意図が明確になります。
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // SetPosition はウィジェットの絶対座標を設定します。
 // 座標が変更された場合、再描画を要求します（レイアウトの再計算は不要）。
 // このメソッドはレイアウトシステムによって呼び出されるため、ここで初めてウィジェットが
@@ -73,7 +82,7 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 	// ユーザー設定値と比較し、大きい方を最終的な最小サイズとします。
 	if w.contentMinSizeFunc != nil {
 		contentMinWidth, contentMinHeight := w.contentMinSizeFunc()
-		// 標準の max を使用して、各次元で大きい方の値を採用します。
+		// 【改善】ローカルで定義したmax関数を使い、各次元で大きい方の値を採用します。
 		finalMinWidth := max(contentMinWidth, userMinWidth)
 		finalMinHeight := max(contentMinHeight, userMinHeight)
 		return finalMinWidth, finalMinHeight

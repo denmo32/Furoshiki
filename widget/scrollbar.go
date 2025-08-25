@@ -20,6 +20,20 @@ type ScrollBar struct {
 // コンパイル時にインターフェースの実装を検証します。
 var _ component.ScrollBarWidget = (*ScrollBar)(nil)
 
+// 【新規追加】NewScrollBarは、スクロールバーウィジェットの新しいインスタンスを生成し、初期化します。
+// デフォルトの色とサイズが設定されます。
+func NewScrollBar() *ScrollBar {
+	s := &ScrollBar{
+		trackColor: color.RGBA{R: 220, G: 220, B: 220, A: 255},
+		thumbColor: color.RGBA{R: 180, G: 180, B: 180, A: 255},
+	}
+	s.LayoutableWidget = component.NewLayoutableWidget()
+	s.Init(s) // LayoutableWidgetの初期化
+	s.SetSize(10, 100)
+
+	return s
+}
+
 // Draw はScrollBarを描画します。
 func (s *ScrollBar) Draw(screen *ebiten.Image) {
 	if !s.IsVisible() || !s.HasBeenLaidOut() {
@@ -62,15 +76,10 @@ type ScrollBarBuilder struct {
 	component.Builder[*ScrollBarBuilder, *ScrollBar]
 }
 
+// NewScrollBarBuilder は新しいScrollBarBuilderを生成します。
 func NewScrollBarBuilder() *ScrollBarBuilder {
-	s := &ScrollBar{
-		trackColor: color.RGBA{R: 220, G: 220, B: 220, A: 255},
-		thumbColor: color.RGBA{R: 180, G: 180, B: 180, A: 255},
-	}
-	// 【改善】LayoutableWidgetを初期化し、Initメソッドでself参照を設定します。
-	s.LayoutableWidget = component.NewLayoutableWidget()
-	s.Init(s)
-	s.SetSize(10, 100)
+	// 【改善】新しいNewScrollBarコンストラクタを呼び出して、初期化ロジックを集約します。
+	s := NewScrollBar()
 
 	b := &ScrollBarBuilder{}
 	b.Init(b, s)

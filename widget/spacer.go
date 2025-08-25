@@ -12,6 +12,14 @@ type Spacer struct {
 	*component.LayoutableWidget
 }
 
+// 【新規追加】NewSpacerは、Spacerウィジェットの新しいインスタンスを生成し、初期化します。
+func NewSpacer() *Spacer {
+	s := &Spacer{}
+	s.LayoutableWidget = component.NewLayoutableWidget()
+	s.Init(s) // LayoutableWidgetの初期化
+	return s
+}
+
 // Draw は何もしません。Spacerは視覚的な表現を持たないため、
 // LayoutableWidgetの背景描画処理をオーバーライドして無効化します。
 func (s *Spacer) Draw(screen *ebiten.Image) {
@@ -28,11 +36,8 @@ type SpacerBuilder struct {
 
 // NewSpacerBuilder は新しいSpacerBuilderを作成します。
 func NewSpacerBuilder() *SpacerBuilder {
-	// Spacerインスタンスを作成します。
-	s := &Spacer{}
-	// 【改善】LayoutableWidgetを初期化し、Initメソッドでself参照を設定します。
-	s.LayoutableWidget = component.NewLayoutableWidget()
-	s.Init(s)
+	// 【改善】新しいNewSpacerコンストラクタを呼び出して、初期化ロジックを集約します。
+	s := NewSpacer()
 
 	b := &SpacerBuilder{}
 	// 汎用ビルダーを初期化し、メソッドチェーンを可能にします。

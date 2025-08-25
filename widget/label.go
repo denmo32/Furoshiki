@@ -13,6 +13,21 @@ type Label struct {
 	*component.TextWidget
 }
 
+// 【新規追加】NewLabelは、ラベルウィジェットの新しいインスタンスを生成し、初期化します。
+// テキストとテーマに基づいたデフォルトスタイルが適用されます。
+func NewLabel(text string) *Label {
+	label := &Label{}
+	label.TextWidget = component.NewTextWidget(text)
+	label.Init(label) // LayoutableWidgetの初期化
+
+	// テーマからデフォルトスタイルを取得して適用
+	t := theme.GetCurrent()
+	label.SetStyle(t.Label.Default)
+	label.SetSize(100, 30) // TODO: Consider moving size to theme
+
+	return label
+}
+
 // --- LabelBuilder ---
 // LabelBuilder は、Labelを安全かつ流れるように構築するためのビルダーです。
 type LabelBuilder struct {
@@ -21,17 +36,8 @@ type LabelBuilder struct {
 
 // NewLabelBuilder は新しいLabelBuilderを生成します。
 func NewLabelBuilder() *LabelBuilder {
-	// まずラベルインスタンスを作成
-	label := &Label{}
-	// 【改善】次に、TextWidgetを初期化し、その後でInitメソッドを呼び出してself参照を設定します。
-	label.TextWidget = component.NewTextWidget("")
-	label.Init(label)
-
-	// --- テーマからスタイルを取得 ---
-	t := theme.GetCurrent()
-	label.SetStyle(t.Label.Default)
-
-	label.SetSize(100, 30) // TODO: Consider moving size to theme
+	// 【改善】新しいNewLabelコンストラクタを呼び出して、初期化ロジックを集約します。
+	label := NewLabel("")
 
 	b := &LabelBuilder{}
 	b.Builder.Init(b, label)

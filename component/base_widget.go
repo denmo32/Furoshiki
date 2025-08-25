@@ -48,21 +48,24 @@ type layoutProperties struct {
 	relayoutBoundary bool
 }
 
+// 【改善】dirtyLevelは外部に公開する必要がないため、非エクスポートに変更しました。
 // dirtyLevel はウィジェットのダーティ状態のレベルを示します。
 // これにより、再描画のみが必要か、レイアウトの再計算まで必要かを効率的に管理します。
 type dirtyLevel int
 
 const (
-	// clean はウィジェットがダーティでないことを示します。
-	clean dirtyLevel = iota
-	// redrawDirty はウィジェットの再描画のみが必要なことを示します（例: ホバー状態の変化）。
-	redrawDirty
-	// relayoutDirty はウィジェットのレイアウト再計算と再描画が必要なことを示します（例: サイズの変更）。
-	relayoutDirty
+	// 【改善】定数も非エクスポートに変更しました。
+	// levelClean はウィジェットがダーティでないことを示します。
+	levelClean dirtyLevel = iota
+	// levelRedrawDirty はウィジェットの再描画のみが必要なことを示します（例: ホバー状態の変化）。
+	levelRedrawDirty
+	// levelRelayoutDirty はウィジェットのレイアウト再計算と再描画が必要なことを示します（例: サイズの変更）。
+	levelRelayoutDirty
 )
 
 // widgetState はウィジェットの状態を保持します
 type widgetState struct {
+	// 【改善】非エクスポートになったdirtyLevel型を使用します。
 	dirtyLevel     dirtyLevel // dirty と relayoutDirty を置き換える新しいフィールド
 	isHovered      bool
 	isPressed      bool
@@ -81,8 +84,8 @@ type hierarchy struct {
 func NewLayoutableWidget() *LayoutableWidget {
 	return &LayoutableWidget{
 		// isVisibleはデフォルトでtrue、hasBeenLaidOutはレイアウト計算が行われるまでfalseで初期化します。
-		// dirtyLevelはデフォルトでcleanです。
-		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: clean},
+		// dirtyLevelはデフォルトでlevelCleanです。
+		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: levelClean},
 		eventHandlers: make(map[event.EventType]event.EventHandler),
 	}
 }

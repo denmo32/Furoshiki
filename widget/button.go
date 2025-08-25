@@ -2,7 +2,6 @@ package widget
 
 import (
 	"furoshiki/component"
-	"furoshiki/event"
 	"furoshiki/style"
 	"furoshiki/theme"
 
@@ -18,6 +17,30 @@ type Button struct {
 	stateStyles map[component.WidgetState]style.Style
 }
 
+// 【新規追加】NewButtonは、ボタンウィジェットの新しいインスタンスを生成し、初期化します。
+// このコンストラクタは、テーマからデフォルトのスタイルを適用し、全ての状態が
+// 有効なスタイルを持つことを保証します。
+func NewButton(text string) *Button {
+	button := &Button{
+		stateStyles: make(map[component.WidgetState]style.Style),
+	}
+	button.TextWidget = component.NewTextWidget(text)
+	button.Init(button) // LayoutableWidgetの初期化
+
+	// テーマから各状態のデフォルトスタイルを取得し、設定します。
+	t := theme.GetCurrent()
+	button.stateStyles[component.StateNormal] = t.Button.Normal.DeepCopy()
+	button.stateStyles[component.StateHovered] = t.Button.Hovered.DeepCopy()
+	button.stateStyles[component.StatePressed] = t.Button.Pressed.DeepCopy()
+	button.stateStyles[component.StateDisabled] = t.Button.Disabled.DeepCopy()
+
+	// デフォルトのスタイルとしてNormalを適用します。
+	button.SetStyle(t.Button.Normal)
+	button.SetSize(100, 40) // TODO: Consider moving size to theme
+
+	return button
+}
+
 // Draw はButtonを描画します。
 // ボタンの責務は、現在の状態に応じたスタイルを選択し、そのスタイルを使って
 // 埋め込まれたTextWidgetの描画ロジックを呼び出すことです。
@@ -27,7 +50,7 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	currentState := b.LayoutableWidget.CurrentState()
 
 	// 状態に対応するスタイルをマップから取得します。
-	// NewButtonBuilder()で全ての状態のスタイルが設定されることが保証されているため、
+	// NewButton()で全ての状態のスタイルが設定されることが保証されているため、
 	// ここで存在チェックを行う必要はありません。
 	styleToUse := b.stateStyles[currentState]
 
@@ -45,28 +68,8 @@ type ButtonBuilder struct {
 
 // NewButtonBuilder は新しいButtonBuilderを生成します。
 func NewButtonBuilder() *ButtonBuilder {
-	// ボタンインスタンスを作成
-	button := &Button{
-		stateStyles: make(map[component.WidgetState]style.Style),
-	}
-	// 【改善】selfを渡さずにTextWidgetを初期化し、その後でbutton自身の参照を渡してInitを呼び出します。
-	// これにより初期化プロセスが統一されます。
-	button.TextWidget = component.NewTextWidget("")
-	button.Init(button) // ButtonはLayoutableWidgetを埋め込んでいるため、Initメソッドを直接呼び出せます。
-
-	// --- テーマから各状態のデフォルトスタイルを取得し、設定します ---
-	// この時点で全てのインタラクティブな状態に対応するスタイルがマップに設定されるため、
-	// 実行時にスタイルが見つからないという状況を防ぎます。
-	t := theme.GetCurrent()
-	button.stateStyles[component.StateNormal] = t.Button.Normal.DeepCopy()
-	button.stateStyles[component.StateHovered] = t.Button.Hovered.DeepCopy()
-	button.stateStyles[component.StatePressed] = t.Button.Pressed.DeepCopy()
-	button.stateStyles[component.StateDisabled] = t.Button.Disabled.DeepCopy()
-
-	// デフォルトのスタイルとしてNormalを適用
-	// これにより、レイアウト計算などで使用される基本スタイルが設定されます。
-	button.SetStyle(t.Button.Normal)
-	button.SetSize(100, 40) // TODO: Consider moving size to theme
+	// 【改善】新しいNewButtonコンストラクタを呼び出して、初期化ロジックを集約します。
+	button := NewButton("")
 
 	b := &ButtonBuilder{}
 	b.Init(b, button)
@@ -94,14 +97,9 @@ func (b *ButtonBuilder) SetStyleForState(state component.WidgetState, s style.St
 	return b
 }
 
-// OnClick は、ボタンがクリックされたときに実行されるイベントハンドラを設定します。
-// [修正] ハンドラのシグネチャが *event.Event を受け取るように変更されました。
-func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder {
-	if handler != nil {
-		b.Widget.AddEventHandler(event.EventClick, handler)
-	}
-	return b
-}
+// 【改善】OnClickメソッドは汎用のcomponent.Builderに移動しました。
+// これにより、ButtonBuilderからこのメソッドを削除し、埋め込みによる実装を利用します。
+// func (b *ButtonBuilder) OnClick(handler event.EventHandler) *ButtonBuilder { ... }
 
 // Style は、ボタンの通常時（Normal状態）のスタイルを設定します。
 // これは最も一般的に使用されるスタイル設定メソッドです。
@@ -147,12 +145,12 @@ func (b *ButtonBuilder) DisabledStyle(s style.Style) *ButtonBuilder {
 }
 
 // Build は、設定に基づいて最終的なButtonを構築して返します。
-// Buttonのスタイルは、コンストラクタ(NewButtonBuilder)でテーマに基づいて
+// Buttonのスタイルは、コンストラクタ(NewButton)でテーマに基づいて
 // 全てのインタラクティブな状態に対して初期化済みです。
 // その後、Style(), HoverStyle(), PressedStyle() などのメソッドを通じて個別にカスタマイズできます。
 func (b *ButtonBuilder) Build() (*Button, error) {
 	// 以前のバージョンに存在した、各状態のスタイルに対するフォールバック処理は、
-	// NewButtonBuilderで全ての状態がテーマから確実に初期化される設計となったため不要となり、削除されました。
+	// NewButtonで全ての状態がテーマから確実に初期化される設計となったため不要となり、削除されました。
 	// これにより、ビルドプロセスが簡素化され、コードの意図がより明確になっています。
 
 	// 汎用ビルダーのBuildを呼び出して、エラーチェックなどを行い、最終的なウィジェットを返します。

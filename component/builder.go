@@ -3,6 +3,7 @@ package component
 import (
 	"errors"
 	"fmt"
+	"furoshiki/event"
 	"furoshiki/style"
 	"image/color"
 	"reflect"
@@ -141,6 +142,52 @@ func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 		BorderWidth: style.PFloat32(width),
 		BorderColor: style.PColor(c),
 	})
+}
+
+// 【新規追加】 汎用イベントハンドラ設定メソッド
+// これにより、どのウィジェットビルダーからでも一貫したAPIでイベントハンドラを設定できます。
+// 例えば、Labelにクリックイベントを追加するなども容易になります。
+
+// OnClick は、ウィジェットがクリックされたときに実行されるイベントハンドラを設定します。
+func (b *Builder[T, W]) OnClick(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.EventClick, handler)
+	return b.Self
+}
+
+// OnMouseEnter は、マウスカーソルがウィジェット上に入ったときに実行されるハンドラを設定します。
+func (b *Builder[T, W]) OnMouseEnter(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.MouseEnter, handler)
+	return b.Self
+}
+
+// OnMouseLeave は、マウスカーソルがウィジェットから離れたときに実行されるハンドラを設定します。
+func (b *Builder[T, W]) OnMouseLeave(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.MouseLeave, handler)
+	return b.Self
+}
+
+// OnMouseMove は、マウスカーソルがウィジェット上で移動したときに実行されるハンドラを設定します。
+func (b *Builder[T, W]) OnMouseMove(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.MouseMove, handler)
+	return b.Self
+}
+
+// OnMouseDown は、マウスボタンがウィジェット上で押されたときに実行されるハンドラを設定します。
+func (b *Builder[T, W]) OnMouseDown(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.MouseDown, handler)
+	return b.Self
+}
+
+// OnMouseUp は、マウスボタンがウィジェット上で解放されたときに実行されるハンドラを設定します。
+func (b *Builder[T, W]) OnMouseUp(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.MouseUp, handler)
+	return b.Self
+}
+
+// OnMouseScroll は、マウスホイールがウィジェット上でスクロールされたときに実行されるハンドラを設定します。
+func (b *Builder[T, W]) OnMouseScroll(handler event.EventHandler) T {
+	b.Widget.AddEventHandler(event.MouseScroll, handler)
+	return b.Self
 }
 
 // [新規追加]

@@ -43,17 +43,17 @@ func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
 }
 
 // MarkDirty はウィジェットの状態が変更されたことをマークします。
-// relayoutがtrueの場合、より高いダーティレベル(relayoutDirty)が設定され、
+// relayoutがtrueの場合、より高いダーティレベル(levelRelayoutDirty)が設定され、
 // 親コンテナにも再レイアウトが必要であることが伝播されます。
 func (w *LayoutableWidget) MarkDirty(relayout bool) {
 	// 要求されたダーティレベルを決定します。
-	requestedLevel := redrawDirty
+	requestedLevel := levelRedrawDirty
 	if relayout {
-		requestedLevel = relayoutDirty
+		requestedLevel = levelRelayoutDirty
 	}
 
 	// 現在のダーティレベルが要求されたレベル以上であれば、何もする必要はありません。
-	// これにより、relayoutDirtyが設定されているウィジェットにredrawDirtyを要求しても、
+	// これにより、levelRelayoutDirtyが設定されているウィジェットにlevelRedrawDirtyを要求しても、
 	// ダーティレベルが下がることはありません。
 	if w.state.dirtyLevel >= requestedLevel {
 		return
@@ -79,21 +79,21 @@ func (w *LayoutableWidget) SetRelayoutBoundary(isBoundary bool) {
 }
 
 // IsDirty はウィジェットが再描画または再レイアウトを必要とするかどうかを返します。
-// dirtyLevelがcleanでなければ、何らかの更新が必要であると判断されます。
+// dirtyLevelがlevelCleanでなければ、何らかの更新が必要であると判断されます。
 func (w *LayoutableWidget) IsDirty() bool {
-	return w.state.dirtyLevel > clean
+	return w.state.dirtyLevel > levelClean
 }
 
 // NeedsRelayout はウィジェットがレイアウトの再計算を必要とするかどうかを返します。
-// dirtyLevelが最高のrelayoutDirtyである場合のみtrueを返します。
+// dirtyLevelが最高のlevelRelayoutDirtyである場合のみtrueを返します。
 func (w *LayoutableWidget) NeedsRelayout() bool {
-	return w.state.dirtyLevel == relayoutDirty
+	return w.state.dirtyLevel == levelRelayoutDirty
 }
 
-// ClearDirty はダーティレベルをcleanにリセットします。
+// ClearDirty はダーティレベルをlevelCleanにリセットします。
 // レイアウトと描画が完了した後にコンテナから呼び出されます。
 func (w *LayoutableWidget) ClearDirty() {
-	w.state.dirtyLevel = clean
+	w.state.dirtyLevel = levelClean
 }
 
 // SetHovered はホバー状態を設定し、再描画を要求します。
