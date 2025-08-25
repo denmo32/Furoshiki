@@ -44,7 +44,6 @@ type ScrollBarWidget interface {
 	SetRatios(contentRatio, scrollRatio float64)
 }
 
-
 // PositionSetter はウィジェットの位置を設定・取得するためのインターフェースです
 type PositionSetter interface {
 	SetPosition(x, y int)

@@ -35,7 +35,7 @@ func (l *ScrollViewLayout) Layout(container Container) {
 	const veryLargeHeight = 1_000_000
 	content.SetSize(potentialContentWidth, veryLargeHeight)
 	content.SetPosition(0, 0)
-	
+
 	// 【重要】子のレイアウトマネージャを直接呼ばず、子のUpdateを呼ぶことで
 	// 子のレイアウトを自律的に実行させる
 	content.Update()

@@ -76,7 +76,6 @@ func (b *ContainerBuilder) ClipChildren(clips bool) *ContainerBuilder {
 	return b
 }
 
-
 // Build finalizes the container construction.
 func (b *ContainerBuilder) Build() (*Container, error) {
 	// The embedded builder's Build method returns (W, error), which is (*Container, error)
