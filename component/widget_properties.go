@@ -2,7 +2,6 @@ package component
 
 import (
 	"furoshiki/style"
-	"furoshiki/utils" // 【改善】Max関数を使用するためにインポート
 )
 
 // SetPosition はウィジェットの絶対座標を設定します。
@@ -74,9 +73,9 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 	// ユーザー設定値と比較し、大きい方を最終的な最小サイズとします。
 	if w.contentMinSizeFunc != nil {
 		contentMinWidth, contentMinHeight := w.contentMinSizeFunc()
-		// utils.Max を使用して、各次元で大きい方の値を採用します。
-		finalMinWidth := utils.Max(contentMinWidth, userMinWidth)
-		finalMinHeight := utils.Max(contentMinHeight, userMinHeight)
+		// 標準の max を使用して、各次元で大きい方の値を採用します。
+		finalMinWidth := max(contentMinWidth, userMinWidth)
+		finalMinHeight := max(contentMinHeight, userMinHeight)
 		return finalMinWidth, finalMinHeight
 	}
 

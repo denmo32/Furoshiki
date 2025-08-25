@@ -40,8 +40,8 @@ func (l *FlexLayout) Layout(container Container) {
 		return
 	}
 
-	availableWidth := utils.Max(0, containerWidth-padding.Left-padding.Right)
-	availableHeight := utils.Max(0, containerHeight-padding.Top-padding.Bottom)
+	availableWidth := max(0, containerWidth-padding.Left-padding.Right)
+	availableHeight := max(0, containerHeight-padding.Top-padding.Bottom)
 
 	isRow := l.Direction == DirectionRow
 	mainSize, crossSize := availableWidth, availableHeight
@@ -106,13 +106,13 @@ func calculateBaseSizes(items []flexItemInfo, isRow bool) (float64, int) {
 			if item.flex > 0 {
 				item.mainSize = minW
 			} else {
-				item.mainSize = utils.Max(utils.IfThen(w <= 0, minW, w), minW)
+				item.mainSize = max(utils.IfThen(w <= 0, minW, w), minW)
 			}
 		} else {
 			if item.flex > 0 {
 				item.mainSize = minH
 			} else {
-				item.mainSize = utils.Max(utils.IfThen(h <= 0, minH, h), minH)
+				item.mainSize = max(utils.IfThen(h <= 0, minH, h), minH)
 			}
 		}
 		totalBaseMainSize += item.mainSize + item.mainMargin
@@ -157,10 +157,10 @@ func calculateCrossAxisSizes(items []flexItemInfo, crossSize int, isRow bool, al
 			var intrinsicCrossSize int
 			if isRow {
 				// 固有の高さ = ユーザー設定の高さ > 0 ? ユーザー設定の高さ : 最小の高さ
-				intrinsicCrossSize = utils.Max(utils.IfThen(h <= 0, minH, h), minH)
+				intrinsicCrossSize = max(utils.IfThen(h <= 0, minH, h), minH)
 			} else {
 				// 固有の幅 = ユーザー設定の幅 > 0 ? ユーザー設定の幅 : 最小の幅
-				intrinsicCrossSize = utils.Max(utils.IfThen(w <= 0, minW, w), minW)
+				intrinsicCrossSize = max(utils.IfThen(w <= 0, minW, w), minW)
 			}
             
             // 固有サイズが計算でき（0より大きく）、かつそれが利用可能スペースより小さい場合のみ、

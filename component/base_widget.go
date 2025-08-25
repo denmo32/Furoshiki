@@ -14,7 +14,7 @@ type LayoutableWidget struct {
 	size               size
 	minSize            size
 	requestedPos       position
-	// 【改善】コンテンツの最小サイズを計算する関数。
+	// コンテンツの最小サイズを計算する関数。
 	// これにより、最小サイズ決定ロジック（コンテンツサイズとユーザー設定サイズの比較）を
 	// LayoutableWidgetに集約し、TextWidgetのような具象ウィジェットでのコードの重複を避けます。
 	contentMinSizeFunc func() (width, height int)
@@ -76,7 +76,7 @@ type hierarchy struct {
 	parent Container
 }
 
-// 【改善】NewLayoutableWidget は、self引数を取らずに LayoutableWidget を初期化します。
+// NewLayoutableWidget は、self引数を取らずに LayoutableWidget を初期化します。
 // self参照は、後からInitメソッドを呼び出して設定します。
 func NewLayoutableWidget() *LayoutableWidget {
 	return &LayoutableWidget{
@@ -87,7 +87,7 @@ func NewLayoutableWidget() *LayoutableWidget {
 	}
 }
 
-// 【改善】Initは、LayoutableWidgetが埋め込まれる具象ウィジェットへの参照(self)を
+// Initは、LayoutableWidgetが埋め込まれる具象ウィジェットへの参照(self)を
 // 安全に設定するためのメソッドです。これにより、コンストラクタのシグネチャがシンプルになり、
 // ウィジェットの初期化手順が統一されます。
 func (w *LayoutableWidget) Init(self Widget) {

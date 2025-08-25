@@ -13,10 +13,11 @@ type ScrollView struct {
 	*container.Container
 
 	// スクロールビュー固有のプロパティ
-	contentContainer component.Widget
-	vScrollBar       component.ScrollBarWidget
-	scrollY          float64
-	contentHeight    int
+	contentContainer  component.Widget
+	vScrollBar        component.ScrollBarWidget
+	scrollY           float64
+	contentHeight     int
+	ScrollSensitivity float64 // [追加] スクロール感度
 }
 
 // コンパイル時にインターフェースの実装を検証します。
@@ -26,7 +27,9 @@ var _ container.Scroller = (*ScrollView)(nil)
 
 // NewScrollView はScrollViewのインスタンスを生成します。
 func NewScrollView() *ScrollView {
-	sv := &ScrollView{}
+	sv := &ScrollView{
+		ScrollSensitivity: 20.0, // [追加] デフォルトのスクロール感度
+	}
 	// 【エラー修正】 container.Containerの非公開フィールド(children)を構造体リテラルで
 	// 初期化しようとしていたため、コンパイルエラーが発生していました。
 	// このフィールドへの代入を削除します。childrenスライスはnilとして初期化されますが、
@@ -106,7 +109,8 @@ func (sv *ScrollView) Update() {
 func (sv *ScrollView) HandleEvent(e *event.Event) {
 	// Step 1: このウィジェット固有のイベント処理を先に行います。
 	if !e.Handled && e.Type == event.MouseScroll {
-		scrollAmount := e.ScrollY * 20 // スクロール感度
+		// [修正] マジックナンバーの代わりにプロパティを使用
+		scrollAmount := e.ScrollY * sv.ScrollSensitivity
 		sv.scrollY -= scrollAmount
 		sv.MarkDirty(true) // 再レイアウトを要求
 		e.Handled = true   // イベントを処理済みとしてマーク

@@ -16,20 +16,18 @@ type TextWidget struct {
 	text string
 }
 
-// 【改善】NewTextWidget は新しいTextWidgetを生成します。
+// NewTextWidget は新しいTextWidgetを生成します。
 // self の設定は、このTextWidgetを埋め込む具象ウィジェット側でInit()を呼び出すことで行います。
 func NewTextWidget(text string) *TextWidget {
 	// TextWidgetのインスタンスを生成します。
 	tw := &TextWidget{
-		// NewLayoutableWidgetはselfを引数に取らなくなりました。
 		LayoutableWidget: NewLayoutableWidget(),
 		text:             text,
 	}
 
-	// 【改善】コンテンツの最小サイズを計算する責務を、クロージャとして
-	// LayoutableWidgetに委譲します。これにより、最小サイズ決定のロジックが
-	// 基底ウィジェットに集約され、TextWidgetはGetMinSizeメソッドを
-	// オーバーライドする必要がなくなります。
+	// コンテンツの最小サイズを計算する責務を、クロージャとしてLayoutableWidgetに委譲します。
+	// これにより、最小サイズ決定のロジックが基底ウィジェットに集約され、
+	// TextWidgetはGetMinSizeメソッドをオーバーライドする必要がなくなります。
 	tw.LayoutableWidget.contentMinSizeFunc = tw.calculateContentMinSize
 
 	return tw
@@ -104,27 +102,3 @@ func (t *TextWidget) calculateContentMinSize() (int, int) {
 	// テキストがない場合は、コンテンツの最小サイズは0です。
 	return 0, 0
 }
-
-// 【改善により削除】
-// 以前は、TextWidgetがLayoutableWidgetのGetMinSizeをオーバーライドして、
-// コンテンツサイズとユーザー設定サイズを比較するロジックを実装していました。
-// このロジックはLayoutableWidgetに集約されたため、このメソッドは不要になりました。
-/*
-// GetMinSize は、ウィジェットが表示されるべき最小サイズを返します。
-// LayoutableWidgetのGetMinSizeをオーバーライドし、テキストコンテンツのサイズを考慮に入れます。
-// 最終的な最小サイズは、「コンテンツから計算されるサイズ」と「ユーザーが明示的に設定した最小サイズ」のうち、大きい方になります。
-func (t *TextWidget) GetMinSize() (int, int) {
-	// コンテンツ（テキストとパディング）から要求される最小サイズを計算します。
-	contentMinWidth, contentMinHeight := t.calculateContentMinSize()
-
-	// ユーザーが .MinSize() で明示的に設定した最小サイズを取得します。
-	userMinWidth, userMinHeight := t.LayoutableWidget.GetMinSize()
-
-	// utilsパッケージのMax関数を使用します。
-	// 両者を比較し、各次元で大きい方を最終的な最小サイズとします。
-	finalMinWidth := utils.Max(contentMinWidth, userMinWidth)
-	finalMinHeight := utils.Max(contentMinHeight, userMinHeight)
-
-	return finalMinWidth, finalMinHeight
-}
-*/
