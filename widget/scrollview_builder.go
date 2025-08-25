@@ -1,8 +1,8 @@
 package widget
 
 import (
-	"furoshiki/component"
 	"fmt"
+	"furoshiki/component"
 )
 
 // ScrollViewBuilder は、ScrollViewを宣言的に構築するためのビルダーです。
@@ -28,9 +28,7 @@ func (b *ScrollViewBuilder) Content(content component.Widget) *ScrollViewBuilder
 	return b
 }
 
-// [追加]
 // ScrollSensitivity は、マウスホイールのスクロール感度を設定します。
-// 値が大きいほど、より速くスクロールします。デフォルト値は20.0です。
 func (b *ScrollViewBuilder) ScrollSensitivity(sensitivity float64) *ScrollViewBuilder {
 	if sensitivity < 0 {
 		b.AddError(fmt.Errorf("scroll sensitivity cannot be negative, got %f", sensitivity))
@@ -40,7 +38,7 @@ func (b *ScrollViewBuilder) ScrollSensitivity(sensitivity float64) *ScrollViewBu
 	return b
 }
 
-// Build は、設定に基づいて最終的なScrollViewを構築して返します。
+// Build は、最終的なScrollViewを構築して返します。
 func (b *ScrollViewBuilder) Build() (*ScrollView, error) {
 	return b.Builder.Build()
 }

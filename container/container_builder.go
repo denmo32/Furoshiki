@@ -13,17 +13,9 @@ type ContainerBuilder struct {
 
 // NewContainerBuilder creates a new builder for a container.
 func NewContainerBuilder() *ContainerBuilder {
-	c := &Container{
-		children: make([]component.Widget, 0),
-	}
-	// 【改善】コンストラクタからself引数を削除し、Initメソッドでself参照を設定する方式に統一します。
-	// これにより、コンパイルエラーが解消され、初期化ロジックが直感的になります。
-	c.LayoutableWidget = component.NewLayoutableWidget()
-	c.Init(c)                       // ContainerはLayoutableWidgetを埋め込んでいるため、Initメソッドを直接呼び出せます。
-	c.layout = &layout.FlexLayout{} // Default layout
-
+	c := NewContainer() // コンストラクタを呼び出す
 	b := &ContainerBuilder{}
-	b.Init(b, c) // Init the embedded component.Builder
+	b.Init(b, c)
 	return b
 }
 
@@ -64,21 +56,19 @@ func (b *ContainerBuilder) AddChildren(children ...component.Widget) *ContainerB
 	return b
 }
 
-// 【改善】SetLayoutBoundary はコンテナをレイアウト境界として設定します。
-// メソッド名を SetRelayoutBoundary から SetLayoutBoundary に変更して直感性を向上させました。
+// SetLayoutBoundary はコンテナをレイアウト境界として設定します。
 func (b *ContainerBuilder) SetLayoutBoundary(isBoundary bool) *ContainerBuilder {
 	b.Widget.SetLayoutBoundary(isBoundary)
 	return b
 }
 
-// 【改善】SetRelayoutBoundary はコンテナをレイアウト境界として設定します。
-// 後方互換性のために残します。内部的には SetLayoutBoundary を呼び出します。
+// SetRelayoutBoundary はコンテナをレイアウト境界として設定します(後方互換性のため)。
 func (b *ContainerBuilder) SetRelayoutBoundary(isBoundary bool) *ContainerBuilder {
 	b.Widget.SetRelayoutBoundary(isBoundary)
 	return b
 }
 
-// 【改善】SetClipsChildren はコンテナのクリッピング動作を設定します。
+// SetClipsChildren はコンテナのクリッピング動作を設定します。
 func (b *ContainerBuilder) SetClipsChildren(clips bool) *ContainerBuilder {
 	b.Widget.SetClipsChildren(clips)
 	return b
@@ -86,9 +76,5 @@ func (b *ContainerBuilder) SetClipsChildren(clips bool) *ContainerBuilder {
 
 // Build はコンテナの構築を完了します。
 func (b *ContainerBuilder) Build() (*Container, error) {
-	widget, err := b.Builder.Build()
-	if err != nil {
-		return nil, err
-	}
-	return widget, nil
+	return b.Builder.Build()
 }

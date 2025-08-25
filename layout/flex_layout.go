@@ -4,9 +4,6 @@ import (
 	"furoshiki/component"
 	"furoshiki/style"
 	"furoshiki/utils"
-	// ログは不要になったため削除
-	// "log"
-	// "reflect"
 )
 
 // FlexLayout は、CSS Flexboxにインスパイアされたレイアウトシステムです。
@@ -52,7 +49,7 @@ func (l *FlexLayout) Layout(container Container) {
 	items := collectItemInfo(children, isRow)
 	totalFlex, totalBaseMainSize := calculateBaseSizes(items, isRow)
 	distributeRemainingSpace(items, mainSize, totalBaseMainSize, totalFlex, l.Gap)
-	calculateCrossAxisSizes(items, crossSize, isRow, l.AlignItems) // ここが修正されました
+	calculateCrossAxisSizes(items, crossSize, isRow, l.AlignItems)
 	applySizes(items, isRow)
 	positionItems(items, container, mainSize, crossSize, isRow, l.Justify, l.AlignItems, l.Gap)
 }
@@ -139,14 +136,12 @@ func distributeRemainingSpace(items []flexItemInfo, mainSize, totalBaseMainSize 
 	}
 }
 
-// 【ここが根本的な修正箇所です】
 // calculateCrossAxisSizes は、交差軸のサイズを計算します。
 func calculateCrossAxisSizes(items []flexItemInfo, crossSize int, isRow bool, alignItems Alignment) {
 	for i := range items {
 		item := &items[i]
-		
-		// デフォルトでは、子は親の利用可能な交差軸スペース全体を占有します。
-		// これが、右ペインの高さが0になっていた問題の直接的な解決策です。
+
+		// デフォルトでは、子は親の利用可能な交差軸スペース全体を占有します (AlignStretch)。
 		item.crossSize = crossSize - item.crossMargin
 
 		// AlignStretchでない場合、子は自身のコンテンツに合わせたサイズになることができます。
@@ -156,15 +151,11 @@ func calculateCrossAxisSizes(items []flexItemInfo, crossSize int, isRow bool, al
 
 			var intrinsicCrossSize int
 			if isRow {
-				// 固有の高さ = ユーザー設定の高さ > 0 ? ユーザー設定の高さ : 最小の高さ
 				intrinsicCrossSize = max(utils.IfThen(h <= 0, minH, h), minH)
 			} else {
-				// 固有の幅 = ユーザー設定の幅 > 0 ? ユーザー設定の幅 : 最小の幅
 				intrinsicCrossSize = max(utils.IfThen(w <= 0, minW, w), minW)
 			}
-            
-            // 固有サイズが計算でき（0より大きく）、かつそれが利用可能スペースより小さい場合のみ、
-            // その固有サイズを採用します。
+
 			if intrinsicCrossSize > 0 && intrinsicCrossSize < item.crossSize {
 				item.crossSize = intrinsicCrossSize
 			}

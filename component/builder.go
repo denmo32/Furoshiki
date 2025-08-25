@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-// [修正] パッケージ全体で利用できるよう、共通エラーをエクスポートします。
+// パッケージ全体で利用できるよう、共通エラーをエクスポートします。
 var (
 	ErrNilChild             = errors.New("child cannot be nil")
 	ErrWidgetNotInitialized = errors.New("widget not properly initialized")
@@ -49,7 +49,6 @@ func (b *Builder[T, W]) AddError(err error) {
 // AbsolutePosition は、親コンテナ内でのウィジェットの希望相対位置を設定します。
 // これは、親コンテナがAbsoluteLayout（例: ZStack）を使用している場合にのみ有効です。
 func (b *Builder[T, W]) AbsolutePosition(x, y int) T {
-	// 型アサーションでウィジェットが要求位置の設定に対応しているかを確認します。
 	if p, ok := any(b.Widget).(requestedPositionSetter); ok {
 		p.SetRequestedPosition(x, y)
 	} else {
@@ -167,7 +166,7 @@ func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 	})
 }
 
-// 【新規追加】 汎用イベントハンドラ設定メソッド
+// --- 汎用イベントハンドラ設定メソッド ---
 // これにより、どのウィジェットビルダーからでも一貫したAPIでイベントハンドラを設定できます。
 // 例えば、Labelにクリックイベントを追加するなども容易になります。
 
@@ -213,7 +212,6 @@ func (b *Builder[T, W]) OnMouseScroll(handler event.EventHandler) T {
 	return b.Self
 }
 
-// [新規追加]
 // AssignTo は、ビルド中のウィジェットインスタンスへのポインタを変数に代入します。
 // UIの宣言的な構築フローを中断することなく、後から操作したいウィジェットへの参照を
 // 安全に取得するために使用します。

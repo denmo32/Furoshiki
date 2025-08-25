@@ -9,39 +9,48 @@ import (
 
 // --- Widget Interface ---
 // Widgetは全てのUI要素の基本的な振る舞いを定義するインターフェースです。
+// 多くのメソッドを含んでいますが、責務ごとに小さなインターフェースに分割されています。
 type Widget interface {
-	// --- ライフサイクルメソッド ---
+	// --- ライフサイクル ---
 	Update()
 	Draw(screen *ebiten.Image)
 	Cleanup()
 
-	// --- 位置とサイズ関連メソッド ---
+	// --- 階層構造 ---
+	HierarchyManager
+
+	// --- 位置とサイズ ---
 	PositionSetter
 	SizeSetter
 	MinSizeSetter
 
-	// --- スタイル関連メソッド ---
+	// --- スタイル ---
 	StyleGetterSetter
 
-	// --- 状態管理メソッド ---
+	// --- レイアウト ---
+	LayoutProperties
+
+	// --- 状態管理 ---
 	DirtyManager
 	InteractiveState
 
-	// --- イベント処理メソッド ---
+	// --- イベント処理 ---
 	EventHandler
 	HitTester
-
-	// --- レイアウト関連メソッド ---
-	LayoutProperties
-	HierarchyManager
 }
 
-// 【新規追加】 ScrollBarWidget は、ScrollBarが実装すべきメソッドを定義します。
+// ScrollBarWidget は、ScrollBarが実装すべきメソッドを定義します。
 // これにより、他のパッケージが具体的なScrollBar型に依存することなく、
 // このインターフェースを通じてScrollBarを操作できます。
 type ScrollBarWidget interface {
 	Widget // Widgetの基本機能を継承
 	SetRatios(contentRatio, scrollRatio float64)
+}
+
+// HierarchyManager は階層構造を管理するためのインターフェースです
+type HierarchyManager interface {
+	SetParent(parent Container)
+	GetParent() Container
 }
 
 // PositionSetter はウィジェットの位置を設定・取得するためのインターフェースです
@@ -66,6 +75,14 @@ type MinSizeSetter interface {
 type StyleGetterSetter interface {
 	SetStyle(style style.Style)
 	GetStyle() style.Style
+}
+
+// LayoutProperties はレイアウトプロパティを管理するためのインターフェースです
+type LayoutProperties interface {
+	SetFlex(flex int)
+	GetFlex() int
+	SetLayoutBoundary(isBoundary bool)
+	SetRelayoutBoundary(isBoundary bool) // 後方互換性のために残す
 }
 
 // DirtyManager はウィジェットのダーティ状態を管理するためのインターフェースです
@@ -102,27 +119,12 @@ type HitTester interface {
 	HitTest(x, y int) Widget
 }
 
-// LayoutProperties はレイアウトプロパティを管理するためのインターフェースです
-type LayoutProperties interface {
-	SetFlex(flex int)
-	GetFlex() int
-	// 【改善】SetLayoutBoundary を追加し、SetRelayoutBoundary は後方互換性のために残す
-	SetLayoutBoundary(isBoundary bool)
-	SetRelayoutBoundary(isBoundary bool) // 後方互換性のために残す
-}
-
-// HierarchyManager は階層構造を管理するためのインターフェースです
-type HierarchyManager interface {
-	SetParent(parent Container)
-	GetParent() Container
-}
-
 // --- Container Interface ---
 // Containerは子Widgetを持つことができるWidgetです。
 type Container interface {
 	Widget // ContainerはWidgetのすべての振る舞いを継承します
 
-	// --- 子要素管理メソッド ---
+	// --- 子要素管理 ---
 	AddChild(child Widget)
 	RemoveChild(child Widget)
 	GetChildren() []Widget

@@ -10,13 +10,13 @@ import (
 // 位置、サイズ、スタイル、イベント処理などの共通機能を利用します。
 type LayoutableWidget struct {
 	// --- Position & Size ---
-	position           position
-	size               size
-	minSize            size
-	requestedPos       position
-	// コンテンツの最小サイズを計算する関数。
-	// これにより、最小サイズ決定ロジック（コンテンツサイズとユーザー設定サイズの比較）を
-	// LayoutableWidgetに集約し、TextWidgetのような具象ウィジェットでのコードの重複を避けます。
+	position     position
+	size         size
+	minSize      size
+	requestedPos position
+	// contentMinSizeFunc は、コンテンツ（テキストなど）が要求する最小サイズを計算する関数です。
+	// これにより、最小サイズ決定ロジック（コンテンツ固有サイズ vs ユーザー設定サイズ）を
+	// LayoutableWidgetに集約し、TextWidgetのような具象ウィジェットでのコード重複を避けます。
 	contentMinSizeFunc func() (width, height int)
 
 	// --- Layout & Style ---
@@ -29,7 +29,9 @@ type LayoutableWidget struct {
 	// --- Hierarchy & Events ---
 	hierarchy     hierarchy
 	eventHandlers map[event.EventType]event.EventHandler
-	self          Widget
+	// self は、このLayoutableWidgetを埋め込んでいる具象ウィジェット自身への参照です。
+	// これにより、HitTestのようなメソッドが、具体的な型（*Button, *Labelなど）を返すことができます。
+	self Widget
 }
 
 // position はウィジェットの位置情報を保持します
@@ -48,13 +50,11 @@ type layoutProperties struct {
 	relayoutBoundary bool
 }
 
-// 【改善】dirtyLevelは外部に公開する必要がないため、非エクスポートに変更しました。
 // dirtyLevel はウィジェットのダーティ状態のレベルを示します。
 // これにより、再描画のみが必要か、レイアウトの再計算まで必要かを効率的に管理します。
 type dirtyLevel int
 
 const (
-	// 【改善】定数も非エクスポートに変更しました。
 	// levelClean はウィジェットがダーティでないことを示します。
 	levelClean dirtyLevel = iota
 	// levelRedrawDirty はウィジェットの再描画のみが必要なことを示します（例: ホバー状態の変化）。
@@ -65,7 +65,6 @@ const (
 
 // widgetState はウィジェットの状態を保持します
 type widgetState struct {
-	// 【改善】非エクスポートになったdirtyLevel型を使用します。
 	dirtyLevel     dirtyLevel // dirty と relayoutDirty を置き換える新しいフィールド
 	isHovered      bool
 	isPressed      bool
@@ -79,20 +78,19 @@ type hierarchy struct {
 	parent Container
 }
 
-// NewLayoutableWidget は、self引数を取らずに LayoutableWidget を初期化します。
-// self参照は、後からInitメソッドを呼び出して設定します。
+// NewLayoutableWidget は、LayoutableWidget を初期化します。
+// この時点ではself参照は未設定です。
 func NewLayoutableWidget() *LayoutableWidget {
 	return &LayoutableWidget{
-		// isVisibleはデフォルトでtrue、hasBeenLaidOutはレイアウト計算が行われるまでfalseで初期化します。
-		// dirtyLevelはデフォルトでlevelCleanです。
 		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: levelClean},
 		eventHandlers: make(map[event.EventType]event.EventHandler),
 	}
 }
 
 // Initは、LayoutableWidgetが埋め込まれる具象ウィジェットへの参照(self)を
-// 安全に設定するためのメソッドです。これにより、コンストラクタのシグネチャがシンプルになり、
-// ウィジェットの初期化手順が統一されます。
+// 安全に設定するためのメソッドです。Goではコンストラクタ内で自分自身へのポインタを
+// 取得することが難しいため、この2段階の初期化プロセスを採用しています。
+// これにより、コンストラクタのシグネチャがシンプルになり、ウィジェットの初期化手順が統一されます。
 func (w *LayoutableWidget) Init(self Widget) {
 	if self == nil {
 		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、パニックを発生させます。

@@ -4,11 +4,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// 【改善】WidgetStateの定義を、それを利用するロジック（CurrentStateなど）と
-// 同じファイルに統合しました。これにより、状態の定義と実装がまとまり、
-// コードの関連性が明確になって可読性が向上します。
-// （以前は `component/widget_state_types.go` にありました）
-
 // WidgetState は、ウィジェットが取りうるインタラクティブな状態を定義します。
 type WidgetState int
 
@@ -34,11 +29,9 @@ func (w *LayoutableWidget) Update() {
 // Draw はウィジェットの背景と境界線を描画します。
 // テキストなどを持つウィジェットは、このメソッドをオーバーライドして追加の描画処理を行います。
 func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
-	// 非表示、または未レイアウトのウィジェットは描画しません。
 	if !w.state.isVisible || !w.state.hasBeenLaidOut {
 		return
 	}
-	// 背景と境界線の描画
 	DrawStyledBackground(screen, w.position.x, w.position.y, w.size.width, w.size.height, w.style)
 }
 
@@ -46,43 +39,37 @@ func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
 // relayoutがtrueの場合、より高いダーティレベル(levelRelayoutDirty)が設定され、
 // 親コンテナにも再レイアウトが必要であることが伝播されます。
 func (w *LayoutableWidget) MarkDirty(relayout bool) {
-	// 要求されたダーティレベルを決定します。
 	requestedLevel := levelRedrawDirty
 	if relayout {
 		requestedLevel = levelRelayoutDirty
 	}
 
-	// 現在のダーティレベルが要求されたレベル以上であれば、何もする必要はありません。
+	// 現在のダーティレベルが要求されたレベルより低い場合のみ更新します。
 	// これにより、levelRelayoutDirtyが設定されているウィジェットにlevelRedrawDirtyを要求しても、
-	// ダーティレベルが下がることはありません。
+	// ダーティレベルが意図せず下がることを防ぎます。
 	if w.state.dirtyLevel >= requestedLevel {
 		return
 	}
 
-	// ダーティレベルを新しいレベルに更新します。
 	w.state.dirtyLevel = requestedLevel
 
 	// 親が存在し、かつ自身がレイアウト境界でなく、再レイアウトが必要な場合のみ伝播します。
 	if w.hierarchy.parent != nil && !w.layout.relayoutBoundary && relayout {
-		// 親コンテナに再レイアウトが必要であることを再帰的に伝播させます。
 		w.hierarchy.parent.MarkDirty(true)
 	}
 }
 
 // IsDirty はウィジェットが再描画または再レイアウトを必要とするかどうかを返します。
-// dirtyLevelがlevelCleanでなければ、何らかの更新が必要であると判断されます。
 func (w *LayoutableWidget) IsDirty() bool {
 	return w.state.dirtyLevel > levelClean
 }
 
 // NeedsRelayout はウィジェットがレイアウトの再計算を必要とするかどうかを返します。
-// dirtyLevelが最高のlevelRelayoutDirtyである場合のみtrueを返します。
 func (w *LayoutableWidget) NeedsRelayout() bool {
 	return w.state.dirtyLevel == levelRelayoutDirty
 }
 
 // ClearDirty はダーティレベルをlevelCleanにリセットします。
-// レイアウトと描画が完了した後にコンテナから呼び出されます。
 func (w *LayoutableWidget) ClearDirty() {
 	w.state.dirtyLevel = levelClean
 }
@@ -91,8 +78,7 @@ func (w *LayoutableWidget) ClearDirty() {
 func (w *LayoutableWidget) SetHovered(hovered bool) {
 	if w.state.isHovered != hovered {
 		w.state.isHovered = hovered
-		// ホバー状態の変更は見た目にのみ影響するため、再描画のみを要求します（relayoutはfalse）。
-		w.MarkDirty(false)
+		w.MarkDirty(false) // ホバー状態の変更は再描画のみ
 	}
 }
 
@@ -105,8 +91,7 @@ func (w *LayoutableWidget) IsHovered() bool {
 func (w *LayoutableWidget) SetPressed(pressed bool) {
 	if w.state.isPressed != pressed {
 		w.state.isPressed = pressed
-		// 押下状態の変更は見た目にのみ影響するため、再描画のみを要求します（relayoutはfalse）。
-		w.MarkDirty(false)
+		w.MarkDirty(false) // 押下状態の変更は再描画のみ
 	}
 }
 
@@ -116,7 +101,6 @@ func (w *LayoutableWidget) IsPressed() bool {
 }
 
 // CurrentState はウィジェットの現在のインタラクティブな状態を返します。
-// このメソッドは InteractiveState インターフェースを実装します。
 func (w *LayoutableWidget) CurrentState() WidgetState {
 	if w.state.isDisabled {
 		return StateDisabled
@@ -134,7 +118,6 @@ func (w *LayoutableWidget) CurrentState() WidgetState {
 func (w *LayoutableWidget) SetDisabled(disabled bool) {
 	if w.state.isDisabled != disabled {
 		w.state.isDisabled = disabled
-		// 無効状態の変更は見た目に影響するため、再描画を要求します。
 		w.MarkDirty(false)
 	}
 }
@@ -148,8 +131,7 @@ func (w *LayoutableWidget) IsDisabled() bool {
 func (w *LayoutableWidget) SetVisible(visible bool) {
 	if w.state.isVisible != visible {
 		w.state.isVisible = visible
-		// 表示状態の変更はレイアウトに影響するため、再レイアウトを要求します。
-		w.MarkDirty(true)
+		w.MarkDirty(true) // 表示状態の変更はレイアウトに影響
 	}
 }
 
@@ -159,16 +141,12 @@ func (w *LayoutableWidget) IsVisible() bool {
 }
 
 // HasBeenLaidOut は、ウィジェットが少なくとも一度レイアウト計算されたかを返します。
-// このメソッドは InteractiveState インターフェースを実装します。
 func (w *LayoutableWidget) HasBeenLaidOut() bool {
 	return w.state.hasBeenLaidOut
 }
 
 // Cleanup は、コンポーネントが不要になったときにリソースを解放するためのメソッドです。
-// UIツリーからウィジェットが削除される際などに呼び出されるべきです。
 func (w *LayoutableWidget) Cleanup() {
-	// イベントハンドラへの参照をクリアし、ガベージコレクションの対象とします。
 	w.eventHandlers = nil
-	// 親からの参照を解除します。
 	w.hierarchy.parent = nil
 }

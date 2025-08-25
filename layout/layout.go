@@ -15,7 +15,6 @@ type Insets struct {
 }
 
 // Container は、レイアウトが必要とするコンテナの振る舞いを定義するインターフェースです。
-// これにより、layoutパッケージは具体的なコンテナの実装から独立しています。
 type Container interface {
 	GetSize() (width, height int)
 	GetPosition() (x, y int)
@@ -23,12 +22,11 @@ type Container interface {
 	GetPadding() Insets
 }
 
-// ScrollViewer は、ScrollViewLayoutがScrollViewウィジェットを操作するために必要な
-// メソッドを定義するインターフェースです。
+// ScrollViewer は、ScrollViewLayoutがScrollViewウィジェットを操作するために必要なメソッドを定義します。
 type ScrollViewer interface {
 	Container
 	GetContentContainer() component.Widget
-	GetVScrollBar() component.ScrollBarWidget // 【修正】戻り値の型を変更
+	GetVScrollBar() component.ScrollBarWidget
 	GetScrollY() float64
 	SetScrollY(y float64)
 	SetContentHeight(h int)
@@ -38,7 +36,7 @@ type ScrollViewer interface {
 type Alignment int
 
 const (
-	AlignStart   Alignment = iota
+	AlignStart Alignment = iota
 	AlignCenter
 	AlignEnd
 	AlignStretch
@@ -48,6 +46,6 @@ const (
 type Direction int
 
 const (
-	DirectionRow    Direction = iota
+	DirectionRow Direction = iota
 	DirectionColumn
 )

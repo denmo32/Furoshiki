@@ -6,40 +6,39 @@ import (
 	"image/color"
 )
 
-// textWidget is an interface that text-based widgets like Button and Label satisfy.
+// textWidget は、テキストを持つウィジェット（Button, Labelなど）が満たすインターフェースです。
 type textWidget interface {
 	component.Widget
 	SetText(string)
 }
 
-// Builder is a generic builder for text-based widgets.
-// It embeds the component.Builder and adds text-specific methods.
+// Builder は、テキストを持つウィジェットのための汎用ビルダーです。
 type Builder[T any, W textWidget] struct {
 	component.Builder[T, W]
 }
 
-// Init initializes the builder.
+// Init はビルダーを初期化します。
 func (b *Builder[T, W]) Init(self T, widget W) {
 	b.Builder.Init(self, widget)
 }
 
-// Text sets the widget's text content.
+// Text はウィジェットのテキスト内容を設定します。
 func (b *Builder[T, W]) Text(text string) T {
 	b.Widget.SetText(text)
 	return b.Self
 }
 
-// TextColor sets the widget's text color.
+// TextColor はウィジェットのテキスト色を設定します。
 func (b *Builder[T, W]) TextColor(c color.Color) T {
 	return b.Style(style.Style{TextColor: style.PColor(c)})
 }
 
-// TextAlign sets the horizontal alignment of the text.
+// TextAlign はテキストの水平方向の揃え位置を設定します。
 func (b *Builder[T, W]) TextAlign(align style.TextAlignType) T {
 	return b.Style(style.Style{TextAlign: style.PTextAlignType(align)})
 }
 
-// VerticalAlign sets the vertical alignment of the text.
+// VerticalAlign はテキストの垂直方向の揃え位置を設定します。
 func (b *Builder[T, W]) VerticalAlign(align style.VerticalAlignType) T {
 	return b.Style(style.Style{VerticalAlign: style.PVerticalAlignType(align)})
 }

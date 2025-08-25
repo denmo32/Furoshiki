@@ -11,26 +11,23 @@ import (
 // ScrollBar は、スクロール可能な領域の状態を視覚的に示すウィジェットです。
 type ScrollBar struct {
 	*component.LayoutableWidget
-	trackColor color.Color
-	thumbColor color.Color
+	trackColor   color.Color
+	thumbColor   color.Color
 	contentRatio float64
-	scrollRatio float64
+	scrollRatio  float64
 }
 
-// コンパイル時にインターフェースの実装を検証します。
 var _ component.ScrollBarWidget = (*ScrollBar)(nil)
 
-// 【新規追加】NewScrollBarは、スクロールバーウィジェットの新しいインスタンスを生成し、初期化します。
-// デフォルトの色とサイズが設定されます。
+// NewScrollBarは、スクロールバーウィジェットの新しいインスタンスを生成し、初期化します。
 func NewScrollBar() *ScrollBar {
 	s := &ScrollBar{
-		trackColor: color.RGBA{R: 220, G: 220, B: 220, A: 255},
-		thumbColor: color.RGBA{R: 180, G: 180, B: 180, A: 255},
+		trackColor: color.RGBA{220, 220, 220, 255},
+		thumbColor: color.RGBA{180, 180, 180, 255},
 	}
 	s.LayoutableWidget = component.NewLayoutableWidget()
-	s.Init(s) // LayoutableWidgetの初期化
+	s.Init(s)
 	s.SetSize(10, 100)
-
 	return s
 }
 
@@ -62,7 +59,7 @@ func (s *ScrollBar) Draw(screen *ebiten.Image) {
 	vector.DrawFilledRect(screen, float32(x), thumbY, float32(width), thumbHeight, s.thumbColor, false)
 }
 
-// SetRatios は、ScrollViewからつまみのサイズと位置を計算するための比率を設定します。
+// SetRatios は、つまみのサイズと位置を計算するための比率を設定します。
 func (s *ScrollBar) SetRatios(contentRatio, scrollRatio float64) {
 	if s.contentRatio != contentRatio || s.scrollRatio != scrollRatio {
 		s.contentRatio = contentRatio
@@ -76,11 +73,8 @@ type ScrollBarBuilder struct {
 	component.Builder[*ScrollBarBuilder, *ScrollBar]
 }
 
-// NewScrollBarBuilder は新しいScrollBarBuilderを生成します。
 func NewScrollBarBuilder() *ScrollBarBuilder {
-	// 【改善】新しいNewScrollBarコンストラクタを呼び出して、初期化ロジックを集約します。
 	s := NewScrollBar()
-
 	b := &ScrollBarBuilder{}
 	b.Init(b, s)
 	return b

@@ -4,10 +4,10 @@ package layout
 type ScrollViewLayout struct{}
 
 // Layout は、ScrollViewのレイアウトロジックを実行します。
+// 2パスレイアウト（計測→配置）のアプローチを取ります。
 func (l *ScrollViewLayout) Layout(container Container) {
 	scroller, ok := container.(ScrollViewer)
 	if !ok {
-		// このパスは、ScrollView.Update の修正により通らなくなるはずです。
 		return
 	}
 	content := scroller.GetContentContainer()
@@ -35,28 +35,27 @@ func (l *ScrollViewLayout) Layout(container Container) {
 	}
 
 	// --- 1. 計測(Measure)パス ---
+	// スクロールバーがないと仮定した幅で、コンテンツが本来必要とする高さを計測します。
 	potentialContentWidth := viewWidth - padding.Left - padding.Right
-
-	const veryLargeHeight = 1_000_000
+	const veryLargeHeight = 1_000_000 // 計測用に十分大きな高さを設定
 	content.SetSize(potentialContentWidth, veryLargeHeight)
 	content.SetPosition(0, 0) // レイアウト計算のために一時的に原点に配置
-
-	// content のレイアウトを強制的に実行させる
 	content.MarkDirty(true)
-	content.Update()
+	content.Update() // content のレイアウトを強制的に実行
 
 	var measuredContentHeight int
 	if c, ok := content.(Container); ok {
+		// コンテンツがコンテナの場合、子の位置から最大高さを計算
 		contentPadding := c.GetPadding()
 		maxY := 0
-		_, contentY := c.GetPosition() // contentの現在位置（一時的に0のはず）
+		_, contentY := c.GetPosition()
 		for _, child := range c.GetChildren() {
 			if !child.IsVisible() {
 				continue
 			}
 			_, childY := child.GetPosition()
 			_, childH := child.GetSize()
-			bottom := (childY - contentY) + childH // 子の下端の相対座標
+			bottom := (childY - contentY) + childH
 			if bottom > maxY {
 				maxY = bottom
 			}
@@ -68,6 +67,7 @@ func (l *ScrollViewLayout) Layout(container Container) {
 	scroller.SetContentHeight(measuredContentHeight)
 
 	// --- 2. 配置(Arrange)パス ---
+	// 計測した高さに基づき、スクロールバーの要否を決定し、最終的な配置を計算します。
 	isVScrollNeeded := measuredContentHeight > contentAreaHeight
 	if vScrollBar != nil {
 		vScrollBar.SetVisible(isVScrollNeeded)
@@ -81,7 +81,7 @@ func (l *ScrollViewLayout) Layout(container Container) {
 		finalContentWidth = 0
 	}
 
-	// 幅が変わった場合、再度レイアウトを実行
+	// スクロールバーの有無で幅が変わった場合、再度レイアウトを実行
 	if finalContentWidth != potentialContentWidth {
 		content.SetSize(finalContentWidth, veryLargeHeight)
 		content.SetPosition(0, 0)

@@ -8,7 +8,6 @@ import (
 )
 
 // AddEventHandler は、指定されたイベントタイプに対応するイベントハンドラを登録します。
-// 同じイベントタイプにハンドラが既に存在する場合、上書きされます。
 func (w *LayoutableWidget) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
 	if w.eventHandlers == nil {
 		w.eventHandlers = make(map[event.EventType]event.EventHandler)
@@ -23,17 +22,13 @@ func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
 	}
 }
 
-// [修正] HandleEvent は、ディスパッチャから渡されたイベントを処理します。
+// HandleEvent は、ディスパッチャから渡されたイベントを処理します。
 // このメソッドはイベントバブリングを実装します。まず自身のハンドラを呼び出し、
 // イベントがまだ処理されていない（e.Handled == false）場合、親ウィジェットの
 // HandleEventメソッドを再帰的に呼び出します。
 func (w *LayoutableWidget) HandleEvent(e *event.Event) {
-	// 【ログ追加】どのウィジェットがどのイベントを受け取ったかを出力します
-	//if e.Type == event.MouseScroll { // スクロールイベントのみに絞ってログ出力
-	//	log.Printf("[LayoutableWidget] HandleEvent called for %T. Event type: MouseScroll, Handled: %t", w.self, e.Handled)
-	//}
-
 	if handler, exists := w.eventHandlers[e.Type]; exists {
+		// イベントハンドラ内でパニックが発生してもアプリケーションがクラッシュしないように保護します。
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
@@ -42,14 +37,9 @@ func (w *LayoutableWidget) HandleEvent(e *event.Event) {
 		handler(e)
 	}
 
-	// [追加] イベントバブリングのロジック
 	// イベントがこのウィジェットで処理されておらず（Handledがfalse）、
 	// かつ親ウィジェットが存在する場合に、イベントを親に伝播させます。
 	if e != nil && !e.Handled && w.hierarchy.parent != nil {
-		// 【ログ追加】イベントが親に伝播する直前にログを出力します
-		//if e.Type == event.MouseScroll { // スクロールイベントのみに絞ってログ出力
-		//	log.Printf("[LayoutableWidget] Event not handled by %T. Bubbling up to parent %T.", w.self, w.hierarchy.parent)
-		//}
 		w.hierarchy.parent.HandleEvent(e)
 	}
 }
@@ -58,22 +48,18 @@ func (w *LayoutableWidget) HandleEvent(e *event.Event) {
 // 戻り値として、初期化時に設定された具象ウィジェットへの参照(w.self)を返します。
 // これにより、ButtonやLabelなどの具象ウィジェット側でこのメソッドをオーバーライドする必要がなくなります。
 func (w *LayoutableWidget) HitTest(x, y int) Widget {
-	// isVisible/isDisabledフィールドではなくIsVisible()/IsDisabled()メソッドを使用するように修正
 	if !w.IsVisible() || w.IsDisabled() {
 		return nil
 	}
 
-	// x, y, width, heightフィールドへの直接アクセスではなく、GetPosition()/GetSize()メソッドを使用するように修正
 	wx, wy := w.GetPosition()
 	wwidth, wheight := w.GetSize()
 
-	// ウィジェットの矩形領域を定義します。
 	rect := image.Rect(wx, wy, wx+wwidth, wy+wheight)
 	if rect.Empty() {
 		return nil // サイズが0のウィジェットはヒットしません。
 	}
 
-	// 指定された座標が矩形内にあるかチェックします。
 	if !(image.Point{X: x, Y: y}.In(rect)) {
 		return nil
 	}

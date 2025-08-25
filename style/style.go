@@ -11,23 +11,22 @@ import (
 type TextAlignType int
 
 const (
-	TextAlignLeft   TextAlignType = iota // 左揃え
-	TextAlignCenter                      // 中央揃え
-	TextAlignRight                       // 右揃え
+	TextAlignLeft TextAlignType = iota
+	TextAlignCenter
+	TextAlignRight
 )
 
 // VerticalAlignType はテキストの垂直方向の揃え位置を定義します。
 type VerticalAlignType int
 
 const (
-	VerticalAlignTop    VerticalAlignType = iota // 上揃え
-	VerticalAlignMiddle                          // 中央揃え (垂直)
-	VerticalAlignBottom                          // 下揃え
+	VerticalAlignTop VerticalAlignType = iota
+	VerticalAlignMiddle
+	VerticalAlignBottom
 )
 
 // Styleはコンポーネントの視覚的プロパティを定義します。
-// 多くのフィールドがポインタ型になっています。これにより、ゼロ値（例: 0, nil）と
-// 「未設定」の状態を区別でき、Merge関数がより柔軟に動作します。
+// 多くのフィールドがポインタ型になっており、「未設定」の状態を区別できます。
 type Style struct {
 	Background    *color.Color
 	BorderColor   *color.Color
@@ -37,7 +36,7 @@ type Style struct {
 	Font          *font.Face
 	TextColor     *color.Color
 	BorderRadius  *float32
-	Opacity       *float64 // 0.0 (完全に透明) から 1.0 (完全に不透明)
+	Opacity       *float64
 	TextAlign     *TextAlignType
 	VerticalAlign *VerticalAlignType
 }
@@ -51,7 +50,6 @@ type Insets struct {
 // baseスタイルをベースに、overlayスタイルのプロパティがnilでない場合に値を上書きします。
 func Merge(base, overlay Style) Style {
 	result := base
-
 	if overlay.Background != nil {
 		result.Background = overlay.Background
 	}
@@ -85,12 +83,10 @@ func Merge(base, overlay Style) Style {
 	if overlay.VerticalAlign != nil {
 		result.VerticalAlign = overlay.VerticalAlign
 	}
-
 	return result
 }
 
 // Validate はスタイルの値が有効かどうかを検証します。
-// 無効な値が見つかった場合はエラーを返します。
 func (s *Style) Validate() error {
 	if s.BorderWidth != nil && *s.BorderWidth < 0 {
 		return fmt.Errorf("border width must be non-negative, got %f", *s.BorderWidth)
@@ -101,22 +97,13 @@ func (s *Style) Validate() error {
 	if s.Opacity != nil && (*s.Opacity < 0 || *s.Opacity > 1.0) {
 		return fmt.Errorf("opacity must be between 0.0 and 1.0, got %f", *s.Opacity)
 	}
-	if s.Margin != nil && (s.Margin.Top < 0 || s.Margin.Right < 0 || s.Margin.Bottom < 0 || s.Margin.Left < 0) {
-		return fmt.Errorf("margin values must be non-negative, got %v", *s.Margin)
-	}
-	if s.Padding != nil && (s.Padding.Top < 0 || s.Padding.Right < 0 || s.Padding.Bottom < 0 || s.Padding.Left < 0) {
-		return fmt.Errorf("padding values must be non-negative, got %v", *s.Padding)
-	}
 	return nil
 }
 
 // DeepCopy はスタイルのディープコピーを生成します。
-// ポインタフィールドが指す先の値もコピーされるため、
-// コピー元のスタイルに影響を与えることなく安全に変更できます。
-// font.Faceはインターフェースでありコピーできないため、ポインタは共有されます。
+// これにより、コピー元のスタイルに影響を与えることなく安全に変更できます。
 func (s Style) DeepCopy() Style {
-	newStyle := s // シャローコピーで基本構造をコピー
-
+	newStyle := s
 	if s.Background != nil {
 		newStyle.Background = PColor(*s.Background)
 	}
@@ -132,8 +119,6 @@ func (s Style) DeepCopy() Style {
 	if s.Padding != nil {
 		newStyle.Padding = PInsets(*s.Padding)
 	}
-	// s.Font (*font.Face) はインターフェースなのでディープコピーしない（できない）
-	// ポインタのコピー（シャローコピー）のままとする
 	if s.TextColor != nil {
 		newStyle.TextColor = PColor(*s.TextColor)
 	}
@@ -149,46 +134,18 @@ func (s Style) DeepCopy() Style {
 	if s.VerticalAlign != nil {
 		newStyle.VerticalAlign = PVerticalAlignType(*s.VerticalAlign)
 	}
-
+	// s.Font (*font.Face) はインターフェースなのでディープコピーしない
 	return newStyle
 }
 
 // --- Pointer Helpers ---
-// 以下のヘルパー関数は、スタイル設定をより直感的かつシンプルにするために提供されます。
 // これらを使用することで、一時変数を宣言することなく、直接スタイル構造体に値を設定できます。
 // 例: style.Style{ Background: style.PColor(color.White) }
 
-// PColor は color.Color の値からそのポインタを生成して返します。
-func PColor(c color.Color) *color.Color {
-	return &c
-}
-
-// PFloat32 は float32 の値からそのポインタを生成して返します。
-func PFloat32(f float32) *float32 {
-	return &f
-}
-
-// PFloat64 は float64 の値からそのポインタを生成して返します。
-func PFloat64(f float64) *float64 {
-	return &f
-}
-
-// PInsets は Insets の値からそのポインタを生成して返します。
-func PInsets(i Insets) *Insets {
-	return &i
-}
-
-// PFont は font.Face の値からそのポインタを生成して返します。
-func PFont(f font.Face) *font.Face {
-	return &f
-}
-
-// PTextAlignType は TextAlignType の値からそのポインタを生成して返します。
-func PTextAlignType(t TextAlignType) *TextAlignType {
-	return &t
-}
-
-// PVerticalAlignType は VerticalAlignType の値からそのポインタを生成して返します。
-func PVerticalAlignType(v VerticalAlignType) *VerticalAlignType {
-	return &v
-}
+func PColor(c color.Color) *color.Color                         { return &c }
+func PFloat32(f float32) *float32                               { return &f }
+func PFloat64(f float64) *float64                               { return &f }
+func PInsets(i Insets) *Insets                                  { return &i }
+func PFont(f font.Face) *font.Face                              { return &f }
+func PTextAlignType(t TextAlignType) *TextAlignType             { return &t }
+func PVerticalAlignType(v VerticalAlignType) *VerticalAlignType { return &v }

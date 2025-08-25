@@ -7,31 +7,22 @@ import (
 	"furoshiki/widget"
 )
 
-// 【改善】このファイルは、レイアウトごとに特化した型付きビルダーを提供します。
+// このファイルは、レイアウトごとに特化した型付きビルダーを提供します。
 // これにより、例えばGridのコンテキストでFlexbox用のメソッドを呼び出すといった
 // 間違いをコンパイル時に防ぎ、APIの型安全性を向上させます。
 
-// =================================================================
-//
-//	共通ヘルパー関数 (非公開)
-//
-// =================================================================
+// --- 共通ヘルパー (非公開) ---
 
-// builderConstraint は、uiパッケージ内のすべての型付きビルダーが満たすべき振る舞いを定義します。
 type builderConstraint interface {
 	component.ErrorAdder
 	component.WidgetContainer
 }
 
-// buildContainerAndBuilder は、指定されたレイアウトでコンテナとビルダーを初期化する内部ヘルパーです。
-// 【修正】型パラメータ`B`は構造体型、`PB`はそのポインタ型を想定しています。
 func buildContainerAndBuilder[B any, PB interface {
 	*B
 	component.BuilderInitializer[*B, *container.Container]
 }](l layout.Layout, buildFunc func(PB)) PB {
-	c := &container.Container{}
-	c.LayoutableWidget = component.NewLayoutableWidget()
-	c.Init(c)
+	c := container.NewContainer()
 	c.SetLayout(l)
 
 	var b PB = new(B)
@@ -43,7 +34,6 @@ func buildContainerAndBuilder[B any, PB interface {
 	return b
 }
 
-// addWidget は、ウィジェットをビルドして親ビルダーに追加する共通ロジックです。
 func addWidget[B builderConstraint, W component.Widget, WB interface {
 	component.BuilderFinalizer[W]
 	component.ErrorAdder
@@ -53,9 +43,6 @@ func addWidget[B builderConstraint, W component.Widget, WB interface {
 	parentBuilder.AddChild(widget)
 }
 
-// addNestedContainer は、ネストされたコンテナを追加する共通ロジックです。
-// 【修正】型パラメータ`C`の制約を`component.Widget`に変更しました。
-// `*container.Container`は`component.Widget`を満たすため、これは有効です。
 func addNestedContainer[B builderConstraint, C component.Widget, CB interface {
 	component.BuilderFinalizer[C]
 	component.ErrorAdder
@@ -65,11 +52,7 @@ func addNestedContainer[B builderConstraint, C component.Widget, CB interface {
 	parentBuilder.AddChild(containerWidget)
 }
 
-// =================================================================
-//
-//	FlexBuilder (VStack, HStack用)
-//
-// =================================================================
+// --- FlexBuilder (VStack, HStack用) ---
 
 type FlexBuilder struct {
 	component.Builder[*FlexBuilder, *container.Container]
@@ -77,17 +60,14 @@ type FlexBuilder struct {
 
 func VStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
 	flexLayout := &layout.FlexLayout{Direction: layout.DirectionColumn}
-	// 【修正】型パラメータには構造体型`FlexBuilder`を渡します。
-	return buildContainerAndBuilder(flexLayout, buildFunc)
+	return buildContainerAndBuilder[FlexBuilder](flexLayout, buildFunc)
 }
 
 func HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
 	flexLayout := &layout.FlexLayout{Direction: layout.DirectionRow}
-	// 【修正】型パラメータには構造体型`FlexBuilder`を渡します。
-	return buildContainerAndBuilder(flexLayout, buildFunc)
+	return buildContainerAndBuilder[FlexBuilder](flexLayout, buildFunc)
 }
 
-// --- FlexBuilder Methods ---
 func (b *FlexBuilder) AddChild(child component.Widget) {
 	if child != nil {
 		b.Widget.AddChild(child)
@@ -168,15 +148,9 @@ func (b *FlexBuilder) AlignItems(alignment layout.Alignment) *FlexBuilder {
 	}
 	return b
 }
-func (b *FlexBuilder) Build() (*container.Container, error) {
-	return b.Builder.Build()
-}
+func (b *FlexBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
 
-// =================================================================
-//
-//	GridBuilder (Grid用)
-//
-// =================================================================
+// --- GridBuilder (Grid用) ---
 
 type GridBuilder struct {
 	component.Builder[*GridBuilder, *container.Container]
@@ -184,11 +158,9 @@ type GridBuilder struct {
 
 func Grid(buildFunc func(*GridBuilder)) *GridBuilder {
 	gridLayout := &layout.GridLayout{Columns: 1}
-	// 【修正】型パラメータには構造体型`GridBuilder`を渡します。
-	return buildContainerAndBuilder(gridLayout, buildFunc)
+	return buildContainerAndBuilder[GridBuilder](gridLayout, buildFunc)
 }
 
-// --- GridBuilder Methods ---
 func (b *GridBuilder) AddChild(child component.Widget) {
 	if child != nil {
 		b.Widget.AddChild(child)
@@ -212,8 +184,6 @@ func (b *GridBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *GridBuilder
 	addWidget(b, builder)
 	return b
 }
-
-// Note: Spacer() is omitted as it has no effect in GridLayout.
 func (b *GridBuilder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *GridBuilder {
 	builder := widget.NewScrollViewBuilder()
 	if buildFunc != nil {
@@ -274,26 +244,18 @@ func (b *GridBuilder) VerticalGap(gap int) *GridBuilder {
 	}
 	return b
 }
-func (b *GridBuilder) Build() (*container.Container, error) {
-	return b.Builder.Build()
-}
+func (b *GridBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
 
-// =================================================================
-//
-//	ZStackBuilder (ZStack用)
-//
-// =================================================================
+// --- ZStackBuilder (ZStack用) ---
 
 type ZStackBuilder struct {
 	component.Builder[*ZStackBuilder, *container.Container]
 }
 
 func ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
-	// 【修正】型パラメータには構造体型`ZStackBuilder`を渡します。
-	return buildContainerAndBuilder(&layout.AbsoluteLayout{}, buildFunc)
+	return buildContainerAndBuilder[ZStackBuilder](&layout.AbsoluteLayout{}, buildFunc)
 }
 
-// --- ZStackBuilder Methods ---
 func (b *ZStackBuilder) AddChild(child component.Widget) {
 	if child != nil {
 		b.Widget.AddChild(child)
@@ -317,10 +279,6 @@ func (b *ZStackBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *ZStackBui
 	addWidget(b, builder)
 	return b
 }
-
-// 【新規追加】ZStackBuilderに他のコンテナやウィジェットを追加するメソッドを拡張しました。
-// これにより、FlexBuilderなど他のビルダーとのAPIの一貫性が向上し、
-// ZStack内でより複雑なレイアウトを宣言的に構築できるようになります。
 func (b *ZStackBuilder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *ZStackBuilder {
 	builder := widget.NewScrollViewBuilder()
 	if buildFunc != nil {
@@ -345,7 +303,4 @@ func (b *ZStackBuilder) Grid(buildFunc func(*GridBuilder)) *ZStackBuilder {
 	addNestedContainer(b, Grid(buildFunc))
 	return b
 }
-
-func (b *ZStackBuilder) Build() (*container.Container, error) {
-	return b.Builder.Build()
-}
+func (b *ZStackBuilder) Build() (*container.Container, error) { return b.Builder.Build() }

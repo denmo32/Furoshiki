@@ -18,9 +18,7 @@ import (
 
 // Game はEbitenのゲーム構造体を保持します。
 type Game struct {
-	root component.Widget // UIツリーのルート
-
-	// AssignToで紐付けられ、動的に更新されるウィジェットへの参照
+	root             component.Widget
 	detailTitleLabel *widget.Label
 	detailInfoLabel  *widget.Label
 }
@@ -29,25 +27,21 @@ type Game struct {
 func NewGame() *Game {
 	g := &Game{}
 
-	// --- 1. テーマとフォントの準備 ---
 	appTheme := theme.GetCurrent()
 	appTheme.SetDefaultFont(basicfont.Face7x13)
 	theme.SetCurrent(appTheme)
 
-	// --- 2. UIの宣言的な構築 ---
-	// 【修正済み】buildFuncの引数は、型安全な *ui.FlexBuilder になっています。
 	root, err := ui.HStack(func(b *ui.FlexBuilder) {
 		b.Size(800, 600).
 			BackgroundColor(appTheme.BackgroundColor).
 			Padding(10).
-			Gap(10) // FlexBuilderなのでGap()を安全に呼び出せます
+			Gap(10)
 
-		// --- 左ペイン：スクロールビュー ---
+		// 左ペイン：スクロールビュー
 		b.ScrollView(func(sv *widget.ScrollViewBuilder) {
 			sv.Size(250, 580).
 				Border(1, color.Gray{Y: 200})
 
-			// 【修正済み】ネストされたVStackのbuildFuncも、*ui.FlexBuilderを受け取ります。
 			content, _ := ui.VStack(func(b *ui.FlexBuilder) {
 				b.Padding(8).Gap(5)
 
@@ -72,8 +66,7 @@ func NewGame() *Game {
 			sv.Content(content)
 		})
 
-		// --- 右ペイン：詳細表示エリア ---
-		// 【修正済み】ネストされたVStackのbuildFuncも、*ui.FlexBuilderを受け取ります。
+		// 右ペイン：詳細表示エリア
 		b.VStack(func(b *ui.FlexBuilder) {
 			b.Flex(1).
 				Padding(10).
