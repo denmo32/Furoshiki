@@ -28,8 +28,11 @@ func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
 // イベントがまだ処理されていない（e.Handled == false）場合、親ウィジェットの
 // HandleEventメソッドを再帰的に呼び出します。
 func (w *LayoutableWidget) HandleEvent(e *event.Event) {
-	// 状態管理ロジックはDispatcherに集約されたため削除。
-	// このメソッドは、登録されたカスタムイベントハンドラの実行に専念します。
+	// 【ログ追加】どのウィジェットがどのイベントを受け取ったかを出力します
+	//if e.Type == event.MouseScroll { // スクロールイベントのみに絞ってログ出力
+	//	log.Printf("[LayoutableWidget] HandleEvent called for %T. Event type: MouseScroll, Handled: %t", w.self, e.Handled)
+	//}
+
 	if handler, exists := w.eventHandlers[e.Type]; exists {
 		defer func() {
 			if r := recover(); r != nil {
@@ -43,6 +46,10 @@ func (w *LayoutableWidget) HandleEvent(e *event.Event) {
 	// イベントがこのウィジェットで処理されておらず（Handledがfalse）、
 	// かつ親ウィジェットが存在する場合に、イベントを親に伝播させます。
 	if e != nil && !e.Handled && w.hierarchy.parent != nil {
+		// 【ログ追加】イベントが親に伝播する直前にログを出力します
+		//if e.Type == event.MouseScroll { // スクロールイベントのみに絞ってログ出力
+		//	log.Printf("[LayoutableWidget] Event not handled by %T. Bubbling up to parent %T.", w.self, w.hierarchy.parent)
+		//}
 		w.hierarchy.parent.HandleEvent(e)
 	}
 }

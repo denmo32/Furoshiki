@@ -2,7 +2,6 @@ package layout
 
 import (
 	"furoshiki/component"
-	"reflect"
 )
 
 // getVisibleChildren は、コンテナから表示状態の子ウィジェットのみを抽出し、
@@ -23,13 +22,4 @@ func getVisibleChildren(container Container) []component.Widget {
 		}
 	}
 	return visibleChildren
-}
-
-// 【追加】リフレクションのインポートが必要な場合
-func getWidgetTypeName(v interface{}) string {
-	if t := reflect.TypeOf(v); t.Kind() == reflect.Ptr {
-		return "*" + t.Elem().Name()
-	} else {
-		return t.Name()
-	}
 }

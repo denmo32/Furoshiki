@@ -2,44 +2,62 @@ package widget
 
 import (
 	"furoshiki/component"
+	"furoshiki/container"
 	"furoshiki/event"
 	"furoshiki/layout"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// ScrollView は、独立したコンテナとして再実装されました。
+// ScrollView は、コンテンツをスクロール表示するためのコンテナウィジェットです。
+// 汎用的な container.Container を埋め込むことで、基本的なコンテナ機能を継承します。
 type ScrollView struct {
-	*component.LayoutableWidget
-	children         []component.Widget
+	*container.Container
+
+	// スクロールビュー固有のプロパティ
 	contentContainer component.Widget
 	vScrollBar       component.ScrollBarWidget
-	clipsChildren    bool
-	offscreenImage   *ebiten.Image
 	scrollY          float64
 	contentHeight    int
-	// 【追加】レイアウトマネージャを保持するためのフィールド
-	layout layout.Layout
 }
 
 // コンパイル時にインターフェースの実装を検証します。
 var _ component.Container = (*ScrollView)(nil)
 var _ layout.ScrollViewer = (*ScrollView)(nil)
+var _ container.Scroller = (*ScrollView)(nil)
 
 // NewScrollView はScrollViewのインスタンスを生成します。
 func NewScrollView() *ScrollView {
-	sv := &ScrollView{
-		clipsChildren: true,
-	}
-	sv.LayoutableWidget = component.NewLayoutableWidget(sv)
-	// 【修正】sv自身に実装されたSetLayoutメソッドを呼び出します。
+	sv := &ScrollView{}
+	c := &container.Container{}
+	// `self` として `sv` を渡すことで、ヒットテスト等が正しく `*ScrollView` を返すようになります。
+	c.LayoutableWidget = component.NewLayoutableWidget(sv)
+	sv.Container = c
 	sv.SetLayout(&layout.ScrollViewLayout{})
 
 	vScrollBar, _ := NewScrollBarBuilder().Build()
 	sv.vScrollBar = vScrollBar
 	sv.AddChild(vScrollBar)
+	sv.SetClipsChildren(true)
 
 	return sv
+}
+
+// 【重要修正】AddChild をオーバーライドします。
+//
+// このメソッドは、埋め込まれた container.Container の AddChild の振る舞いを拡張します。
+// container.Container の AddChild は、子の親を「コンテナ自身」に設定します。
+// しかし ScrollView の場合、子の親は「ScrollView インスタンス (sv)」であるべきです。
+//
+// このオーバーライドにより、子の親ポインタが正しく設定され、イベントのバブリングが
+// この ScrollView のカスタム HandleEvent メソッドを正しく呼び出すようになります。
+func (sv *ScrollView) AddChild(child component.Widget) {
+	// 埋め込まれたコンテナのロジックを呼び出して、子リストへの追加や
+	// 古い親からのデタッチ処理を行います。
+	sv.Container.AddChild(child)
+
+	// 親ポインタが ScrollView 自身を指しているか確認し、異なっていれば修正します。
+	if child != nil && child.GetParent() != sv {
+		child.SetParent(sv)
+	}
 }
 
 // SetContent は、スクロールさせるコンテンツコンテナを設定します。
@@ -48,177 +66,54 @@ func (sv *ScrollView) SetContent(content component.Widget) {
 		sv.RemoveChild(sv.contentContainer)
 	}
 	sv.contentContainer = content
+
 	if content != nil {
-		// コンテンツはスクロールバーより手前に描画するため、子リストの先頭に追加
-		sv.children = append([]component.Widget{content}, sv.children...)
-		content.SetParent(sv)
-		sv.MarkDirty(true)
+		// 上記でオーバーライドした AddChild が呼ばれます。
+		sv.AddChild(content)
+		sv.AddChild(sv.vScrollBar)
 	}
+	sv.MarkDirty(true)
 }
 
-// Update はウィジェットの状態を更新します。
+// Update は、埋め込み先の Update を呼び出す前に、
+// 自身のレイアウト処理を正しい引数で実行するようオーバーライドします。
 func (sv *ScrollView) Update() {
 	if !sv.IsVisible() {
 		return
 	}
 	if sv.IsDirty() {
 		if sv.NeedsRelayout() {
-			// 自身のレイアウト（ScrollViewLayout）を実行
 			if l := sv.GetLayout(); l != nil {
-				l.Layout(sv)
+				l.Layout(sv) // 引数として `sv` 自身を渡す
 			}
 		}
 		sv.ClearDirty()
 	}
-	// 子要素のUpdateを呼び出す
-	for _, child := range sv.children {
+	for _, child := range sv.GetChildren() {
 		child.Update()
 	}
 }
 
-// 【追加】SetLayoutは、このコンテナが使用するレイアウトマネージャを設定します。
-func (sv *ScrollView) SetLayout(l layout.Layout) {
-	sv.layout = l
-}
-
-// 【修正】GetLayoutは、このコンテナが保持しているレイアウトマネージャを返します。
-func (sv *ScrollView) GetLayout() layout.Layout {
-	return sv.layout
-}
-
-// DrawはScrollViewと子要素を描画します。
-func (sv *ScrollView) Draw(screen *ebiten.Image) {
-	if !sv.IsVisible() || !sv.HasBeenLaidOut() {
-		return
-	}
-
-	x, y := sv.GetPosition()
-	w, h := sv.GetSize()
-
-	// 背景描画
-	component.DrawStyledBackground(screen, x, y, w, h, sv.GetStyle())
-
-	// クリッピング描画
-	if sv.clipsChildren {
-		sv.drawWithClipping(screen)
-	} else {
-		for _, child := range sv.children {
-			child.Draw(screen)
-		}
-	}
-}
-
-// drawWithClipping はクリッピングを行いながら描画します。
-func (sv *ScrollView) drawWithClipping(screen *ebiten.Image) {
-	containerX, containerY := sv.GetPosition()
-	containerWidth, containerHeight := sv.GetSize()
-	if containerWidth <= 0 || containerHeight <= 0 {
-		return
-	}
-
-	if sv.offscreenImage == nil || sv.offscreenImage.Bounds().Dx() != containerWidth || sv.offscreenImage.Bounds().Dy() != containerHeight {
-		if sv.offscreenImage != nil {
-			sv.offscreenImage.Deallocate()
-		}
-		sv.offscreenImage = ebiten.NewImage(containerWidth, containerHeight)
-	}
-	sv.offscreenImage.Clear()
-
-	// 子要素をオフスクリーンに描画
-	for _, child := range sv.children {
-		originalX, originalY := child.GetPosition()
-		relativeX := originalX - containerX
-		relativeY := originalY - containerY
-
-		child.SetPosition(relativeX, relativeY)
-		child.Draw(sv.offscreenImage)
-		child.SetPosition(originalX, originalY)
-	}
-
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(containerX), float64(containerY))
-	screen.DrawImage(sv.offscreenImage, opts)
-}
-
-// HandleEvent はイベントを処理します。
+// HandleEvent は、ScrollView 固有のスクロール処理と、
+// 埋め込みコンテナの標準的なイベント処理（バブリング等）を両立させます。
 func (sv *ScrollView) HandleEvent(e *event.Event) {
-	// 自身のカスタムハンドラをまず呼び出す
-	sv.LayoutableWidget.HandleEvent(e)
-	if e.Handled {
-		return
-	}
-	// マウスホイールイベントを処理
-	if e.Type == event.MouseScroll {
-		scrollAmount := e.ScrollY * 20
+	// Step 1: このウィジェット固有のイベント処理を先に行います。
+	if !e.Handled && e.Type == event.MouseScroll {
+		scrollAmount := e.ScrollY * 20 // スクロール感度
 		sv.scrollY -= scrollAmount
-		sv.MarkDirty(true)
-		e.Handled = true
+		sv.MarkDirty(true) // 再レイアウトを要求
+		e.Handled = true   // イベントを処理済みとしてマーク
 	}
-	// 子要素へのイベント伝播はLayoutableWidget.HandleEventが親を辿る形で行うのでここでは不要
+
+	// Step 2: 埋め込まれたコンテナの標準的なイベント処理を呼び出します。
+	// これにより、カスタムハンドラが実行されたり、このウィジェットが
+	// 処理しなかったイベントが親へ正しくバブリングされたりします。
+	sv.Container.HandleEvent(e)
 }
 
-// HitTest
+// HitTest は、埋め込み先のメソッドをそのまま呼び出します。
 func (sv *ScrollView) HitTest(x, y int) component.Widget {
-	if !sv.IsVisible() {
-		return nil
-	}
-	for i := len(sv.children) - 1; i >= 0; i-- {
-		child := sv.children[i]
-		if !child.IsVisible() {
-			continue
-		}
-		if target := child.HitTest(x, y); target != nil {
-			return target
-		}
-	}
-	if sv.LayoutableWidget.HitTest(x, y) != nil {
-		return sv
-	}
-	return nil
-}
-
-// --- component.Container interface implementation ---
-func (sv *ScrollView) AddChild(child component.Widget) {
-	if child == nil {
-		return
-	}
-	if oldParent := child.GetParent(); oldParent != nil {
-		oldParent.RemoveChild(child)
-	}
-	child.SetParent(sv)
-	sv.children = append(sv.children, child)
-	sv.MarkDirty(true)
-}
-
-func (sv *ScrollView) RemoveChild(child component.Widget) {
-	if child == nil {
-		return
-	}
-	for i, currentChild := range sv.children {
-		if currentChild == child {
-			sv.children = append(sv.children[:i], sv.children[i+1:]...)
-			child.SetParent(nil)
-			sv.MarkDirty(true)
-			return
-		}
-	}
-}
-
-func (sv *ScrollView) GetChildren() []component.Widget {
-	return sv.children
-}
-
-// Cleanup
-func (sv *ScrollView) Cleanup() {
-	for _, child := range sv.children {
-		child.Cleanup()
-	}
-	sv.children = nil
-	if sv.offscreenImage != nil {
-		sv.offscreenImage.Deallocate()
-		sv.offscreenImage = nil
-	}
-	sv.LayoutableWidget.Cleanup()
+	return sv.Container.HitTest(x, y)
 }
 
 // --- layout.ScrollViewer interface implementation ---
@@ -232,20 +127,16 @@ func (sv *ScrollView) GetScrollY() float64 {
 	return sv.scrollY
 }
 func (sv *ScrollView) SetScrollY(y float64) {
-	sv.scrollY = y
+	if sv.scrollY != y {
+		sv.scrollY = y
+		sv.MarkDirty(false)
+	}
 }
 func (sv *ScrollView) SetContentHeight(h int) {
 	sv.contentHeight = h
 }
-func (sv *ScrollView) GetPadding() layout.Insets {
-	style := sv.GetStyle()
-	if style.Padding != nil {
-		return layout.Insets{
-			Top:    style.Padding.Top,
-			Right:  style.Padding.Right,
-			Bottom: style.Padding.Bottom,
-			Left:   style.Padding.Left,
-		}
-	}
-	return layout.Insets{}
+
+// --- container.Scroller interface implementation ---
+func (sv *ScrollView) GetScrollOffset() (x, y int) {
+	return 0, -int(sv.scrollY)
 }
