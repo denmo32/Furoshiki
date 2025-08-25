@@ -322,3 +322,15 @@ func (c *Container) GetPadding() layout.Insets {
 	// パディングが設定されていない場合は、ゼロ値のInsetsを返します。
 	return layout.Insets{}
 }
+
+// NewContainer は、ビルダーを使わずに新しいContainerインスタンスを生成します。
+// 主に、他のウィジェットが内部的にコンテナを必要とする場合に使用されます。
+func NewContainer() *Container {
+	c := &Container{
+		children: make([]component.Widget, 0),
+	}
+	c.LayoutableWidget = component.NewLayoutableWidget()
+	c.Init(c)
+	c.layout = &layout.FlexLayout{} // デフォルトはFlexLayout
+	return c
+}
