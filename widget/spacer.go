@@ -30,8 +30,9 @@ type SpacerBuilder struct {
 func NewSpacerBuilder() *SpacerBuilder {
 	// Spacerインスタンスを作成します。
 	s := &Spacer{}
-	// Spacer自身をselfとして渡してLayoutableWidgetを初期化します。
-	s.LayoutableWidget = component.NewLayoutableWidget(s)
+	// 【改善】LayoutableWidgetを初期化し、Initメソッドでself参照を設定します。
+	s.LayoutableWidget = component.NewLayoutableWidget()
+	s.Init(s)
 
 	b := &SpacerBuilder{}
 	// 汎用ビルダーを初期化し、メソッドチェーンを可能にします。

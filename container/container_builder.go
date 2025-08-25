@@ -16,7 +16,10 @@ func NewContainerBuilder() *ContainerBuilder {
 	c := &Container{
 		children: make([]component.Widget, 0),
 	}
-	c.LayoutableWidget = component.NewLayoutableWidget(c)
+	// 【改善】コンストラクタからself引数を削除し、Initメソッドでself参照を設定する方式に統一します。
+	// これにより、コンパイルエラーが解消され、初期化ロジックが直感的になります。
+	c.LayoutableWidget = component.NewLayoutableWidget()
+	c.Init(c) // ContainerはLayoutableWidgetを埋め込んでいるため、Initメソッドを直接呼び出せます。
 	c.layout = &layout.FlexLayout{} // Default layout
 
 	b := &ContainerBuilder{}

@@ -17,11 +17,12 @@ type TextWidget struct {
 	text string
 }
 
-// NewTextWidget は新しいTextWidgetを生成します。
-// 第一引数には、このTextWidgetを埋め込む具象ウィジェット(self)への参照を取ります。
-func NewTextWidget(self Widget, text string) *TextWidget {
+// 【改善】NewTextWidget は新しいTextWidgetを生成します。
+// self の設定は、このTextWidgetを埋め込む具象ウィジェット側でInit()を呼び出すことで行います。
+func NewTextWidget(text string) *TextWidget {
 	return &TextWidget{
-		LayoutableWidget: NewLayoutableWidget(self),
+		// NewLayoutableWidgetはselfを引数に取らなくなりました。
+		LayoutableWidget: NewLayoutableWidget(),
 		text:             text,
 	}
 }

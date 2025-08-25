@@ -67,7 +67,9 @@ func NewScrollBarBuilder() *ScrollBarBuilder {
 		trackColor: color.RGBA{R: 220, G: 220, B: 220, A: 255},
 		thumbColor: color.RGBA{R: 180, G: 180, B: 180, A: 255},
 	}
-	s.LayoutableWidget = component.NewLayoutableWidget(s)
+	// 【改善】LayoutableWidgetを初期化し、Initメソッドでself参照を設定します。
+	s.LayoutableWidget = component.NewLayoutableWidget()
+	s.Init(s)
 	s.SetSize(10, 100)
 
 	b := &ScrollBarBuilder{}

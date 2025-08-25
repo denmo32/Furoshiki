@@ -20,19 +20,20 @@ var _ Scroller = (*ScrollableContainer)(nil)
 
 // NewScrollableContainer は新しいScrollableContainerを作成します
 func NewScrollableContainer() *ScrollableContainer {
-	// NewContainerBuilderを使ってコンテナを作成
-	builder := NewContainerBuilder()
-	// 【改善】ビルダーに直接 self を渡すことはできないため、
-	// ScrollableContainer がイベントやヒットテストで自身を正しく返すためには、
-	// 生成後に self を差し替えるか、ビルダーを使わずに構築する必要があります。
-	// (この改善案のスコープ外ですが、ライブラリ全体の課題として認識する価値があります)
-	// ここでは既存の構築方法を維持します。
-	container, _ := builder.Build()
-
+	// 【改善】ビルダーを使わずに直接構築することで、`self`参照を正しく設定します。
 	sc := &ScrollableContainer{
-		Container: container,
-		scrollY:   0,
+		scrollY: 0,
 	}
+
+	// 埋め込むContainerのインスタンスを生成します。
+	container := &Container{
+		children: make([]component.Widget, 0),
+	}
+	// LayoutableWidgetを初期化し、`self`として`sc` (*ScrollableContainer) 自身を渡します。
+	// これにより、イベントやヒットテストが正しく ScrollableContainer を参照するようになります。
+	container.LayoutableWidget = component.NewLayoutableWidget()
+	container.Init(sc)
+	sc.Container = container
 
 	// コンテナのクリッピングを有効にする
 	sc.SetClipsChildren(true)

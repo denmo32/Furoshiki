@@ -20,8 +20,9 @@ type Builder struct {
 func buildContainerAndBuilder(l layout.Layout, buildFunc func(*Builder)) *Builder {
 	// 1. UIの基礎となるContainerウィジェットを作成します。
 	c := &container.Container{}
-	// Container自身をselfとして渡して、基本的なウィジェット機能を初期化します。
-	c.LayoutableWidget = component.NewLayoutableWidget(c)
+	// 【改善】Containerのインスタンスを生成後、Initメソッドを呼び出してself参照を設定します。
+	c.LayoutableWidget = component.NewLayoutableWidget()
+	c.Init(c)
 	// 指定されたレイアウトを設定します。
 	c.SetLayout(l)
 

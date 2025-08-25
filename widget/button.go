@@ -49,8 +49,10 @@ func NewButtonBuilder() *ButtonBuilder {
 	button := &Button{
 		stateStyles: make(map[component.WidgetState]style.Style),
 	}
-	// ボタン自身をselfとして渡してTextWidgetを初期化
-	button.TextWidget = component.NewTextWidget(button, "")
+	// 【改善】selfを渡さずにTextWidgetを初期化し、その後でbutton自身の参照を渡してInitを呼び出します。
+	// これにより初期化プロセスが統一されます。
+	button.TextWidget = component.NewTextWidget("")
+	button.Init(button) // ButtonはLayoutableWidgetを埋め込んでいるため、Initメソッドを直接呼び出せます。
 
 	// --- テーマから各状態のデフォルトスタイルを取得し、設定します ---
 	// この時点で全てのインタラクティブな状態に対応するスタイルがマップに設定されるため、

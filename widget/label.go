@@ -23,8 +23,9 @@ type LabelBuilder struct {
 func NewLabelBuilder() *LabelBuilder {
 	// まずラベルインスタンスを作成
 	label := &Label{}
-	// 次に、ラベル自身をselfとして渡してTextWidgetを初期化
-	label.TextWidget = component.NewTextWidget(label, "")
+	// 【改善】次に、TextWidgetを初期化し、その後でInitメソッドを呼び出してself参照を設定します。
+	label.TextWidget = component.NewTextWidget("")
+	label.Init(label)
 
 	// --- テーマからスタイルを取得 ---
 	t := theme.GetCurrent()

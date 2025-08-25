@@ -27,9 +27,16 @@ var _ container.Scroller = (*ScrollView)(nil)
 // NewScrollView はScrollViewのインスタンスを生成します。
 func NewScrollView() *ScrollView {
 	sv := &ScrollView{}
+	// 【エラー修正】 container.Containerの非公開フィールド(children)を構造体リテラルで
+	// 初期化しようとしていたため、コンパイルエラーが発生していました。
+	// このフィールドへの代入を削除します。childrenスライスはnilとして初期化されますが、
+	// AddChildメソッド内のappend関数はnilスライスに対しても安全に動作するため問題ありません。
 	c := &container.Container{}
-	// `self` として `sv` を渡すことで、ヒットテスト等が正しく `*ScrollView` を返すようになります。
-	c.LayoutableWidget = component.NewLayoutableWidget(sv)
+
+	// 【改善】LayoutableWidgetを初期化し、`self`としてsv (*ScrollView) を渡してInitを呼び出します。
+	// これにより、ヒットテストやイベント処理が正しくScrollViewのメソッドを呼び出すようになります。
+	c.LayoutableWidget = component.NewLayoutableWidget()
+	c.Init(sv)
 	sv.Container = c
 	sv.SetLayout(&layout.ScrollViewLayout{})
 

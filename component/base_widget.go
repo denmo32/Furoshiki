@@ -72,19 +72,30 @@ type hierarchy struct {
 	parent Container
 }
 
-// NewLayoutableWidget は、デフォルト値で LayoutableWidget を初期化します。
-// 引数には、この構造体を埋め込む具象ウィジェット自身のインスタンス(self)を渡す必要があります。
-func NewLayoutableWidget(self Widget) *LayoutableWidget {
-	if self == nil {
-		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、パニックを発生させます。
-		// これは、ウィジェットのコンストラクタが常に正しいインスタンスを渡すことを強制する設計上の決定です。
-		panic("NewLayoutableWidget: self cannot be nil")
-	}
+// 【改善】NewLayoutableWidget は、self引数を取らずに LayoutableWidget を初期化します。
+// self参照は、後からInitメソッドを呼び出して設定します。
+func NewLayoutableWidget() *LayoutableWidget {
 	return &LayoutableWidget{
-		self: self,
 		// isVisibleはデフォルトでtrue、hasBeenLaidOutはレイアウト計算が行われるまでfalseで初期化します。
 		// dirtyLevelはデフォルトでcleanです。
 		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: clean},
 		eventHandlers: make(map[event.EventType]event.EventHandler),
 	}
+}
+
+// 【改善】Initは、LayoutableWidgetが埋め込まれる具象ウィジェットへの参照(self)を
+// 安全に設定するためのメソッドです。これにより、コンストラクタのシグネチャがシンプルになり、
+// ウィジェットの初期化手順が統一されます。
+func (w *LayoutableWidget) Init(self Widget) {
+	if self == nil {
+		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、パニックを発生させます。
+		// これは、ウィジェットのコンストラクタが常に正しいインスタンスを渡すことを強制する設計上の決定です。
+		panic("LayoutableWidget.Init: self cannot be nil")
+	}
+	if w.self != nil {
+		// 既に初期化されている場合に再度Initを呼び出すのは、意図しない使われ方である可能性が高いため、
+		// 安全のためにパニックさせます。
+		panic("LayoutableWidget.Init: widget has already been initialized")
+	}
+	w.self = self
 }
