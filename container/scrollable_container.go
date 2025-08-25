@@ -138,32 +138,15 @@ func (sc *ScrollableContainer) CanScroll() bool {
 // 埋め込まれたContainerのDrawメソッドが自動的に呼び出されます。
 // その際、Scrollerインターフェースを通じてGetScrollOffsetが呼び出され、
 // スクロールが適用されたクリッピング描画が実行されます。
-/*
-func (sc *ScrollableContainer) Draw(screen *ebiten.Image) {
-	// ... (このメソッド全体が不要になる) ...
-}
-*/
 
 // 【改善】drawChildrenWithClippingメソッドも不要になりました。
 // このロジックは汎用化され、Container.drawWithClippingに統合されました。
-/*
-func (sc *ScrollableContainer) drawChildrenWithClipping(screen *ebiten.Image) {
-    // ... (このメソッド全体が不要になる) ...
-}
-*/
 
 // HandleEvent はマウスホイールイベントを処理します
 func (sc *ScrollableContainer) HandleEvent(e *event.Event) {
-	// 親クラス(Container)のイベント処理を呼び出し、イベントバブリングを機能させます。
-	sc.Container.HandleEvent(e)
-
-	// イベントが既に処理済みの場合は何もしない
-	if e.Handled {
-		return
-	}
-
-	// マウスホイールイベントを処理
-	if e.Type == event.MouseScroll && sc.canScrollY {
+	// Step 1: このウィジェット固有のイベント処理を先に行います。
+	// これにより、イベントが子から親へと伝播する標準的なバブリングの順序に従います。
+	if !e.Handled && e.Type == event.MouseScroll && sc.canScrollY {
 		// マウスホイールのスクロール量を取得
 		scrollAmount := int(e.ScrollY * 30) // スクロール速度を調整
 
@@ -173,9 +156,14 @@ func (sc *ScrollableContainer) HandleEvent(e *event.Event) {
 		// スクロール位置を設定
 		sc.SetScrollPosition(newScrollY)
 
-		// イベントを処理済みとしてマーク
+		// イベントを処理済みとしてマークし、親ウィジェットでの重複処理を防ぎます。
 		e.Handled = true
 	}
+
+	// Step 2: 埋め込まれたコンテナの標準的なイベント処理を呼び出します。
+	// これにより、このウィジェットに登録された他のカスタムハンドラが実行されたり、
+	// このウィジェットが処理しなかったイベントが親へ正しくバブリングされたりします。
+	sc.Container.HandleEvent(e)
 }
 
 // Update はコンテナの状態を更新します
