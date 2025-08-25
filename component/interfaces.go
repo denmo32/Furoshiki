@@ -106,7 +106,9 @@ type HitTester interface {
 type LayoutProperties interface {
 	SetFlex(flex int)
 	GetFlex() int
-	SetRelayoutBoundary(isBoundary bool)
+	// 【改善】SetLayoutBoundary を追加し、SetRelayoutBoundary は後方互換性のために残す
+	SetLayoutBoundary(isBoundary bool)
+	SetRelayoutBoundary(isBoundary bool) // 後方互換性のために残す
 }
 
 // HierarchyManager は階層構造を管理するためのインターフェースです

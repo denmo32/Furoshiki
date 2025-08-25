@@ -19,7 +19,7 @@ func NewContainerBuilder() *ContainerBuilder {
 	// 【改善】コンストラクタからself引数を削除し、Initメソッドでself参照を設定する方式に統一します。
 	// これにより、コンパイルエラーが解消され、初期化ロジックが直感的になります。
 	c.LayoutableWidget = component.NewLayoutableWidget()
-	c.Init(c) // ContainerはLayoutableWidgetを埋め込んでいるため、Initメソッドを直接呼び出せます。
+	c.Init(c)                       // ContainerはLayoutableWidgetを埋め込んでいるため、Initメソッドを直接呼び出せます。
 	c.layout = &layout.FlexLayout{} // Default layout
 
 	b := &ContainerBuilder{}
@@ -45,7 +45,7 @@ func (b *ContainerBuilder) Layout(layout layout.Layout) *ContainerBuilder {
 // AddChild adds a child widget to the container.
 func (b *ContainerBuilder) AddChild(child component.Widget) *ContainerBuilder {
 	if child == nil {
-		b.AddError(errors.New("child cannot be nil"))
+		b.AddError(component.ErrNilChild)
 		return b
 	}
 	b.Widget.AddChild(child)
@@ -56,7 +56,7 @@ func (b *ContainerBuilder) AddChild(child component.Widget) *ContainerBuilder {
 func (b *ContainerBuilder) AddChildren(children ...component.Widget) *ContainerBuilder {
 	for _, child := range children {
 		if child == nil {
-			b.AddError(errors.New("child cannot be nil"))
+			b.AddError(component.ErrNilChild)
 			continue
 		}
 		b.Widget.AddChild(child)
@@ -64,23 +64,31 @@ func (b *ContainerBuilder) AddChildren(children ...component.Widget) *ContainerB
 	return b
 }
 
-// RelayoutBoundary sets the container as a relayout boundary.
-func (b *ContainerBuilder) RelayoutBoundary(isBoundary bool) *ContainerBuilder {
+// 【改善】SetLayoutBoundary はコンテナをレイアウト境界として設定します。
+// メソッド名を SetRelayoutBoundary から SetLayoutBoundary に変更して直感性を向上させました。
+func (b *ContainerBuilder) SetLayoutBoundary(isBoundary bool) *ContainerBuilder {
+	b.Widget.SetLayoutBoundary(isBoundary)
+	return b
+}
+
+// 【改善】SetRelayoutBoundary はコンテナをレイアウト境界として設定します。
+// 後方互換性のために残します。内部的には SetLayoutBoundary を呼び出します。
+func (b *ContainerBuilder) SetRelayoutBoundary(isBoundary bool) *ContainerBuilder {
 	b.Widget.SetRelayoutBoundary(isBoundary)
 	return b
 }
 
-// [新規追加]
-// ClipChildren は、コンテナがその境界外に子要素を描画しないように設定します（クリッピング）。
-// trueに設定すると、子要素はコンテナのパディング領域の内側にのみ描画されます。
-// これは、スクロール可能な領域などを作成する際の基礎となります。
-func (b *ContainerBuilder) ClipChildren(clips bool) *ContainerBuilder {
+// 【改善】SetClipsChildren はコンテナのクリッピング動作を設定します。
+func (b *ContainerBuilder) SetClipsChildren(clips bool) *ContainerBuilder {
 	b.Widget.SetClipsChildren(clips)
 	return b
 }
 
-// Build finalizes the container construction.
+// Build はコンテナの構築を完了します。
 func (b *ContainerBuilder) Build() (*Container, error) {
-	// The embedded builder's Build method returns (W, error), which is (*Container, error)
-	return b.Builder.Build()
+	widget, err := b.Builder.Build()
+	if err != nil {
+		return nil, err
+	}
+	return widget, nil
 }

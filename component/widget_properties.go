@@ -16,7 +16,7 @@ func max(a, b int) int {
 // SetPosition はウィジェットの絶対座標を設定します。
 // 座標が変更された場合、再描画を要求します（レイアウトの再計算は不要）。
 // このメソッドはレイアウトシステムによって呼び出されるため、ここで初めてウィジェットが
-//「レイアウト済み」であるとマークします。
+// 「レイアウト済み」であるとマークします。
 func (w *LayoutableWidget) SetPosition(x, y int) {
 	// 初めて位置が設定される（＝最初のレイアウトが完了した）際に、レイアウト済みフラグを立てます。
 	if !w.state.hasBeenLaidOut {
@@ -141,6 +141,23 @@ func (w *LayoutableWidget) SetFlex(flex int) {
 // GetFlex はウィジェットの伸縮係数を返します。
 func (w *LayoutableWidget) GetFlex() int {
 	return w.layout.flex
+}
+
+// 【改善】SetLayoutBoundary は、このウィジェットをレイアウト計算の境界とするか設定します。
+// メソッド名を SetRelayoutBoundary から SetLayoutBoundary に変更して直感性を向上させました。
+func (w *LayoutableWidget) SetLayoutBoundary(isBoundary bool) {
+	if w.layout.relayoutBoundary != isBoundary {
+		w.layout.relayoutBoundary = isBoundary
+		// 境界設定が変更された場合は、再レイアウトが必要です。
+		w.MarkDirty(true)
+	}
+}
+
+// 【改善】SetRelayoutBoundary は、このウィジェットをレイアウト計算の境界とするか設定します。
+// 後方互換性のために残します。内部的には SetLayoutBoundary を呼び出します。
+func (w *LayoutableWidget) SetRelayoutBoundary(isBoundary bool) {
+	// 新しいメソッドに委譲
+	w.SetLayoutBoundary(isBoundary)
 }
 
 // SetParent はウィジェットの親コンテナを設定します。

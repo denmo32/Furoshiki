@@ -4,6 +4,7 @@ import (
 	"furoshiki/style"
 	"image"
 	"image/color"
+	"math"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -51,19 +52,14 @@ func colorToScale(clr color.Color) (float32, float32, float32, float32) {
 	return float32(r) / 65535.0, float32(g) / 65535.0, float32(b) / 65535.0, float32(a) / 65535.0
 }
 
-// createRoundedRectPath は、指定された半径で角丸矩形のパスを生成します。
-// ebitengine/vector パッケージのパス機能を使って図形を定義します。
+// 【改善】createRoundedRectPath は、指定された半径で角丸矩形のパスを生成します。
+// 角丸の半径が矩形サイズの半分を超える場合の処理を簡素化しました。
 func createRoundedRectPath(x, y, width, height, radius float32) *vector.Path {
 	path := &vector.Path{}
 
 	// 半径が矩形の幅や高さの半分を超える場合は、描画が崩れないように調整します。
-	maxRadius := width / 2
-	if height/2 < maxRadius {
-		maxRadius = height / 2
-	}
-	if radius > maxRadius {
-		radius = maxRadius
-	}
+	maxRadius := float32(math.Min(float64(width/2), float64(height/2)))
+	radius = float32(math.Min(float64(radius), float64(maxRadius)))
 
 	if radius <= 0 {
 		// 角丸が不要な場合は、単純な四角形のパスを生成します。

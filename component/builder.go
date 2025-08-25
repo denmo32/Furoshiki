@@ -13,6 +13,9 @@ import (
 var (
 	ErrNilChild             = errors.New("child cannot be nil")
 	ErrWidgetNotInitialized = errors.New("widget not properly initialized")
+	ErrInvalidSize          = errors.New("size must be non-negative")
+	ErrInvalidFlex          = errors.New("flex must be non-negative")
+	ErrInvalidBorderWidth   = errors.New("border width must be non-negative")
 )
 
 // requestedPositionSetter は、ウィジェットが要求位置を設定できるかどうかをチェックする非公開インターフェースです。
@@ -78,7 +81,7 @@ func (b *Builder[T, W]) MinSize(width, height int) T {
 // validateSize はサイズが有効かどうかを検証します
 func validateSize(width, height int) error {
 	if width < 0 || height < 0 {
-		return fmt.Errorf("size must be non-negative, got %dx%d", width, height)
+		return fmt.Errorf("%w, got %dx%d", ErrInvalidSize, width, height)
 	}
 	return nil
 }
@@ -93,7 +96,7 @@ func (b *Builder[T, W]) Style(s style.Style) T {
 // Flex はFlexLayoutにおけるウィジェットの伸縮係数を設定します。
 func (b *Builder[T, W]) Flex(flex int) T {
 	if flex < 0 {
-		b.AddError(fmt.Errorf("flex must be non-negative, got %d", flex))
+		b.AddError(fmt.Errorf("%w, got %d", ErrInvalidFlex, flex))
 	} else {
 		b.Widget.SetFlex(flex)
 	}
@@ -102,45 +105,65 @@ func (b *Builder[T, W]) Flex(flex int) T {
 
 // --- スタイルヘルパーメソッド ---
 
+// applyStyleProperty はスタイルプロパティを設定するための共通ヘルパー関数です
+func (b *Builder[T, W]) applyStyleProperty(setter func(style.Style) style.Style) T {
+	newStyle := setter(b.Widget.GetStyle())
+	b.Widget.SetStyle(newStyle)
+	return b.Self
+}
+
 // BackgroundColor はウィジェットの背景色を設定します。
 func (b *Builder[T, W]) BackgroundColor(c color.Color) T {
-	return b.Style(style.Style{Background: style.PColor(c)})
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.Background = style.PColor(c)
+		return s
+	})
 }
 
 // Margin はすべての辺に同じマージン値を設定します。
 func (b *Builder[T, W]) Margin(m int) T {
-	return b.Style(style.Style{Margin: style.PInsets(style.Insets{Top: m, Right: m, Bottom: m, Left: m})})
+	return b.MarginInsets(style.Insets{Top: m, Right: m, Bottom: m, Left: m})
 }
 
 // MarginInsets は各辺に個別のマージン値を設定します。
 func (b *Builder[T, W]) MarginInsets(i style.Insets) T {
-	return b.Style(style.Style{Margin: style.PInsets(i)})
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.Margin = style.PInsets(i)
+		return s
+	})
 }
 
 // Padding はすべての辺に同じパディング値を設定します。
 func (b *Builder[T, W]) Padding(p int) T {
-	return b.Style(style.Style{Padding: style.PInsets(style.Insets{Top: p, Right: p, Bottom: p, Left: p})})
+	return b.PaddingInsets(style.Insets{Top: p, Right: p, Bottom: p, Left: p})
 }
 
 // PaddingInsets は各辺に個別のパディング値を設定します。
 func (b *Builder[T, W]) PaddingInsets(i style.Insets) T {
-	return b.Style(style.Style{Padding: style.PInsets(i)})
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.Padding = style.PInsets(i)
+		return s
+	})
 }
 
 // BorderRadius はウィジェットの角の半径を設定します。
 func (b *Builder[T, W]) BorderRadius(radius float32) T {
-	return b.Style(style.Style{BorderRadius: style.PFloat32(radius)})
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.BorderRadius = style.PFloat32(radius)
+		return s
+	})
 }
 
 // Border はウィジェットの境界線の幅と色を設定します。
 func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 	if width < 0 {
-		b.AddError(fmt.Errorf("border width must be non-negative, got %f", width))
+		b.AddError(fmt.Errorf("%w, got %f", ErrInvalidBorderWidth, width))
 		return b.Self
 	}
-	return b.Style(style.Style{
-		BorderWidth: style.PFloat32(width),
-		BorderColor: style.PColor(c),
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.BorderWidth = style.PFloat32(width)
+		s.BorderColor = style.PColor(c)
+		return s
 	})
 }
 

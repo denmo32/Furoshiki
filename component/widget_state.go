@@ -69,15 +69,6 @@ func (w *LayoutableWidget) MarkDirty(relayout bool) {
 	}
 }
 
-// SetRelayoutBoundary は、このウィジェットをレイアウト計算の境界とするか設定します。
-func (w *LayoutableWidget) SetRelayoutBoundary(isBoundary bool) {
-	if w.layout.relayoutBoundary != isBoundary {
-		w.layout.relayoutBoundary = isBoundary
-		// 境界設定が変更された場合は、再レイアウトが必要です。
-		w.MarkDirty(true)
-	}
-}
-
 // IsDirty はウィジェットが再描画または再レイアウトを必要とするかどうかを返します。
 // dirtyLevelがlevelCleanでなければ、何らかの更新が必要であると判断されます。
 func (w *LayoutableWidget) IsDirty() bool {
