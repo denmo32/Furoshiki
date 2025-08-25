@@ -78,13 +78,13 @@ type FlexBuilder struct {
 func VStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
 	flexLayout := &layout.FlexLayout{Direction: layout.DirectionColumn}
 	// 【修正】型パラメータには構造体型`FlexBuilder`を渡します。
-	return buildContainerAndBuilder[FlexBuilder](flexLayout, buildFunc)
+	return buildContainerAndBuilder(flexLayout, buildFunc)
 }
 
 func HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
 	flexLayout := &layout.FlexLayout{Direction: layout.DirectionRow}
 	// 【修正】型パラメータには構造体型`FlexBuilder`を渡します。
-	return buildContainerAndBuilder[FlexBuilder](flexLayout, buildFunc)
+	return buildContainerAndBuilder(flexLayout, buildFunc)
 }
 
 // --- FlexBuilder Methods ---
@@ -185,7 +185,7 @@ type GridBuilder struct {
 func Grid(buildFunc func(*GridBuilder)) *GridBuilder {
 	gridLayout := &layout.GridLayout{Columns: 1}
 	// 【修正】型パラメータには構造体型`GridBuilder`を渡します。
-	return buildContainerAndBuilder[GridBuilder](gridLayout, buildFunc)
+	return buildContainerAndBuilder(gridLayout, buildFunc)
 }
 
 // --- GridBuilder Methods ---
@@ -290,7 +290,7 @@ type ZStackBuilder struct {
 
 func ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
 	// 【修正】型パラメータには構造体型`ZStackBuilder`を渡します。
-	return buildContainerAndBuilder[ZStackBuilder](&layout.AbsoluteLayout{}, buildFunc)
+	return buildContainerAndBuilder(&layout.AbsoluteLayout{}, buildFunc)
 }
 
 // --- ZStackBuilder Methods ---
@@ -318,7 +318,34 @@ func (b *ZStackBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *ZStackBui
 	return b
 }
 
-// (HStack, VStack, etc. are also added similarly)
+// 【新規追加】ZStackBuilderに他のコンテナやウィジェットを追加するメソッドを拡張しました。
+// これにより、FlexBuilderなど他のビルダーとのAPIの一貫性が向上し、
+// ZStack内でより複雑なレイアウトを宣言的に構築できるようになります。
+func (b *ZStackBuilder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *ZStackBuilder {
+	builder := widget.NewScrollViewBuilder()
+	if buildFunc != nil {
+		buildFunc(builder)
+	}
+	addWidget(b, builder)
+	return b
+}
+func (b *ZStackBuilder) HStack(buildFunc func(*FlexBuilder)) *ZStackBuilder {
+	addNestedContainer(b, HStack(buildFunc))
+	return b
+}
+func (b *ZStackBuilder) VStack(buildFunc func(*FlexBuilder)) *ZStackBuilder {
+	addNestedContainer(b, VStack(buildFunc))
+	return b
+}
+func (b *ZStackBuilder) ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
+	addNestedContainer(b, ZStack(buildFunc))
+	return b
+}
+func (b *ZStackBuilder) Grid(buildFunc func(*GridBuilder)) *ZStackBuilder {
+	addNestedContainer(b, Grid(buildFunc))
+	return b
+}
+
 func (b *ZStackBuilder) Build() (*container.Container, error) {
 	return b.Builder.Build()
 }
