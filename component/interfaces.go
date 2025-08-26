@@ -29,6 +29,12 @@ type Widget interface {
 
 	// --- レイアウト ---
 	LayoutProperties
+	// SetLayoutData は、このウィジェットにレイアウト固有のデータを設定します。
+	// 親コンテナのレイアウトシステム（例: AdvancedGridLayout）がこれを使用して、
+	// ウィジェットごとの配置情報（行、列、スパンなど）を管理します。
+	SetLayoutData(data any)
+	// GetLayoutData は、このウィジェットに設定されたレイアウト固有のデータを返します。
+	GetLayoutData() any
 
 	// --- 状態管理 ---
 	DirtyManager

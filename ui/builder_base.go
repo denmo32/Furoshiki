@@ -96,6 +96,12 @@ func (b *BaseContainerBuilder[T]) Grid(buildFunc func(*GridBuilder)) T {
 	return b.Self
 }
 
+// AdvancedGrid は、コンテナに高度なグリッドレイアウトコンテナをネストして追加します。
+func (b *BaseContainerBuilder[T]) AdvancedGrid(buildFunc func(*AdvancedGridBuilder)) T {
+	addNestedContainer(b, AdvancedGrid(buildFunc))
+	return b.Self
+}
+
 // --- 共通コンテナ設定メソッド ---
 
 // SetLayoutBoundary はコンテナをレイアウト境界として設定します。

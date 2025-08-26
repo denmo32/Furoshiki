@@ -48,6 +48,9 @@ type size struct {
 type layoutProperties struct {
 	flex             int
 	relayoutBoundary bool
+	// layoutData は、特定のレイアウトシステムが必要とする追加情報を格納するための汎用フィールドです。
+	// 例えば、AdvancedGridLayoutはここにウィジェットの行、列、スパン情報を格納します。
+	layoutData any
 }
 
 // dirtyLevel はウィジェットのダーティ状態のレベルを示します。

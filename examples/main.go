@@ -64,6 +64,11 @@ func NewGame() *Game {
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("Advanced Grid").Flex(1).OnClick(func(e *event.Event) {
+					g.switchToDemo(g.createAdvancedGridLayoutDemo)
+				})
+			})
+			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("ZStack Layout").Flex(1).OnClick(func(e *event.Event) {
 					g.switchToDemo(g.createZStackDemo)
 				})
@@ -78,7 +83,7 @@ func NewGame() *Game {
 		// --- 2. デモ表示エリア ---
 		b.VStack(func(b *ui.FlexBuilder) {
 			b.Flex(1). // 残りのスペースをすべて使用
-				AssignTo(&g.contentArea)
+					AssignTo(&g.contentArea)
 		})
 
 	}).Build()
@@ -208,6 +213,50 @@ func (g *Game) createGridLayoutDemo() (component.Widget, error) {
 				})
 			})
 		}
+	}).Build()
+}
+
+// createAdvancedGridLayoutDemo はAdvancedGridLayoutのデモ用ウィジェットを生成します。
+func (g *Game) createAdvancedGridLayoutDemo() (component.Widget, error) {
+	return ui.AdvancedGrid(func(b *ui.AdvancedGridBuilder) {
+		b.Flex(1).Padding(10).Border(1, color.Gray{Y: 100}).Gap(8)
+
+		// 列と行のサイズを定義
+		b.Columns(ui.Fixed(150), ui.Weight(1), ui.Weight(2))
+		b.Rows(ui.Fixed(50), ui.Weight(1), ui.Fixed(30))
+
+		// ヘッダー (0行目、0列目から3列にまたがる)
+		b.LabelAt(0, 0, 1, 3, func(l *widget.LabelBuilder) {
+			l.Text("Header (Spans 3 Columns)").
+				BackgroundColor(color.Gray{Y: 180}).
+				TextAlign(style.TextAlignCenter)
+		})
+
+		// サイドバー (1行目、0列目)
+		b.LabelAt(1, 0, 1, 1, func(l *widget.LabelBuilder) {
+			l.Text("Sidebar (150px Fixed)").
+				BackgroundColor(color.Gray{Y: 200})
+		})
+
+		// メインコンテンツ (1行目、1列目)
+		b.LabelAt(1, 1, 1, 1, func(l *widget.LabelBuilder) {
+			l.Text("Content (Weight 1)").
+				BackgroundColor(color.Gray{Y: 220})
+		})
+
+		// 追加情報 (1行目、2列目)
+		b.LabelAt(1, 2, 1, 1, func(l *widget.LabelBuilder) {
+			l.Text("More Info (Weight 2)").
+				BackgroundColor(color.Gray{Y: 210})
+		})
+
+		// フッター (2行目、0列目から3列にまたがる)
+		b.ButtonAt(2, 0, 1, 3, func(btn *widget.ButtonBuilder) {
+			btn.Text("Footer Button (Spans 3 Columns, 30px Fixed Height)").
+				OnClick(func(e *event.Event) {
+					log.Println("Advanced Grid Footer clicked!")
+				})
+		})
 	}).Build()
 }
 

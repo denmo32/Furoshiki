@@ -151,3 +151,14 @@ func (w *LayoutableWidget) SetParent(parent Container) {
 func (w *LayoutableWidget) GetParent() Container {
 	return w.hierarchy.parent
 }
+
+// SetLayoutData はウィジェットにレイアウト固有のデータを設定します。
+func (w *LayoutableWidget) SetLayoutData(data any) {
+	w.layout.layoutData = data
+	w.MarkDirty(true)
+}
+
+// GetLayoutData はウィジェットからレイアウト固有のデータを取得します。
+func (w *LayoutableWidget) GetLayoutData() any {
+	return w.layout.layoutData
+}

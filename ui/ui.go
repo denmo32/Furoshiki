@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"furoshiki/component"
 	"furoshiki/container"
 	"furoshiki/layout"
+	"furoshiki/widget"
+	"reflect" // reflectパッケージをインポート
 )
 
 // このファイルは、レイアウトごとに特化した型付きビルダーを提供します。
@@ -176,3 +179,131 @@ func ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
 
 // Build はコンテナの構築を完了します。
 func (b *ZStackBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
+
+// --- AdvancedGridBuilder ---
+
+// AdvancedGridBuilder は、AdvancedGridLayoutを持つコンテナを構築するためのビルダーです。
+type AdvancedGridBuilder struct {
+	*BaseContainerBuilder[*AdvancedGridBuilder]
+}
+
+// AdvancedGrid は、セル結合や可変サイズの列・行を持つ高度なグリッドコンテナを構築します。
+func AdvancedGrid(buildFunc func(*AdvancedGridBuilder)) *AdvancedGridBuilder {
+	gridLayout := &layout.AdvancedGridLayout{}
+	c := container.NewContainer()
+	c.SetLayout(gridLayout)
+
+	b := &AdvancedGridBuilder{
+		BaseContainerBuilder: &BaseContainerBuilder[*AdvancedGridBuilder]{},
+	}
+	b.Init(b, c)
+
+	if buildFunc != nil {
+		buildFunc(b)
+	}
+	return b
+}
+
+// Fixed は、固定ピクセルサイズのトラック定義を返します。
+func Fixed(pixels float64) layout.TrackDefinition {
+	return layout.TrackDefinition{Sizing: layout.TrackSizingFixed, Value: pixels}
+}
+
+// Weight は、重み付けによる可変サイズのトラック定義を返します。
+func Weight(weight float64) layout.TrackDefinition {
+	return layout.TrackDefinition{Sizing: layout.TrackSizingWeighted, Value: weight}
+}
+
+// Columns は、グリッドの列定義を設定します。
+func (b *AdvancedGridBuilder) Columns(defs ...layout.TrackDefinition) *AdvancedGridBuilder {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.AdvancedGridLayout); ok {
+		gridLayout.ColumnDefinitions = defs
+		b.Widget.MarkDirty(true)
+	}
+	return b
+}
+
+// Rows は、グリッドの行定義を設定します。
+func (b *AdvancedGridBuilder) Rows(defs ...layout.TrackDefinition) *AdvancedGridBuilder {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.AdvancedGridLayout); ok {
+		gridLayout.RowDefinitions = defs
+		b.Widget.MarkDirty(true)
+	}
+	return b
+}
+
+// HorizontalGap は、グリッドの水平方向の間隔を設定します。
+func (b *AdvancedGridBuilder) HorizontalGap(gap int) *AdvancedGridBuilder {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.AdvancedGridLayout); ok {
+		gridLayout.HorizontalGap = gap
+		b.Widget.MarkDirty(true)
+	}
+	return b
+}
+
+// VerticalGap は、グリッドの垂直方向の間隔を設定します。
+func (b *AdvancedGridBuilder) VerticalGap(gap int) *AdvancedGridBuilder {
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.AdvancedGridLayout); ok {
+		gridLayout.VerticalGap = gap
+		b.Widget.MarkDirty(true)
+	}
+	return b
+}
+
+// Gap は、水平・垂直両方の間隔を同じ値に設定します。
+func (b *AdvancedGridBuilder) Gap(gap int) *AdvancedGridBuilder {
+	b.HorizontalGap(gap)
+	b.VerticalGap(gap)
+	return b
+}
+
+// Add は、指定された行と列にウィジェットを追加します。
+// このメソッドは、ウィジェットビルダーを直接受け取るジェネリックなヘルパーです。
+func Add[W component.Widget, WB interface {
+	component.BuilderFinalizer[W]
+	component.ErrorAdder
+}](b *AdvancedGridBuilder, row, col, rowSpan, colSpan int, builder WB) {
+	widget, err := builder.Build()
+	if err != nil {
+		b.AddError(err)
+		// エラーがあっても不完全なウィジェットを追加することで、レイアウトの崩れを確認しやすくします
+	}
+
+	// 【修正点】
+	// ジェネリック型Wの変数は直接nilと比較できないため、reflectを使用してnilチェックを行います。
+	// widgetはインターフェース(component.Widget)を満たすポインタ型(*widget.Buttonなど)であるため、
+	// この方法で安全にチェックできます。
+	v := reflect.ValueOf(widget)
+	isNil := !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil())
+
+	if !isNil {
+		placement := layout.GridPlacementData{
+			Row: row, Col: col, RowSpan: rowSpan, ColSpan: colSpan,
+		}
+		widget.SetLayoutData(placement)
+		b.AddChild(widget)
+	}
+}
+
+// ButtonAt は、指定された位置とスパンでButtonウィジェットをグリッドに追加します。
+func (b *AdvancedGridBuilder) ButtonAt(row, col, rowSpan, colSpan int, buildFunc func(*widget.ButtonBuilder)) *AdvancedGridBuilder {
+	builder := widget.NewButtonBuilder()
+	if buildFunc != nil {
+		buildFunc(builder)
+	}
+	Add(b, row, col, rowSpan, colSpan, builder)
+	return b
+}
+
+// LabelAt は、指定された位置とスパンでLabelウィジェットをグリッドに追加します。
+func (b *AdvancedGridBuilder) LabelAt(row, col, rowSpan, colSpan int, buildFunc func(*widget.LabelBuilder)) *AdvancedGridBuilder {
+	builder := widget.NewLabelBuilder()
+	if buildFunc != nil {
+		buildFunc(builder)
+	}
+	Add(b, row, col, rowSpan, colSpan, builder)
+	return b
+}
+
+// Build はコンテナの構築を完了します。
+func (b *AdvancedGridBuilder) Build() (*container.Container, error) { return b.Builder.Build() }

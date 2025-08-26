@@ -19,8 +19,9 @@ Furoshikiを理解するための主要な概念です。
 -   **Container**: 他の `Widget` を子要素として内包できる特殊なウィジェットです。`Layout` と組み合わせることで、子要素の配置を管理します。
 -   **Layout**: `Container` 内の子要素をどのように配置するかを決定するロジックです。
     -   **FlexLayout**: CSS Flexboxにインスパイアされた、強力で柔軟なレイアウトシステム。`HStack`と`VStack`のバックボーンです。
+    -   **GridLayout**: 子要素を均等な格子状に配置します。シンプルな表形式のレイアウトに適しています。
+    -   **AdvancedGridLayout**: CSS Gridにインスパイアされ、列・行ごとの可変サイズ指定（固定ピクセル、重み）や、セルの結合（colspan/rowspan）が可能です。複雑な表形式のレイアウトに適しています。
     -   **AbsoluteLayout**: 子要素を座標で自由に配置します。`ZStack`で使われ、UI要素の重ね合わせに適しています。
-    -   **GridLayout**: 子要素を格子状に配置します。設定画面やインベントリに適しています。
 -   **テーマ**: `theme`パッケージは、アプリケーション全体のスタイルを一元管理する仕組みを提供します。これにより、UIの一貫性を保ちつつ、デザインの変更を容易にします。
 -   **ビルダーパターン**: `NewButtonBuilder()` のようなビルダーを使い、メソッドチェーンでプロパティを設定することで、安全かつ流れるようにコンポーネントを構築します。
 -   **宣言的UIヘルパー**: `ui.VStack()`, `ui.HStack()`, `ui.ZStack()` などの関数を使い、ネストされたUI構造を直感的に構築できます。
@@ -33,10 +34,11 @@ Furoshikiを理解するための主要な概念です。
 
 ### 2. 強力なレイアウトシステム
 
-`FlexLayout`と`GridLayout`を使用することで、モダンなUIレイアウトを簡単に構築できます。
+`FlexLayout`, `GridLayout`, そして新しく追加された `AdvancedGridLayout` を使用することで、モダンなUIレイアウトを簡単に構築できます。
 
 -   **Flexbox**: `Direction`, `Justify`, `AlignItems`, `Gap`, `Flex`値などをサポート。`Spacer` ウィジェットを使えば、動的な空白の管理も容易です。
--   **Grid**: `Columns`, `Rows`, `HorizontalGap`, `VerticalGap` を指定して格子状に配置。
+-   **Grid**: `Columns`, `Rows`, `HorizontalGap`, `VerticalGap` を指定して均等な格子状に配置。
+-   **Advanced Grid**: `Columns`と`Rows`に固定ピクセル (`ui.Fixed(100)`) や重み (`ui.Weight(1)`) を指定でき、ウィジェットを複数のセルにまたがって (`colspan`, `rowspan`) 配置できます。
 
 ### 3. 直感的で宣言的なUI構築
 
@@ -45,7 +47,8 @@ Furoshikiを理解するための主要な概念です。
 -   `VStack()`: 垂直方向に子要素を配置します。
 -   `HStack()`: 水平方向に子要素を配置します。
 -   `ZStack()`: 子要素を重ねて配置します。
--   `Grid()`: 子要素を格子状に配置します。
+-   `Grid()`: 子要素を均等な格子状に配置します。
+-   `AdvancedGrid()`: セル結合や可変サイズの列・行を持つ高度なグリッドを構築します。
 -   `Spacer()`: `HStack`や`VStack`内で利用可能なスペースを埋めるための伸縮可能な空白を追加します。
 
 ### 4. 状態ベースのイベントシステム
@@ -131,20 +134,20 @@ func NewGame() *Game {
 
 	// (Ebitenゲームループの実行部分は省略)
 }
-```
 
-## 注意点：レイアウトとAbsolutePosition
+注意点：レイアウトとAbsolutePosition
 
-ウィジェットの `.AbsolutePosition(x, y)` メソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) の場合にのみ有効です。
+ウィジェットの .AbsolutePosition(x, y) メソッドは、親コンテナが AbsoluteLayout (主に ui.ZStack で作成) の場合にのみ有効です。
 
-`FlexLayout` (`VStack` や `HStack`) や `GridLayout` の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で `.AbsolutePosition()` を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
-
-## 今後のロードマップ (Roadmap)
+FlexLayout (VStack や HStack), GridLayout, AdvancedGridLayout の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で .AbsolutePosition() を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
+今後のロードマップ (Roadmap)
 
 Furoshikiは、より表現力豊かで使いやすいライブラリを目指して、以下の機能開発を計画しています。
 
--   **[完了] テーマ＆スタイルシートシステム**: アプリケーション全体のデザインを`Theme`オブジェクトとして一元管理し、ウィジェットのスタイルを自動で適用するシステムを導入しました。
+    [完了] テーマ＆スタイルシートシステム: アプリケーション全体のデザインをThemeオブジェクトとして一元管理し、ウィジェットのスタイルを自動で適用するシステムを導入しました。
 
--   **[完了] クリッピングとスクロール**: `ScrollView`ウィジェットと、そのバックエンドとなるクリッピング機能、スクロール処理を実装しました。これにより、可変長のコンテンツを限られたスペースに表示できます。
+    [完了] クリッピングとスクロール: ScrollViewウィジェットと、そのバックエンドとなるクリッピング機能、スクロール処理を実装しました。これにより、可変長のコンテンツを限られたスペースに表示できます。
 
--   **[計画中] 基本ウィジェットの拡充**: `TextInput`, `Image`, `Checkbox`, `Slider` など、基本的なUIコンポーネントを追加します。
+    [完了] 高度なGridレイアウト: セル結合（colspan/rowspan）や、列・行ごとの可変サイズ指定が可能な AdvancedGridLayout を導入しました。
+
+    [計画中] 基本ウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
