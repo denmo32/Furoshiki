@@ -67,24 +67,21 @@ func (b *Button) Draw(screen *ebiten.Image) {
 }
 
 // SetStyleForState は、指定された単一の状態のスタイルを設定します。
-// Normal状態のスタイルが変更された場合、ウィジェットの基本スタイルも更新します。
+// Mixinを更新し、Normal状態が変更された場合はウィジェットの基本スタイルも同期させます。
 func (b *Button) SetStyleForState(state component.WidgetState, s style.Style) {
-	// Normal状態のスタイルが変更された場合にウィジェットの基本スタイルを更新するためのコールバック。
-	// b.SetStyle()ではなくb.LayoutableWidget.SetStyle()を呼ぶことで、
-	// b.SetStyle()内で実行されるStateStyles[StateNormal]の更新との冗長性や潜在的な循環呼び出しを避けます。
-	normalSetter := func(normalStyle style.Style) {
-		b.LayoutableWidget.SetStyle(normalStyle)
+	if newNormal, updated := b.InteractiveMixin.SetStyleForState(state, s); updated {
+		// Normal状態のスタイルが変更された場合、ウィジェットの基本スタイルも更新します。
+		// b.SetStyle()ではなくb.LayoutableWidget.SetStyle()を直接呼ぶことで、
+		// b.SetStyle()内で再度StateStyles[StateNormal]を更新する冗長な処理を避けます。
+		b.LayoutableWidget.SetStyle(newNormal)
 	}
-	b.InteractiveMixin.SetStyleForState(state, s, normalSetter)
 }
 
 // StyleAllStates は、ボタンの全てのインタラクティブな状態に共通のスタイル変更を適用します。
 func (b *Button) StyleAllStates(s style.Style) {
-	// normalSetterコールバックのロジックはSetStyleForStateと同様です。
-	normalSetter := func(normalStyle style.Style) {
-		b.LayoutableWidget.SetStyle(normalStyle)
-	}
-	b.InteractiveMixin.SetAllStyles(s, normalSetter)
+	newNormalStyle := b.InteractiveMixin.SetAllStyles(s)
+	// Mixinの更新後、新しいNormalスタイルをウィジェットの基本スタイルとして設定します。
+	b.LayoutableWidget.SetStyle(newNormalStyle)
 }
 
 // --- ButtonBuilder ---

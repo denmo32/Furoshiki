@@ -160,8 +160,15 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	var offsetWidgets func(w component.Widget, dx, dy int)
 	offsetWidgets = func(w component.Widget, dx, dy int) {
 		x, y := w.GetPosition()
-		// NOTE: Drawループ中にSetPositionを呼ぶとダーティフラグが立ち、意図しない再描画や再計算が起きる可能性がある。
-		// この問題を根本的に解決するには、ライブラリの描画アーキテクチャの変更が必要になる。
+		// NOTE(設計上の判断):
+		// ここでは、描画ループ中に子のSetPositionを呼び出しています。
+		// SetPositionはダーティフラグ(levelRedrawDirty)を立てる副作用がありますが、
+		// これは再描画のみを要求するレベルであり、次のフレームで再レイアウトが発生することはありません。
+		// このアプローチは、各ウィジェットのDrawメソッドが自身の絶対座標に依存して描画するという
+		// ライブラリ全体の設計と一貫性を保ちつつ、オフスクリーンバッファへの描画（クリッピング）を
+		// 実現するためのトレードオフです。よりクリーンな実装（例: Drawメソッドで描画オフセットを
+		// 引数として渡す）は、ライブラリ全体のインターフェース変更を伴うため、現状では
+		// この方法が最も影響範囲の少ない現実的な解決策となります。
 		w.SetPosition(x+dx, y+dy)
 		if cont, ok := w.(component.Container); ok {
 			for _, grandChild := range cont.GetChildren() {
