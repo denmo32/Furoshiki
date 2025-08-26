@@ -1,5 +1,7 @@
 package layout
 
+import "furoshiki/component"
+
 // ScrollViewLayout は、ScrollViewウィジェットのための専用レイアウトマネージャです。
 type ScrollViewLayout struct{}
 
@@ -37,32 +39,46 @@ func (l *ScrollViewLayout) Layout(container Container) {
 	// --- 1. 計測(Measure)パス ---
 	// スクロールバーがないと仮定した幅で、コンテンツが本来必要とする高さを計測します。
 	potentialContentWidth := viewWidth - padding.Left - padding.Right
-	const veryLargeHeight = 1_000_000 // 計測用に十分大きな高さを設定
-	content.SetSize(potentialContentWidth, veryLargeHeight)
-	content.SetPosition(0, 0) // レイアウト計算のために一時的に原点に配置
-	content.MarkDirty(true)
-	content.Update() // content のレイアウトを強制的に実行
+	if potentialContentWidth < 0 {
+		potentialContentWidth = 0
+	}
 
 	var measuredContentHeight int
-	if c, ok := content.(Container); ok {
-		// コンテンツがコンテナの場合、子の位置から最大高さを計算
+
+	// content の種類に応じて、最適な方法で高さを計測します。
+	if hw, ok := content.(component.HeightForWider); ok {
+		// ケース1: HeightForWiderを実装するウィジェット (例: 折り返し可能なLabel)
+		// 幅から直接、必要な高さを計算できるため、最も効率的です。
+		measuredContentHeight = hw.GetHeightForWidth(potentialContentWidth)
+	} else if c, ok := content.(Container); ok {
+		// ケース2: コンテナウィジェット (例: VStack, HStack)
+		// 実際にレイアウトを実行させて、子要素の配置から最終的な高さを割り出します。
+		const veryLargeHeight = 1_000_000 // 計測用に十分大きな高さを設定
+		c.SetSize(potentialContentWidth, veryLargeHeight)
+		c.SetPosition(0, 0) // レイアウト計算のために一時的に原点に配置
+		c.MarkDirty(true)
+		c.Update() // content のレイアウトを強制的に実行
+
 		contentPadding := c.GetPadding()
 		maxY := 0
-		_, contentY := c.GetPosition()
+		// コンテナ自身の座標は、この一時的なレイアウト計算では(0,0)に設定されているため、
+		// 子のY座標と高さから直接最大Y座標を求められます。
 		for _, child := range c.GetChildren() {
 			if !child.IsVisible() {
 				continue
 			}
 			_, childY := child.GetPosition()
 			_, childH := child.GetSize()
-			bottom := (childY - contentY) + childH
+			bottom := childY + childH
 			if bottom > maxY {
 				maxY = bottom
 			}
 		}
 		measuredContentHeight = maxY + contentPadding.Bottom
 	} else {
-		_, measuredContentHeight = content.GetSize()
+		// ケース3: 上記以外のウィジェット (HeightForWiderを実装しない単一ウィジェット)
+		// コンテンツ自身の最小の高さを必要な高さとみなします。
+		_, measuredContentHeight = content.GetMinSize()
 	}
 	scroller.SetContentHeight(measuredContentHeight)
 
@@ -83,10 +99,18 @@ func (l *ScrollViewLayout) Layout(container Container) {
 
 	// スクロールバーの有無で幅が変わった場合、再度レイアウトを実行
 	if finalContentWidth != potentialContentWidth {
-		content.SetSize(finalContentWidth, veryLargeHeight)
-		content.SetPosition(0, 0)
-		content.MarkDirty(true)
-		content.Update()
+		// 再計測が必要なのは、幅に依存して高さが変わるウィジェットのみ
+		if hw, ok := content.(component.HeightForWider); ok {
+			measuredContentHeight = hw.GetHeightForWidth(finalContentWidth)
+		} else if c, ok := content.(Container); ok {
+			const veryLargeHeight = 1_000_000
+			c.SetSize(finalContentWidth, veryLargeHeight)
+			c.SetPosition(0, 0)
+			c.MarkDirty(true)
+			c.Update()
+		}
+		// NOTE: コンテナ内の子の再計算は c.Update() で行われるため、ここでは不要
+		scroller.SetContentHeight(measuredContentHeight)
 	}
 
 	maxScrollY := 0.0

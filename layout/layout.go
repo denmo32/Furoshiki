@@ -15,10 +15,11 @@ type Insets struct {
 }
 
 // Container は、レイアウトが必要とするコンテナの振る舞いを定義するインターフェースです。
+// ScrollViewLayoutのような複雑なレイアウト計算のために、子要素の取得やパディングだけでなく、
+// サイズ設定や更新といった、より多くのWidgetの機能にアクセスできる必要があります。
+// そのため、component.Containerを埋め込み、GetPaddingを追加で要求します。
 type Container interface {
-	GetSize() (width, height int)
-	GetPosition() (x, y int)
-	GetChildren() []component.Widget
+	component.Container // GetSize, GetPosition, GetChildren, SetSize, Updateなどを含む
 	GetPadding() Insets
 }
 

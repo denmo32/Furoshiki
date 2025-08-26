@@ -8,5 +8,5 @@ func IfThen[T any](cond bool, vtrue, vfalse T) T {
 	return vfalse
 }
 
-// 最新版のGoでは組み込みのmax関数が利用可能です。
-// 独自定義ののmax関数は削除しました。
+// 最新版のGoでは組み込みのmax関数が利用可能なため、独自定義ののmax関数は削除しました。
+// 旧バージョンとの互換性維持は想定していません。
