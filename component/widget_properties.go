@@ -96,10 +96,16 @@ func (w *LayoutableWidget) GetRequestedPosition() (int, int) {
 }
 
 // SetStyle はウィジェットのスタイルを設定します。
-func (w *LayoutableWidget) SetStyle(style style.Style) {
-	w.style = style
-	// スタイルの変更はパディングやフォントサイズに影響し、レイアウトが変わる可能性があるため、
-	// 安全策として再レイアウトを要求します。
+// スタイルの変更はパディングやフォントサイズに影響し、レイアウトが変わる可能性があるため、
+// 安全策として再レイアウトを要求します。
+// 変更検知を行い、不要な再レイアウトをスキップするように最適化されています。
+func (w *LayoutableWidget) SetStyle(s style.Style) {
+	// スタイルが実際に変更された場合のみダーティフラグを設定します。
+	// これにより不要な再レイアウトを防ぎます。
+	if w.style.Equals(s) {
+		return
+	}
+	w.style = s
 	w.MarkDirty(true)
 }
 
@@ -135,8 +141,6 @@ func (w *LayoutableWidget) SetLayoutBoundary(isBoundary bool) {
 		w.MarkDirty(true)
 	}
 }
-
-
 
 // SetParent はウィジェットの親コンテナを設定します。
 func (w *LayoutableWidget) SetParent(parent Container) {

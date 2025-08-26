@@ -32,10 +32,27 @@ func NewButton(text string) *Button {
 	button.InitStyles(styles)
 
 	// 通常時のスタイルをウィジェットの基本スタイルとして設定します。
+	// この時点でSetStyleを呼ぶと、オーバーライドされたSetStyleがStateStyles[StateNormal]も更新します。
 	button.SetStyle(styles[component.StateNormal])
 	button.SetSize(100, 40)
 
 	return button
+}
+
+// SetStyle はウィジェットの基本スタイルを設定します。
+// インタラクティブウィジェットとして、基本スタイル(w.style)と
+// InteractiveMixinが保持するNormal状態のスタイル(StateStyles[StateNormal])の両方を更新します。
+// これにより、ビルダー等からSetStyleが呼ばれた際にスタイルの一貫性が保たれます。
+func (b *Button) SetStyle(s style.Style) {
+	// 1. 基底ウィジェットのスタイルを設定します。
+	//    基底のSetStyleは変更検知を行い、不要な場合はダーティフラグを立てません。
+	b.LayoutableWidget.SetStyle(s)
+
+	// 2. InteractiveMixinの状態マップ内のNormalスタイルも更新します。
+	//    これにより、GetActiveStyleが常に最新のNormalスタイルを参照できるようになります。
+	//    DeepCopyを行い、b.styleとb.InteractiveMixin.StateStyles[component.StateNormal]が
+	//    異なるメモリ領域を参照するようにし、意図しない副作用を防ぎます。
+	b.InteractiveMixin.StateStyles[component.StateNormal] = s.DeepCopy()
 }
 
 // Draw はButtonを描画します。現在の状態に応じたスタイルを選択し、描画を委譲します。
@@ -50,22 +67,22 @@ func (b *Button) Draw(screen *ebiten.Image) {
 }
 
 // SetStyleForState は、指定された単一の状態のスタイルを設定します。
-// このメソッドは、InteractiveMixinの同名メソッドに処理を委譲します。
-// これにより、ButtonBuilderが汎用的なInteractiveTextBuilderを利用できるようになります。
+// Normal状態のスタイルが変更された場合、ウィジェットの基本スタイルも更新します。
 func (b *Button) SetStyleForState(state component.WidgetState, s style.Style) {
-	// Normal状態のスタイルが変更された場合にウィジェットの基本スタイルを更新するためのコールバック
+	// Normal状態のスタイルが変更された場合にウィジェットの基本スタイルを更新するためのコールバック。
+	// b.SetStyle()ではなくb.LayoutableWidget.SetStyle()を呼ぶことで、
+	// b.SetStyle()内で実行されるStateStyles[StateNormal]の更新との冗長性や潜在的な循環呼び出しを避けます。
 	normalSetter := func(normalStyle style.Style) {
-		b.SetStyle(normalStyle)
+		b.LayoutableWidget.SetStyle(normalStyle)
 	}
 	b.InteractiveMixin.SetStyleForState(state, s, normalSetter)
 }
 
 // StyleAllStates は、ボタンの全てのインタラクティブな状態に共通のスタイル変更を適用します。
-// このメソッドは、InteractiveMixinの同名メソッドに処理を委譲します。
 func (b *Button) StyleAllStates(s style.Style) {
-	// Normal状態のスタイルが変更された場合にウィジェットの基本スタイルを更新するためのコールバック
+	// normalSetterコールバックのロジックはSetStyleForStateと同様です。
 	normalSetter := func(normalStyle style.Style) {
-		b.SetStyle(normalStyle)
+		b.LayoutableWidget.SetStyle(normalStyle)
 	}
 	b.InteractiveMixin.SetAllStyles(s, normalSetter)
 }

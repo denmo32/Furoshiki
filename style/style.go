@@ -138,6 +138,94 @@ func (s Style) DeepCopy() Style {
 	return newStyle
 }
 
+// Equals は2つのスタイルが等価であるかを比較します。
+// ポインタが指す先の値まで比較し、スタイルが実質的に同じかどうかを判断します。
+func (s Style) Equals(other Style) bool {
+	return compareColorPtr(s.Background, other.Background) &&
+		compareColorPtr(s.BorderColor, other.BorderColor) &&
+		compareFloat32Ptr(s.BorderWidth, other.BorderWidth) &&
+		compareInsetsPtr(s.Margin, other.Margin) &&
+		compareInsetsPtr(s.Padding, other.Padding) &&
+		compareFontPtr(s.Font, other.Font) &&
+		compareColorPtr(s.TextColor, other.TextColor) &&
+		compareFloat32Ptr(s.BorderRadius, other.BorderRadius) &&
+		compareFloat64Ptr(s.Opacity, other.Opacity) &&
+		compareTextAlignTypePtr(s.TextAlign, other.TextAlign) &&
+		compareVerticalAlignTypePtr(s.VerticalAlign, other.VerticalAlign)
+}
+
+// --- Pointer comparison helpers ---
+
+func compareColorPtr(a, b *color.Color) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func compareFloat32Ptr(a, b *float32) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func compareFloat64Ptr(a, b *float64) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func compareInsetsPtr(a, b *Insets) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func compareFontPtr(a, b *font.Face) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b // インターフェースの値比較
+}
+
+func compareTextAlignTypePtr(a, b *TextAlignType) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func compareVerticalAlignTypePtr(a, b *VerticalAlignType) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
 // --- Pointer Helpers ---
 // これらを使用することで、一時変数を宣言することなく、直接スタイル構造体に値を設定できます。
 // 例: style.Style{ Background: style.PColor(color.White) }
