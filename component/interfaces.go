@@ -82,7 +82,6 @@ type LayoutProperties interface {
 	SetFlex(flex int)
 	GetFlex() int
 	SetLayoutBoundary(isBoundary bool)
-	SetRelayoutBoundary(isBoundary bool) // 後方互換性のために残す
 }
 
 // DirtyManager はウィジェットのダーティ状態を管理するためのインターフェースです

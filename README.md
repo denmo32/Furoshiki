@@ -62,58 +62,74 @@ Furoshikiを理解するための主要な概念です。
 
 ```go
 // main.go
-func main() {
-    // 1. フォントを読み込み、テーマを準備
-    mplusFont := loadFont() // (フォント読み込み処理は省略)
-    appTheme := theme.GetCurrent()
-    appTheme.SetDefaultFont(mplusFont)
-    theme.SetCurrent(appTheme)
+package main
 
-    // 2. UIを宣言的に構築
-    root, _ := ui.VStack(func(b *ui.ContainerBuilder) {
-        b.Size(400, 500).
-          Padding(20).
-          Gap(15).
-          AlignItems(layout.AlignCenter).
-          BackgroundColor(appTheme.BackgroundColor)
+import (
+	"fmt"
+	"furoshiki/event"
+	"furoshiki/layout"
+	"furoshiki/style"
+	"furoshiki/theme"
+	"furoshiki/ui"
+	"furoshiki/widget"
+	"image/color"
+	"log"
 
-        // タイトル (テーマの色を部分的に上書きし、枠線を追加)
-        b.Label(func(l *widget.LabelBuilder) {
-            l.Text("Furoshiki UI Demo").
-              Size(360, 40).
-              BackgroundColor(appTheme.PrimaryColor).
-              TextColor(color.White).
-              TextAlign(style.TextAlignCenter).
-              VerticalAlign(style.VerticalAlignMiddle).
-              BorderRadius(8).
-              Border(1, color.Gray{Y: 180})
-        })
+	"[github.com/hajimehoshi/ebiten/v2](https://github.com/hajimehoshi/ebiten/v2)"
+	"golang.org/x/image/font/basicfont"
+)
 
-        // ボタン (スタイルはテーマから自動適用)
-        b.HStack(func(b *ui.ContainerBuilder) {
-            b.Size(360, 50).Gap(20)
+func NewGame() *Game {
+	// 1. フォントを読み込み、テーマを準備
+	appTheme := theme.GetCurrent()
+	appTheme.SetDefaultFont(basicfont.Face7x13)
+	theme.SetCurrent(appTheme)
 
-            b.Button(func(btn *widget.ButtonBuilder) {
-                btn.Text("OK").
-                  Flex(1). // スペースを均等に分ける
-                  OnClick(func(e event.Event) { fmt.Println("OK clicked") })
-            })
-            b.Button(func(btn *widget.ButtonBuilder) {
-                btn.Text("Cancel").
-                  Flex(1).
-                  OnClick(func(e event.Event) { fmt.Println("Cancel clicked") })
-            })
-        })
+	// 2. UIを宣言的に構築
+	root, _ := ui.VStack(func(b *ui.FlexBuilder) {
+		b.Size(400, 500).
+			Padding(20).
+			Gap(15).
+			AlignItems(layout.AlignCenter).
+			BackgroundColor(appTheme.BackgroundColor)
 
-        b.Spacer()
+		// タイトル (テーマの色を部分的に上書きし、枠線を追加)
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text("Furoshiki UI Demo").
+				Size(360, 40).
+				BackgroundColor(appTheme.PrimaryColor).
+				TextColor(color.White).
+				TextAlign(style.TextAlignCenter).
+				VerticalAlign(style.VerticalAlignMiddle).
+				BorderRadius(8).
+				Border(1, color.Gray{Y: 180})
+		})
 
-        b.Label(func(l *widget.LabelBuilder) {
-            l.Text("Footer Area")
-        })
+		// ボタン (スタイルはテーマから自動適用)
+		b.HStack(func(b *ui.FlexBuilder) {
+			b.Size(360, 50).Gap(20)
 
-    }).Build()
+			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("OK").
+					Flex(1). // スペースを均等に分ける
+					OnClick(func(e *event.Event) { fmt.Println("OK clicked") })
+			})
+			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("Cancel").
+					Flex(1).
+					OnClick(func(e *event.Event) { fmt.Println("Cancel clicked") })
+			})
+		})
 
-    // (Ebitenゲームループの実行部分は省略)
+		b.Spacer()
+
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text("Footer Area")
+		})
+
+	}).Build()
+
+	// (Ebitenゲームループの実行部分は省略)
 }
 ```
 

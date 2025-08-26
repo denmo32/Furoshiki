@@ -1,31 +1,101 @@
 package ui
 
 import (
-	"furoshiki/component"
 	"furoshiki/container"
 	"furoshiki/layout"
-	"furoshiki/widget"
 )
 
 // このファイルは、レイアウトごとに特化した型付きビルダーを提供します。
-// これにより、例えばGridのコンテキストでFlexbox用のメソッドを呼び出すといった
-// 間違いをコンパイル時に防ぎ、APIの型安全性を向上させます。
+// これらのビルダーは、新しく導入された `BaseContainerBuilder` を埋め込むことで、
+// ウィジェット追加などの共通ロジックを再利用し、コードの冗長性を排除しています。
 
-// --- 共通ヘルパー (非公開) ---
+// --- FlexBuilder (VStack, HStack用) ---
 
-type builderConstraint interface {
-	component.ErrorAdder
-	component.WidgetContainer
+// FlexBuilder は、FlexLayoutを持つコンテナを構築するためのビルダーです。
+type FlexBuilder struct {
+	*BaseContainerBuilder[*FlexBuilder]
 }
 
-func buildContainerAndBuilder[B any, PB interface {
-	*B
-	component.BuilderInitializer[*B, *container.Container]
-}](l layout.Layout, buildFunc func(PB)) PB {
+// VStack は子要素を垂直方向に配置するコンテナを構築します。
+func VStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
+	flexLayout := &layout.FlexLayout{Direction: layout.DirectionColumn}
+	return buildFlexContainer(flexLayout, buildFunc)
+}
+
+// HStack は子要素を水平方向に配置するコンテナを構築します。
+func HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
+	flexLayout := &layout.FlexLayout{Direction: layout.DirectionRow}
+	return buildFlexContainer(flexLayout, buildFunc)
+}
+
+// buildFlexContainer はFlexBuilderのインスタンスを生成する内部ヘルパーです。
+func buildFlexContainer(l *layout.FlexLayout, buildFunc func(*FlexBuilder)) *FlexBuilder {
 	c := container.NewContainer()
 	c.SetLayout(l)
 
-	var b PB = new(B)
+	b := &FlexBuilder{
+		BaseContainerBuilder: &BaseContainerBuilder[*FlexBuilder]{},
+	}
+	b.Init(b, c) // BaseContainerBuilderのInitを呼び出す
+
+	if buildFunc != nil {
+		buildFunc(b)
+	}
+	return b
+}
+
+// Gap は、FlexLayout内の子要素間の間隔を設定します。
+func (b *FlexBuilder) Gap(gap int) *FlexBuilder {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.Gap != gap {
+			flexLayout.Gap = gap
+			b.Widget.MarkDirty(true)
+		}
+	}
+	return b
+}
+
+// Justify は、FlexLayoutの主軸方向の揃え位置を設定します。
+func (b *FlexBuilder) Justify(alignment layout.Alignment) *FlexBuilder {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.Justify != alignment {
+			flexLayout.Justify = alignment
+			b.Widget.MarkDirty(true)
+		}
+	}
+	return b
+}
+
+// AlignItems は、FlexLayoutの交差軸方向の揃え位置を設定します。
+func (b *FlexBuilder) AlignItems(alignment layout.Alignment) *FlexBuilder {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.AlignItems != alignment {
+			flexLayout.AlignItems = alignment
+			b.Widget.MarkDirty(true)
+		}
+	}
+	return b
+}
+
+// Build はコンテナの構築を完了します。
+func (b *FlexBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
+
+// --- GridBuilder (Grid用) ---
+
+// GridBuilder は、GridLayoutを持つコンテナを構築するためのビルダーです。
+type GridBuilder struct {
+	*BaseContainerBuilder[*GridBuilder]
+}
+
+// Grid は子要素を格子状に配置するコンテナを構築します。
+func Grid(buildFunc func(*GridBuilder)) *GridBuilder {
+	gridLayout := &layout.GridLayout{Columns: 1} // デフォルトは1列
+	c := container.NewContainer()
+	c.SetLayout(gridLayout)
+
+	b := &GridBuilder{
+		BaseContainerBuilder: &BaseContainerBuilder[*GridBuilder]{},
+	}
 	b.Init(b, c)
 
 	if buildFunc != nil {
@@ -34,273 +104,75 @@ func buildContainerAndBuilder[B any, PB interface {
 	return b
 }
 
-func addWidget[B builderConstraint, W component.Widget, WB interface {
-	component.BuilderFinalizer[W]
-	component.ErrorAdder
-}](parentBuilder B, widgetBuilder WB) {
-	widget, err := widgetBuilder.Build()
-	parentBuilder.AddError(err)
-	parentBuilder.AddChild(widget)
-}
-
-func addNestedContainer[B builderConstraint, C component.Widget, CB interface {
-	component.BuilderFinalizer[C]
-	component.ErrorAdder
-}](parentBuilder B, nestedBuilder CB) {
-	containerWidget, err := nestedBuilder.Build()
-	parentBuilder.AddError(err)
-	parentBuilder.AddChild(containerWidget)
-}
-
-// --- FlexBuilder (VStack, HStack用) ---
-
-type FlexBuilder struct {
-	component.Builder[*FlexBuilder, *container.Container]
-}
-
-func VStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
-	flexLayout := &layout.FlexLayout{Direction: layout.DirectionColumn}
-	return buildContainerAndBuilder[FlexBuilder](flexLayout, buildFunc)
-}
-
-func HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
-	flexLayout := &layout.FlexLayout{Direction: layout.DirectionRow}
-	return buildContainerAndBuilder[FlexBuilder](flexLayout, buildFunc)
-}
-
-func (b *FlexBuilder) AddChild(child component.Widget) {
-	if child != nil {
-		b.Widget.AddChild(child)
-	} else {
-		b.AddError(component.ErrNilChild)
-	}
-}
-func (b *FlexBuilder) Label(buildFunc func(*widget.LabelBuilder)) *FlexBuilder {
-	builder := widget.NewLabelBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *FlexBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *FlexBuilder {
-	builder := widget.NewButtonBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *FlexBuilder) Spacer() *FlexBuilder {
-	addWidget(b, widget.NewSpacerBuilder().Flex(1))
-	return b
-}
-func (b *FlexBuilder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *FlexBuilder {
-	builder := widget.NewScrollViewBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *FlexBuilder) HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
-	addNestedContainer(b, HStack(buildFunc))
-	return b
-}
-func (b *FlexBuilder) VStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
-	addNestedContainer(b, VStack(buildFunc))
-	return b
-}
-func (b *FlexBuilder) ZStack(buildFunc func(*ZStackBuilder)) *FlexBuilder {
-	addNestedContainer(b, ZStack(buildFunc))
-	return b
-}
-func (b *FlexBuilder) Grid(buildFunc func(*GridBuilder)) *FlexBuilder {
-	addNestedContainer(b, Grid(buildFunc))
-	return b
-}
-func (b *FlexBuilder) RelayoutBoundary(isBoundary bool) *FlexBuilder {
-	b.Widget.SetRelayoutBoundary(isBoundary)
-	return b
-}
-func (b *FlexBuilder) ClipChildren(clips bool) *FlexBuilder {
-	b.Widget.SetClipsChildren(clips)
-	return b
-}
-func (b *FlexBuilder) Gap(gap int) *FlexBuilder {
-	if flexLayout := b.Widget.GetLayout().(*layout.FlexLayout); flexLayout.Gap != gap {
-		flexLayout.Gap = gap
-		b.Widget.MarkDirty(true)
-	}
-	return b
-}
-func (b *FlexBuilder) Justify(alignment layout.Alignment) *FlexBuilder {
-	if flexLayout := b.Widget.GetLayout().(*layout.FlexLayout); flexLayout.Justify != alignment {
-		flexLayout.Justify = alignment
-		b.Widget.MarkDirty(true)
-	}
-	return b
-}
-func (b *FlexBuilder) AlignItems(alignment layout.Alignment) *FlexBuilder {
-	if flexLayout := b.Widget.GetLayout().(*layout.FlexLayout); flexLayout.AlignItems != alignment {
-		flexLayout.AlignItems = alignment
-		b.Widget.MarkDirty(true)
-	}
-	return b
-}
-func (b *FlexBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
-
-// --- GridBuilder (Grid用) ---
-
-type GridBuilder struct {
-	component.Builder[*GridBuilder, *container.Container]
-}
-
-func Grid(buildFunc func(*GridBuilder)) *GridBuilder {
-	gridLayout := &layout.GridLayout{Columns: 1}
-	return buildContainerAndBuilder[GridBuilder](gridLayout, buildFunc)
-}
-
-func (b *GridBuilder) AddChild(child component.Widget) {
-	if child != nil {
-		b.Widget.AddChild(child)
-	} else {
-		b.AddError(component.ErrNilChild)
-	}
-}
-func (b *GridBuilder) Label(buildFunc func(*widget.LabelBuilder)) *GridBuilder {
-	builder := widget.NewLabelBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *GridBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *GridBuilder {
-	builder := widget.NewButtonBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *GridBuilder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *GridBuilder {
-	builder := widget.NewScrollViewBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *GridBuilder) HStack(buildFunc func(*FlexBuilder)) *GridBuilder {
-	addNestedContainer(b, HStack(buildFunc))
-	return b
-}
-func (b *GridBuilder) VStack(buildFunc func(*FlexBuilder)) *GridBuilder {
-	addNestedContainer(b, VStack(buildFunc))
-	return b
-}
-func (b *GridBuilder) ZStack(buildFunc func(*ZStackBuilder)) *GridBuilder {
-	addNestedContainer(b, ZStack(buildFunc))
-	return b
-}
-func (b *GridBuilder) Grid(buildFunc func(*GridBuilder)) *GridBuilder {
-	addNestedContainer(b, Grid(buildFunc))
-	return b
-}
-func (b *GridBuilder) RelayoutBoundary(isBoundary bool) *GridBuilder {
-	b.Widget.SetRelayoutBoundary(isBoundary)
-	return b
-}
-func (b *GridBuilder) ClipChildren(clips bool) *GridBuilder {
-	b.Widget.SetClipsChildren(clips)
-	return b
-}
+// Columns は、グリッドの列数を設定します。
 func (b *GridBuilder) Columns(count int) *GridBuilder {
-	if gridLayout := b.Widget.GetLayout().(*layout.GridLayout); count > 0 && gridLayout.Columns != count {
-		gridLayout.Columns = count
-		b.Widget.MarkDirty(true)
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
+		if count > 0 && gridLayout.Columns != count {
+			gridLayout.Columns = count
+			b.Widget.MarkDirty(true)
+		}
 	}
 	return b
 }
+
+// Rows は、グリッドの行数を設定します。
 func (b *GridBuilder) Rows(count int) *GridBuilder {
-	if gridLayout := b.Widget.GetLayout().(*layout.GridLayout); gridLayout.Rows != count {
-		gridLayout.Rows = count
-		b.Widget.MarkDirty(true)
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
+		if gridLayout.Rows != count {
+			gridLayout.Rows = count
+			b.Widget.MarkDirty(true)
+		}
 	}
 	return b
 }
+
+// HorizontalGap は、グリッドの水平方向の間隔を設定します。
 func (b *GridBuilder) HorizontalGap(gap int) *GridBuilder {
-	if gridLayout := b.Widget.GetLayout().(*layout.GridLayout); gridLayout.HorizontalGap != gap {
-		gridLayout.HorizontalGap = gap
-		b.Widget.MarkDirty(true)
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
+		if gridLayout.HorizontalGap != gap {
+			gridLayout.HorizontalGap = gap
+			b.Widget.MarkDirty(true)
+		}
 	}
 	return b
 }
+
+// VerticalGap は、グリッドの垂直方向の間隔を設定します。
 func (b *GridBuilder) VerticalGap(gap int) *GridBuilder {
-	if gridLayout := b.Widget.GetLayout().(*layout.GridLayout); gridLayout.VerticalGap != gap {
-		gridLayout.VerticalGap = gap
-		b.Widget.MarkDirty(true)
+	if gridLayout, ok := b.Widget.GetLayout().(*layout.GridLayout); ok {
+		if gridLayout.VerticalGap != gap {
+			gridLayout.VerticalGap = gap
+			b.Widget.MarkDirty(true)
+		}
 	}
 	return b
 }
+
+// Build はコンテナの構築を完了します。
 func (b *GridBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
 
 // --- ZStackBuilder (ZStack用) ---
 
+// ZStackBuilder は、AbsoluteLayoutを持つコンテナを構築するためのビルダーです。
 type ZStackBuilder struct {
-	component.Builder[*ZStackBuilder, *container.Container]
+	*BaseContainerBuilder[*ZStackBuilder]
 }
 
+// ZStack は子要素を重ねて配置するコンテナを構築します。
 func ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
-	return buildContainerAndBuilder[ZStackBuilder](&layout.AbsoluteLayout{}, buildFunc)
+	c := container.NewContainer()
+	c.SetLayout(&layout.AbsoluteLayout{})
+
+	b := &ZStackBuilder{
+		BaseContainerBuilder: &BaseContainerBuilder[*ZStackBuilder]{},
+	}
+	b.Init(b, c)
+
+	if buildFunc != nil {
+		buildFunc(b)
+	}
+	return b
 }
 
-func (b *ZStackBuilder) AddChild(child component.Widget) {
-	if child != nil {
-		b.Widget.AddChild(child)
-	} else {
-		b.AddError(component.ErrNilChild)
-	}
-}
-func (b *ZStackBuilder) Label(buildFunc func(*widget.LabelBuilder)) *ZStackBuilder {
-	builder := widget.NewLabelBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *ZStackBuilder) Button(buildFunc func(*widget.ButtonBuilder)) *ZStackBuilder {
-	builder := widget.NewButtonBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *ZStackBuilder) ScrollView(buildFunc func(*widget.ScrollViewBuilder)) *ZStackBuilder {
-	builder := widget.NewScrollViewBuilder()
-	if buildFunc != nil {
-		buildFunc(builder)
-	}
-	addWidget(b, builder)
-	return b
-}
-func (b *ZStackBuilder) HStack(buildFunc func(*FlexBuilder)) *ZStackBuilder {
-	addNestedContainer(b, HStack(buildFunc))
-	return b
-}
-func (b *ZStackBuilder) VStack(buildFunc func(*FlexBuilder)) *ZStackBuilder {
-	addNestedContainer(b, VStack(buildFunc))
-	return b
-}
-func (b *ZStackBuilder) ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
-	addNestedContainer(b, ZStack(buildFunc))
-	return b
-}
-func (b *ZStackBuilder) Grid(buildFunc func(*GridBuilder)) *ZStackBuilder {
-	addNestedContainer(b, Grid(buildFunc))
-	return b
-}
+// Build はコンテナの構築を完了します。
 func (b *ZStackBuilder) Build() (*container.Container, error) { return b.Builder.Build() }
