@@ -280,9 +280,9 @@ func (b *AdvancedGridBuilder) Gap(gap int) *AdvancedGridBuilder {
 	return b
 }
 
-// Add は、指定された行と列にウィジェットを追加します。
-// このメソッドは、ウィジェットビルダーを直接受け取るジェネリックなヘルパーです。
-func Add[W component.Widget, WB interface {
+// add は、ウィジェットビルダーからウィジェットをビルドし、グリッドに追加する内部ヘルパーです。
+// ジェネリックなためAPIとして公開せず、ButtonAtのような具体的なメソッド経由で利用されます。
+func add[W component.Widget, WB interface {
 	component.BuilderFinalizer[W]
 	component.ErrorAdder
 }](b *AdvancedGridBuilder, row, col, rowSpan, colSpan int, builder WB) {
@@ -313,7 +313,7 @@ func (b *AdvancedGridBuilder) ButtonAt(row, col, rowSpan, colSpan int, buildFunc
 	if buildFunc != nil {
 		buildFunc(builder)
 	}
-	Add(b, row, col, rowSpan, colSpan, builder)
+	add(b, row, col, rowSpan, colSpan, builder)
 	return b
 }
 
@@ -323,7 +323,7 @@ func (b *AdvancedGridBuilder) LabelAt(row, col, rowSpan, colSpan int, buildFunc 
 	if buildFunc != nil {
 		buildFunc(builder)
 	}
-	Add(b, row, col, rowSpan, colSpan, builder)
+	add(b, row, col, rowSpan, colSpan, builder)
 	return b
 }
 
