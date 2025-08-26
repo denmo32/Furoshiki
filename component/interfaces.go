@@ -126,6 +126,12 @@ type EventHandler interface {
 	HandleEvent(e *event.Event)
 }
 
+// AbsolutePositioner は、AbsoluteLayout内で希望の相対位置を指定できるウィジェットが実装するインターフェースです。
+type AbsolutePositioner interface {
+	SetRequestedPosition(x, y int)
+	GetRequestedPosition() (x, y int)
+}
+
 // HitTester はヒットテストのためのインターフェースです
 type HitTester interface {
 	HitTest(x, y int) Widget

@@ -18,11 +18,6 @@ var (
 	ErrInvalidBorderWidth   = errors.New("border width must be non-negative")
 )
 
-// requestedPositionSetter は、ウィジェットが要求位置を設定できるかどうかをチェックする非公開インターフェースです。
-type requestedPositionSetter interface {
-	SetRequestedPosition(x, y int)
-}
-
 // Builder は、すべてのウィジェットビルダーの汎用基底クラスです。
 // サイズ、スタイル、レイアウトプロパティを設定するための共通メソッドを提供します。
 // T は具体的なビルダー型（例: *LabelBuilder）です。
@@ -49,7 +44,9 @@ func (b *Builder[T, W]) AddError(err error) {
 // AbsolutePosition は、親コンテナ内でのウィジェットの希望相対位置を設定します。
 // これは、親コンテナがAbsoluteLayout（例: ZStack）を使用している場合にのみ有効です。
 func (b *Builder[T, W]) AbsolutePosition(x, y int) T {
-	if p, ok := any(b.Widget).(requestedPositionSetter); ok {
+	// AbsolutePositionerインターフェースをサポートしているかチェックします。
+	// これにより、ウィジェットがこの機能をサポートしているかが型レベルで明確になります。
+	if p, ok := any(b.Widget).(AbsolutePositioner); ok {
 		p.SetRequestedPosition(x, y)
 	} else {
 		b.AddError(fmt.Errorf("%T does not support AbsolutePosition", b.Widget))

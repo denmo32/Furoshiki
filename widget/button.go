@@ -60,8 +60,10 @@ func (b *Button) SetStyle(s style.Style) {
 func (b *Button) Draw(screen *ebiten.Image) {
 	// 現在の状態（Normal, Hoveredなど）を取得します。
 	currentState := b.LayoutableWidget.CurrentState()
-	// Mixinから、現在の状態と基本スタイルに基づいて適用すべきスタイルを取得します。
-	styleToUse := b.GetActiveStyle(currentState, b.GetStyle())
+	// Mixinから、現在の状態に基づいて適用すべきスタイルを取得します。
+	// このメソッドは、該当する状態のスタイルがなければNormal状態のスタイルにフォールバックするため、
+	// 毎フレームの不要なスタイルコピーを回避できます。
+	styleToUse := b.GetActiveStyle(currentState)
 	// 取得したスタイルでウィジェットを描画します。
 	b.TextWidget.DrawWithStyle(screen, styleToUse)
 }

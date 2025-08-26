@@ -1,9 +1,6 @@
 package layout
 
-// positionRequester は、AbsoluteLayoutが子の相対位置を取得するために使用するインターフェースです。
-type positionRequester interface {
-	GetRequestedPosition() (int, int)
-}
+import "furoshiki/component"
 
 // AbsoluteLayout は、子要素をコンテナ内の指定された相対座標に基づいて配置します。
 type AbsoluteLayout struct{}
@@ -19,7 +16,8 @@ func (l *AbsoluteLayout) Layout(container Container) {
 		}
 
 		var requestedX, requestedY int
-		if pr, ok := child.(positionRequester); ok {
+		// child が component.AbsolutePositioner インターフェースを実装しているかチェックします。
+		if pr, ok := child.(component.AbsolutePositioner); ok {
 			requestedX, requestedY = pr.GetRequestedPosition()
 		}
 

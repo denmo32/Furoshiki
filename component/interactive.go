@@ -1,3 +1,5 @@
+
+
 package component
 
 import "furoshiki/style"
@@ -16,12 +18,15 @@ func (im *InteractiveMixin) InitStyles(styles map[WidgetState]style.Style) {
 	}
 }
 
-// GetActiveStyle determines the style to use based on the widget's current state.
-func (im *InteractiveMixin) GetActiveStyle(currentState WidgetState, defaultStyle style.Style) style.Style {
+// GetActiveStyle は、ウィジェットの現在の状態に基づいて適用すべきスタイルを決定します。
+// 内部のStateStylesマップからスタイルを検索し、見つからない場合はNormal状態のスタイルをフォールバックとして返します。
+func (im *InteractiveMixin) GetActiveStyle(currentState WidgetState) style.Style {
 	if style, ok := im.StateStyles[currentState]; ok {
 		return style
 	}
-	return defaultStyle
+	// フォールバックとして、必ず存在するはずのNormalスタイルを返す。
+	// これにより、呼び出し側がデフォルトスタイルを渡す必要がなくなり、不要なコピーを防げます。
+	return im.StateStyles[StateNormal]
 }
 
 // SetStyleForState は指定された状態のスタイルをマージします。

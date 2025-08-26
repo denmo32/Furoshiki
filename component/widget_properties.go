@@ -162,3 +162,6 @@ func (w *LayoutableWidget) SetLayoutData(data any) {
 func (w *LayoutableWidget) GetLayoutData() any {
 	return w.layout.layoutData
 }
+
+// コンパイル時に LayoutableWidget が AbsolutePositioner インターフェースを実装していることを保証します。
+var _ AbsolutePositioner = (*LayoutableWidget)(nil)
