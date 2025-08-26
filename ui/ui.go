@@ -5,7 +5,7 @@ import (
 	"furoshiki/container"
 	"furoshiki/layout"
 	"furoshiki/widget"
-	"reflect" // reflectパッケージをインポート
+	
 )
 
 // このファイルは、レイアウトごとに特化した型付きビルダーを提供します。
@@ -292,14 +292,11 @@ func Add[W component.Widget, WB interface {
 		// エラーがあっても不完全なウィジェットを追加することで、レイアウトの崩れを確認しやすくします
 	}
 
-	// 【修正点】
-	// ジェネリック型Wの変数は直接nilと比較できないため、reflectを使用してnilチェックを行います。
-	// widgetはインターフェース(component.Widget)を満たすポインタ型(*widget.Buttonなど)であるため、
-	// この方法で安全にチェックできます。
-	v := reflect.ValueOf(widget)
-	isNil := !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil())
-
-	if !isNil {
+	// widgetがnilでないことを確認します。
+	// Build()がエラーを返した場合、widgetはゼロ値(ポインタ型の場合はnil)になる可能性があります。
+	// この関数のジェネリック型パラメータWは、*widget.Buttonのようなポインタ型に解決されるため、
+	// reflectを使わずに直接nilと比較するのが最もシンプルで効率的です。
+	if widget != nil {
 		placement := layout.GridPlacementData{
 			Row: row, Col: col, RowSpan: rowSpan, ColSpan: colSpan,
 		}

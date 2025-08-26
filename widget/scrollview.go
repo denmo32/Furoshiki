@@ -83,8 +83,14 @@ func (sv *ScrollView) Update() {
 		}
 	}
 
-	// 内部コンテナのレイアウト処理は行わず、子要素のUpdateのみを再帰的に呼び出します。
+	// 内部コンテナの子要素のUpdateを再帰的に呼び出します。
+	// ScrollViewLayout内でコンテンツコンテナ(sv.contentContainer)のUpdateは既に
+	// 呼び出されているため、二重呼び出しを避けることで効率化します。
+	// スクロールバーのような他の子要素のUpdateはここで呼び出す必要があります。
 	for _, child := range sv.container.GetChildren() {
+		if child == sv.contentContainer {
+			continue
+		}
 		child.Update()
 	}
 
