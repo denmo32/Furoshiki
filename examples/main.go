@@ -246,7 +246,7 @@ func (g *Game) createFlexWrapDemo() (component.Widget, error) {
 func (g *Game) createWrapTextDemo() (component.Widget, error) {
 	longText := "This is a very long text that should wrap automatically when it reaches the edge of the widget. The layout system will then adjust the widget's height to accommodate all the wrapped lines of text."
 	return ui.VStack(func(b *ui.FlexBuilder) {
-		b.Flex(1).Padding(10).Gap(10).Border(1, color.Gray{Y: 100})
+		b.Flex(1).Padding(10).Gap(10).Border(1, color.Gray{Y: 100}).ClipChildren(true)
 
 		b.Label(func(l *widget.LabelBuilder) {
 			l.Text("Label with WrapText(true)")

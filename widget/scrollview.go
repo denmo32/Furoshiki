@@ -5,6 +5,7 @@ import (
 	"furoshiki/container"
 	"furoshiki/event"
 	"furoshiki/layout"
+	"furoshiki/style"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -61,6 +62,15 @@ func (sv *ScrollView) SetContent(content component.Widget) {
 		sv.AddChild(sv.vScrollBar) // スクロールバーが最前面に来るように再追加
 	}
 	sv.MarkDirty(true)
+}
+
+// SetStyle はScrollViewと、その描画を担当する内部コンテナの両方にスタイルを設定します。
+// これにより、ビルダーで設定された枠線などが正しく描画されるようになります。
+func (sv *ScrollView) SetStyle(s style.Style) {
+	sv.LayoutableWidget.SetStyle(s)
+	if sv.container != nil {
+		sv.container.SetStyle(s)
+	}
 }
 
 // Update はScrollViewの状態を更新します。

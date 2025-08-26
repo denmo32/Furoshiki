@@ -154,6 +154,8 @@ func drawBackground(dst *ebiten.Image, x, y, width, height float32, s style.Styl
 }
 
 // drawBorder は、ウィジェットの境界線を描画する内部ヘルパーです。
+// 常にパスベースの描画を使用することで、角丸でない矩形でも境界線が
+// クリッピング領域の内側に正しく描画されることを保証します。
 func drawBorder(dst *ebiten.Image, x, y, width, height float32, s style.Style, opts *ebiten.DrawTrianglesOptions) {
 	borderColorPtr := s.BorderColor
 	borderWidth := float32(0)
@@ -174,17 +176,15 @@ func drawBorder(dst *ebiten.Image, x, y, width, height float32, s style.Style, o
 		radius = *s.BorderRadius
 	}
 
-	if radius > 0 {
-		// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせます。
-		halfBw := borderWidth / 2
-		insetPath := createRoundedRectPath(x+halfBw, y+halfBw, width-borderWidth, height-borderWidth, radius-halfBw)
+	// 境界線のパスは、図形の中心に描画されるため、幅の半分だけ内側にオフセットさせます。
+	// これにより、`vector.StrokeRect`のように境界線の半分が外側にはみ出すのを防ぎ、
+	// クリッピングが有効なコンテナでも枠線が正しく描画されます。
+	halfBw := borderWidth / 2
+	insetPath := createRoundedRectPath(x+halfBw, y+halfBw, width-borderWidth, height-borderWidth, radius-halfBw)
 
-		// 線描画用のオプションを作成し、共通描画ヘルパーを呼び出します。
-		strokeOpts := &vector.StrokeOptions{Width: borderWidth, MiterLimit: 10}
-		drawVectorPath(dst, insetPath, borderColor, opts, strokeOpts)
-	} else {
-		vector.StrokeRect(dst, x, y, width, height, borderWidth, borderColor, false)
-	}
+	// 線描画用のオプションを作成し、共通描画ヘルパーを呼び出します。
+	strokeOpts := &vector.StrokeOptions{Width: borderWidth, MiterLimit: 10}
+	drawVectorPath(dst, insetPath, borderColor, opts, strokeOpts)
 }
 
 // CalculateWrappedText は、指定された幅でテキストを折り返し、
