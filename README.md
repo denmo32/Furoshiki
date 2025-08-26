@@ -18,7 +18,7 @@ Furoshikiを理解するための主要な概念です。
 -   **Widget**: UIを構成するすべての要素（ボタン、ラベルなど）の基本となるインターフェースです。位置、サイズ、スタイル、イベントハンドラなどの共通機能を提供します。
 -   **Container**: 他の `Widget` を子要素として内包できる特殊なウィジェットです。`Layout` と組み合わせることで、子要素の配置を管理します。
 -   **Layout**: `Container` 内の子要素をどのように配置するかを決定するロジックです。
-    -   **FlexLayout**: CSS Flexboxにインスパイアされた、強力で柔軟なレイアウトシステム。`HStack`と`VStack`のバックボーンです。
+    -   **FlexLayout**: CSS Flexboxにインスパイアされた、強力で柔軟なレイアウトシステム。アイテムの折り返し (`Wrap`) にも対応し、`HStack`と`VStack`のバックボーンです。
     -   **GridLayout**: 子要素を均等な格子状に配置します。シンプルな表形式のレイアウトに適しています。
     -   **AdvancedGridLayout**: CSS Gridにインスパイアされ、列・行ごとの可変サイズ指定（固定ピクセル、重み）や、セルの結合（colspan/rowspan）が可能です。複雑な表形式のレイアウトに適しています。
     -   **AbsoluteLayout**: 子要素を座標で自由に配置します。`ZStack`で使われ、UI要素の重ね合わせに適しています。
@@ -30,17 +30,24 @@ Furoshikiを理解するための主要な概念です。
 
 ### 1. テーマによるスタイルの一元管理
 
-新しく導入された`theme`パッケージにより、アプリケーション全体の色、フォント、ウィジェットごとのデフォルトスタイル（通常時、ホバー時、押下時など）を一箇所で定義できます。これにより、UIの一貫性を保ち、デザインの変更が容易になります。
+`theme`パッケージにより、アプリケーション全体の色、フォント、ウィジェットごとのデフォルトスタイル（通常時、ホバー時、押下時など）を一箇所で定義できます。これにより、UIの一貫性を保ち、デザインの変更が容易になります。
 
-### 2. 強力なレイアウトシステム
+### 2. 強力でレスポンシブなレイアウトシステム
 
-`FlexLayout`, `GridLayout`, そして新しく追加された `AdvancedGridLayout` を使用することで、モダンなUIレイアウトを簡単に構築できます。
+`FlexLayout`, `GridLayout`, そして `AdvancedGridLayout` を使用することで、モダンなUIレイアウトを簡単に構築できます。
 
--   **Flexbox**: `Direction`, `Justify`, `AlignItems`, `Gap`, `Flex`値などをサポート。`Spacer` ウィジェットを使えば、動的な空白の管理も容易です。
+-   **Flexbox**: `Direction`, `Justify`, `AlignItems`, `Gap`, `Flex`値などをサポート。複数行にわたるアイテムの折り返し (`Wrap`) と、行間の揃え (`AlignContent`) を完全にサポートしているため、ウィンドウサイズに応じて変化するレスポンシブなレイアウトも実現可能です。
 -   **Grid**: `Columns`, `Rows`, `HorizontalGap`, `VerticalGap` を指定して均等な格子状に配置。
 -   **Advanced Grid**: `Columns`と`Rows`に固定ピクセル (`ui.Fixed(100)`) や重み (`ui.Weight(1)`) を指定でき、ウィジェットを複数のセルにまたがって (`colspan`, `rowspan`) 配置できます。
 
-### 3. 直感的で宣言的なUI構築
+### 3. コンテンツに応じた動的なサイズ調整
+
+ウィジェットは自身のコンテンツに応じてサイズを自動調整する機能を持ち、動的なUI構築を強力にサポートします。
+
+-   **テキストの自動折り返し**: `.WrapText(true)` を設定するだけで、ウィジェットの幅を超えたテキストが自動的に折り返されます。
+-   **高さの自動調整**: テキストが折り返されると、レイアウトシステムがその内容量に合わせてウィジェットの高さを自動的に計算・調整します。これにより、APIから取得した可変長のテキストなどもレイアウトを崩すことなく安全に表示できます。
+
+### 4. 直感的で宣言的なUI構築
 
 `ui`パッケージのヘルパー関数と、各ウィジェットのビルダーを組み合わせることで、非常に短いコードで複雑なUIを構築できます。
 
@@ -51,17 +58,13 @@ Furoshikiを理解するための主要な概念です。
 -   `AdvancedGrid()`: セル結合や可変サイズの列・行を持つ高度なグリッドを構築します。
 -   `Spacer()`: `HStack`や`VStack`内で利用可能なスペースを埋めるための伸縮可能な空白を追加します。
 
-### 4. 状態ベースのイベントシステム
+### 5. 状態ベースのイベントシステム
 
 `OnClick` のような一般的なUIイベントに加え、`Pressed`（押下時）や`Disabled`（無効時）といったウィジェットの状態が内部で管理されます。これにより、ユーザーの操作に対してよりリッチな視覚的フィードバックを簡単に実装できます。
 
-### 5. 動的なUI操作
-
-`AddChild()` や `RemoveChild()` メソッドを使って、実行中にUIツリーの構造を安全に変更できます。また、`SetVisible(bool)` や `SetDisabled(bool)` を使ってコンポーネントの表示・非表示や有効・無効を切り替えることも可能です。
-
 ## 使い方 (Usage Example)
 
-新しく導入された`theme`パッケージにより、UIの構築がさらにシンプルになりました。スタイルはテーマから自動的に適用されるため、UIの構造定義に集中できます。
+スタイルはテーマから自動的に適用されるため、UIの構造定義に集中できます。動的なコンテンツも `.WrapText(true)` のような設定で簡単かつ安全に扱えます。
 
 ```go
 // main.go
@@ -78,7 +81,7 @@ import (
 	"image/color"
 	"log"
 
-	"[github.com/hajimehoshi/ebiten/v2](https://github.com/hajimehoshi/ebiten/v2)"
+	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/font/basicfont"
 )
 
@@ -93,24 +96,27 @@ func NewGame() *Game {
 		b.Size(400, 500).
 			Padding(20).
 			Gap(15).
-			AlignItems(layout.AlignCenter).
+			AlignItems(layout.AlignStretch). // Stretch to use full width
 			BackgroundColor(appTheme.BackgroundColor)
 
-		// タイトル (テーマの色を部分的に上書きし、枠線を追加)
+		// タイトル
 		b.Label(func(l *widget.LabelBuilder) {
 			l.Text("Furoshiki UI Demo").
-				Size(360, 40).
+				Size(0, 40). // Width is stretched
 				BackgroundColor(appTheme.PrimaryColor).
 				TextColor(color.White).
-				TextAlign(style.TextAlignCenter).
-				VerticalAlign(style.VerticalAlignMiddle).
-				BorderRadius(8).
-				Border(1, color.Gray{Y: 180})
+				TextAlign(style.TextAlignCenter)
 		})
 
-		// ボタン (スタイルはテーマから自動適用)
+		// 説明文 (自動折り返し)
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text("This label contains a long text that will wrap automatically thanks to the WrapText property.").
+				WrapText(true) // Enable text wrapping
+		})
+
+		// ボタン
 		b.HStack(func(b *ui.FlexBuilder) {
-			b.Size(360, 50).Gap(20)
+			b.Size(0, 50).Gap(20)
 
 			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("OK").
@@ -124,30 +130,25 @@ func NewGame() *Game {
 			})
 		})
 
-		b.Spacer()
-
-		b.Label(func(l *widget.LabelBuilder) {
-			l.Text("Footer Area")
-		})
-
 	}).Build()
 
 	// (Ebitenゲームループの実行部分は省略)
 }
 
-注意点：レイアウトとAbsolutePosition
+### 注意点：レイアウトとAbsolutePosition
 
-ウィジェットの .AbsolutePosition(x, y) メソッドは、親コンテナが AbsoluteLayout (主に ui.ZStack で作成) の場合にのみ有効です。
+ウィジェットの `.AbsolutePosition(x, y)` メソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) の場合にのみ有効です。
 
-FlexLayout (VStack や HStack), GridLayout, AdvancedGridLayout の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で .AbsolutePosition() を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
-今後のロードマップ (Roadmap)
+`FlexLayout` (`VStack` や `HStack`), `GridLayout`, `AdvancedGridLayout` の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で `.AbsolutePosition()` を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
+
+## 今後のロードマップ (Roadmap)
 
 Furoshikiは、より表現力豊かで使いやすいライブラリを目指して、以下の機能開発を計画しています。
 
-    [完了] テーマ＆スタイルシートシステム: アプリケーション全体のデザインをThemeオブジェクトとして一元管理し、ウィジェットのスタイルを自動で適用するシステムを導入しました。
-
-    [完了] クリッピングとスクロール: ScrollViewウィジェットと、そのバックエンドとなるクリッピング機能、スクロール処理を実装しました。これにより、可変長のコンテンツを限られたスペースに表示できます。
-
-    [完了] 高度なGridレイアウト: セル結合（colspan/rowspan）や、列・行ごとの可変サイズ指定が可能な AdvancedGridLayout を導入しました。
-
-    [計画中] 基本ウィジェットの拡充: TextInput, Image, Checkbox, Slider など、基本的なUIコンポーネントを追加します。
+-   **[完了]** テーマ＆スタイルシートシステム: アプリケーション全体のデザインをThemeオブジェクトとして一元管理し、ウィジェットのスタイルを自動で適用するシステムを導入しました。
+-   **[完了]** クリッピングとスクロール: `ScrollView`ウィジェットと、そのバックエンドとなるクリッピング機能、スクロール処理を実装しました。
+-   **[完了]** 高度なGridレイアウト: セル結合（colspan/rowspan）や、列・行ごとの可変サイズ指定が可能な `AdvancedGridLayout` を導入しました。
+-   **[完了]** レスポンシブなコンテンツの折り返し: `FlexLayout` が `Wrap` プロパティをサポートし、コンテナサイズに応じたコンテンツの折り返しを実現しました。
+-   **[完了]** テキストの自動折り返し: ウィジェットが自身の幅に応じてテキストを自動的に折り返し、高さを調整する機能を実装しました。
+-   **[計画中]** **相対的なサイズ指定**: 親コンポーネントのサイズに対する割合（例: `width: "50%"`）でのサイズ指定機能の導入を検討します。これにより、さらに柔軟なレスポンシブデザインが可能になります。
+-   **[計画中]** **基本的なウィジェットの拡充**: `TextInput`, `Image`, `Checkbox`, `Slider` など、基本的なUIコンポーネントを追加します。

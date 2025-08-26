@@ -50,12 +50,22 @@ func NewGame() *Game {
 
 		// --- 1. ナビゲーションバー ---
 		b.HStack(func(b *ui.FlexBuilder) {
-			b.Size(0, 30).Gap(10) // 幅は自動、高さ30
+			b.Size(0, 30).Gap(5) // 幅は自動、高さ30
 
 			// 各デモへの切り替えボタン
 			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("Flex Layout").Flex(1).OnClick(func(e *event.Event) {
 					g.switchToDemo(g.createFlexLayoutDemo)
+				})
+			})
+			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("Flex Wrap").Flex(1).OnClick(func(e *event.Event) {
+					g.switchToDemo(g.createFlexWrapDemo)
+				})
+			})
+			b.Button(func(btn *widget.ButtonBuilder) {
+				btn.Text("Text Wrap").Flex(1).OnClick(func(e *event.Event) {
+					g.switchToDemo(g.createWrapTextDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
@@ -197,6 +207,73 @@ func (g *Game) createFlexLayoutDemo() (component.Widget, error) {
 	}).Build()
 }
 
+// createFlexWrapDemo はFlexLayoutの折り返し機能のデモ用ウィジェットを生成します。
+func (g *Game) createFlexWrapDemo() (component.Widget, error) {
+	return ui.VStack(func(b *ui.FlexBuilder) {
+		b.Flex(1).Padding(10).Gap(10).Border(1, color.Gray{Y: 100})
+
+		// --- 基本的な折り返しのデモ ---
+		b.Label(func(l *widget.LabelBuilder) { l.Text("HStack with Wrap(true)") })
+		b.HStack(func(b *ui.FlexBuilder) {
+			b.Size(0, 100).Padding(5).Gap(8).Border(1, color.Gray{Y: 150}).
+				Wrap(true) // 折り返しを有効にする
+
+			// 多数のアイテムを追加して折り返しを発生させる
+			for i := 1; i <= 18; i++ {
+				b.Button(func(btn *widget.ButtonBuilder) {
+					btn.Text("Item "+strconv.Itoa(i)).Size(100, 30)
+				})
+			}
+		})
+
+		// --- AlignContent のデモ ---
+		b.Label(func(l *widget.LabelBuilder) { l.Text("HStack with Wrap(true) and AlignContent(AlignCenter)") })
+		b.HStack(func(b *ui.FlexBuilder) {
+			b.Flex(1).Padding(5).Gap(8).Border(1, color.Gray{Y: 150}).
+				Wrap(true).                      // 折り返しを有効にする
+				AlignContent(layout.AlignCenter) // 折り返したライン全体をコンテナの中央に配置
+
+			for i := 1; i <= 18; i++ {
+				b.Button(func(btn *widget.ButtonBuilder) {
+					btn.Text("Item "+strconv.Itoa(i)).Size(100, 30)
+				})
+			}
+		})
+	}).Build()
+}
+
+// createWrapTextDemo はテキストの折り返し機能のデモ用ウィジェットを生成します。
+func (g *Game) createWrapTextDemo() (component.Widget, error) {
+	longText := "This is a very long text that should wrap automatically when it reaches the edge of the widget. The layout system will then adjust the widget's height to accommodate all the wrapped lines of text."
+	return ui.VStack(func(b *ui.FlexBuilder) {
+		b.Flex(1).Padding(10).Gap(10).Border(1, color.Gray{Y: 100})
+
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text("Label with WrapText(true)")
+		})
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text(longText).
+				WrapText(true). // テキストの折り返しを有効化
+				Size(300, 0).   // 幅を固定し、高さはレイアウトに任せる
+				Border(1, color.Gray{Y: 150}).
+				Padding(5)
+		})
+
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text("Stretched Label with WrapText(true) and VerticalAlignTop")
+		})
+		b.Label(func(l *widget.LabelBuilder) {
+			l.Text(longText+" "+longText).
+				WrapText(true).                        // テキストの折り返しを有効化
+				Flex(1).                               // 残りの垂直スペースをすべて使用
+				VerticalAlign(style.VerticalAlignTop). // 上揃え
+				Border(1, color.Gray{Y: 150}).
+				Padding(5)
+		})
+
+	}).Build()
+}
+
 // createGridLayoutDemo はGridLayoutのデモ用ウィジェットを生成します。
 func (g *Game) createGridLayoutDemo() (component.Widget, error) {
 	return ui.Grid(func(b *ui.GridBuilder) {
@@ -270,7 +347,8 @@ func (g *Game) createZStackDemo() (component.Widget, error) {
 			l.Text("Background").
 				Size(400, 300).
 				BackgroundColor(color.Gray{Y: 220}).
-				AbsolutePosition(50, 50)
+				AbsolutePosition(50, 50).
+				WrapText(true) // 折り返しを有効化
 		})
 
 		// 中景
@@ -279,7 +357,8 @@ func (g *Game) createZStackDemo() (component.Widget, error) {
 				Size(300, 200).
 				BackgroundColor(color.RGBA{R: 100, G: 150, B: 200, A: 255}).
 				TextColor(color.White).
-				AbsolutePosition(100, 100)
+				AbsolutePosition(100, 100).
+				WrapText(true) // 折り返しを有効化
 		})
 
 		// 前景
@@ -287,14 +366,16 @@ func (g *Game) createZStackDemo() (component.Widget, error) {
 			btn.Text("Foreground Button").
 				Size(150, 50).
 				AbsolutePosition(175, 175).
-				OnClick(func(e *event.Event) { log.Println("Foreground button clicked!") })
+				OnClick(func(e *event.Event) { log.Println("Foreground button clicked!") }).
+				WrapText(true) // Buttonでも有効
 		})
 
 		// ZStackの範囲外（クリッピングされる場合）
 		b.Label(func(l *widget.LabelBuilder) {
 			l.Text("Partially Visible").
 				BackgroundColor(color.RGBA{R: 200, G: 100, B: 100, A: 255}).
-				AbsolutePosition(480, 200)
+				AbsolutePosition(480, 200).
+				WrapText(true) // 折り返しを有効化
 		})
 	}).Build()
 }
@@ -325,7 +406,7 @@ func (g *Game) createScrollViewDemo() (component.Widget, error) {
 									detailTitleLabel.SetText(fmt.Sprintf("Details for Item %d", itemNumber))
 								}
 								if detailInfoLabel != nil {
-									detailInfoLabel.SetText(fmt.Sprintf("Here you would see more detailed information about item number %d. This text is updated dynamically.", itemNumber))
+									detailInfoLabel.SetText(fmt.Sprintf("Here you would see more detailed information about item number %d. This text is updated dynamically when you select an item from the list. It can be quite long, so text wrapping is essential here.", itemNumber))
 								}
 							})
 					})
@@ -352,6 +433,7 @@ func (g *Game) createScrollViewDemo() (component.Widget, error) {
 					Flex(1).
 					TextAlign(style.TextAlignLeft).
 					VerticalAlign(style.VerticalAlignTop).
+					WrapText(true). // 詳細テキストの折り返しを有効化
 					AssignTo(&detailInfoLabel)
 			})
 		})

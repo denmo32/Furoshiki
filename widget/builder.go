@@ -10,6 +10,7 @@ import (
 type textWidget interface {
 	component.Widget
 	SetText(string)
+	SetWrapText(bool) // 折り返し設定メソッドを追加
 }
 
 // Builder は、テキストを持つウィジェットのための汎用ビルダーです。
@@ -25,6 +26,12 @@ func (b *Builder[T, W]) Init(self T, widget W) {
 // Text はウィジェットのテキスト内容を設定します。
 func (b *Builder[T, W]) Text(text string) T {
 	b.Widget.SetText(text)
+	return b.Self
+}
+
+// WrapText は、ウィジェットの幅を超えるテキストを自動的に折り返すかどうかを設定します。
+func (b *Builder[T, W]) WrapText(wrap bool) T {
+	b.Widget.SetWrapText(wrap)
 	return b.Self
 }
 

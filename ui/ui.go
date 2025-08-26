@@ -47,6 +47,29 @@ func buildFlexContainer(l *layout.FlexLayout, buildFunc func(*FlexBuilder)) *Fle
 	return b
 }
 
+// Wrap は、アイテムが一行に収まらない場合に折り返すかどうかを設定します。
+func (b *FlexBuilder) Wrap(wrap bool) *FlexBuilder {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.Wrap != wrap {
+			flexLayout.Wrap = wrap
+			b.Widget.MarkDirty(true)
+		}
+	}
+	return b
+}
+
+// AlignContent は、複数行/列になった際の、交差軸方向のラインの揃え位置を設定します。
+// このプロパティは、Wrapがtrueの場合にのみ効果があります。
+func (b *FlexBuilder) AlignContent(alignment layout.Alignment) *FlexBuilder {
+	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
+		if flexLayout.AlignContent != alignment {
+			flexLayout.AlignContent = alignment
+			b.Widget.MarkDirty(true)
+		}
+	}
+	return b
+}
+
 // Gap は、FlexLayout内の子要素間の間隔を設定します。
 func (b *FlexBuilder) Gap(gap int) *FlexBuilder {
 	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {

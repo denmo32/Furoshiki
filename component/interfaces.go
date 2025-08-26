@@ -45,6 +45,13 @@ type Widget interface {
 	HitTester
 }
 
+// HeightForWider は、ウィジェットが特定の幅を与えられた場合に
+// 必要となる高さを計算できることを示すインターフェースです。
+// テキストの折り返しなど、コンテンツの高さが幅に依存するウィジェットによって実装されます。
+type HeightForWider interface {
+	GetHeightForWidth(width int) int
+}
+
 // ScrollBarWidget は、ScrollBarが実装すべきメソッドを定義します。
 // これにより、他のパッケージが具体的なScrollBar型に依存することなく、
 // このインターフェースを通じてScrollBarを操作できます。

@@ -5,11 +5,13 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"strings"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/font"
 )
 
 var (
@@ -30,7 +32,7 @@ func ensureWhitePixelImg() {
 // --- Drawing Helper ---
 
 // applyOpacity は元の色に不透明度を適用した新しい色を返します。
-// color.NRGBAモデルに変換してアルファ値を操作することで、安全かつ意図通りに動作させます。
+// color.NRGBAModelに変換してアルファ値を操作することで、安全かつ意図通りに動作させます。
 func applyOpacity(c color.Color, opacity *float64) color.Color {
 	if c == nil || opacity == nil {
 		return c
@@ -185,8 +187,52 @@ func drawBorder(dst *ebiten.Image, x, y, width, height float32, s style.Style, o
 	}
 }
 
+// CalculateWrappedText は、指定された幅でテキストを折り返し、
+// 結果の行のスライスと、それらを描画するのに必要な合計高さを返します。
+func CalculateWrappedText(f font.Face, textContent string, maxWidth int) ([]string, int) {
+	if maxWidth <= 0 || textContent == "" {
+		if f != nil {
+			metrics := f.Metrics()
+			return []string{textContent}, (metrics.Ascent + metrics.Descent).Ceil()
+		}
+		return []string{textContent}, 0
+	}
+
+	var lines []string
+	words := strings.Split(textContent, " ")
+	if len(words) == 0 {
+		return []string{}, 0
+	}
+
+	currentLine := words[0]
+	for _, word := range words[1:] {
+		if word == "" {
+			// 連続したスペースを結合しようとすると、先頭に不要なスペースが入るため、
+			// currentLineにスペースを追加するだけにします。
+			currentLine += " "
+			continue
+		}
+		testLine := currentLine + " " + word
+		bounds := text.BoundString(f, testLine)
+		if bounds.Dx() > maxWidth {
+			lines = append(lines, currentLine)
+			currentLine = word
+		} else {
+			currentLine = testLine
+		}
+	}
+	lines = append(lines, currentLine)
+
+	metrics := f.Metrics()
+	lineHeight := (metrics.Ascent + metrics.Descent).Ceil()
+	totalHeight := lineHeight * len(lines)
+
+	return lines, totalHeight
+}
+
 // DrawAlignedText は、指定された矩形領域内にテキストを揃えて描画します。
-func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style) {
+// wrap パラメータがtrueの場合、テキストを自動的に折り返します。
+func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectangle, s style.Style, wrap bool) {
 	if textContent == "" || s.Font == nil || *s.Font == nil {
 		return
 	}
@@ -205,36 +251,36 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 	if contentRect.Dx() <= 0 || contentRect.Dy() <= 0 {
 		return
 	}
-	bounds := text.BoundString(*s.Font, textContent)
 
-	var textX int
-	textAlign := style.TextAlignLeft
-	if s.TextAlign != nil {
-		textAlign = *s.TextAlign
-	}
-	switch textAlign {
-	case style.TextAlignCenter:
-		textX = contentRect.Min.X + (contentRect.Dx()-bounds.Dx())/2
-	case style.TextAlignRight:
-		textX = contentRect.Max.X - bounds.Dx()
-	default: // style.TextAlignLeft
-		textX = contentRect.Min.X
-	}
-
-	var textY int
+	var lines []string
+	var totalTextHeight int
 	metrics := (*s.Font).Metrics()
-	textHeight := (metrics.Ascent + metrics.Descent).Ceil()
+	lineHeight := (metrics.Ascent + metrics.Descent).Ceil()
+
+	if wrap {
+		lines, totalTextHeight = CalculateWrappedText(*s.Font, textContent, contentRect.Dx())
+	} else {
+		lines = []string{textContent}
+		totalTextHeight = lineHeight
+	}
+
+	var startY int
 	verticalAlign := style.VerticalAlignMiddle
 	if s.VerticalAlign != nil {
 		verticalAlign = *s.VerticalAlign
 	}
 	switch verticalAlign {
 	case style.VerticalAlignTop:
-		textY = contentRect.Min.Y + metrics.Ascent.Ceil()
+		startY = contentRect.Min.Y + metrics.Ascent.Ceil()
 	case style.VerticalAlignBottom:
-		textY = contentRect.Max.Y - metrics.Descent.Ceil()
+		startY = contentRect.Max.Y - totalTextHeight + metrics.Ascent.Ceil()
 	default: // style.VerticalAlignMiddle
-		textY = contentRect.Min.Y + (contentRect.Dy()-textHeight)/2 + metrics.Ascent.Ceil()
+		startY = contentRect.Min.Y + (contentRect.Dy()-totalTextHeight)/2 + metrics.Ascent.Ceil()
+	}
+
+	textAlign := style.TextAlignLeft
+	if s.TextAlign != nil {
+		textAlign = *s.TextAlign
 	}
 
 	textColor := color.Color(color.Black)
@@ -245,5 +291,18 @@ func DrawAlignedText(screen *ebiten.Image, textContent string, area image.Rectan
 		textColor = applyOpacity(textColor, s.Opacity)
 	}
 
-	text.Draw(screen, textContent, *s.Font, textX, textY, textColor)
+	for i, line := range lines {
+		bounds := text.BoundString(*s.Font, line)
+		var textX int
+		switch textAlign {
+		case style.TextAlignCenter:
+			textX = contentRect.Min.X + (contentRect.Dx()-bounds.Dx())/2
+		case style.TextAlignRight:
+			textX = contentRect.Max.X - bounds.Dx()
+		default: // style.TextAlignLeft
+			textX = contentRect.Min.X
+		}
+		textY := startY + i*lineHeight
+		text.Draw(screen, line, *s.Font, textX, textY, textColor)
+	}
 }
