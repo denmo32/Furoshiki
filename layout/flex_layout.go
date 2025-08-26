@@ -11,8 +11,10 @@ type FlexLayout struct {
 	Direction  Direction
 	Justify    Alignment
 	AlignItems Alignment
-	Wrap       bool
-	Gap        int
+	// Wrap は、アイテムが一行に収まらない場合に折り返すかどうかを指定します。
+	// 注意: 現在のバージョンではこのプロパティは実装されていません。
+	Wrap bool
+	Gap  int
 }
 
 // flexItemInfo は、レイアウト計算中に各子要素の情報を保持するための中間構造体です。

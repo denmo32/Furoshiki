@@ -98,9 +98,9 @@ func (b *BaseContainerBuilder[T]) Grid(buildFunc func(*GridBuilder)) T {
 
 // --- 共通コンテナ設定メソッド ---
 
-// RelayoutBoundary はコンテナをレイアウト境界として設定します。
+// SetLayoutBoundary はコンテナをレイアウト境界として設定します。
 // このコンテナ内部でのレイアウト変更が、親コンテナの再レイアウトを引き起こさなくなります。
-func (b *BaseContainerBuilder[T]) RelayoutBoundary(isBoundary bool) T {
+func (b *BaseContainerBuilder[T]) SetLayoutBoundary(isBoundary bool) T {
 	b.Widget.SetLayoutBoundary(isBoundary)
 	return b.Self
 }

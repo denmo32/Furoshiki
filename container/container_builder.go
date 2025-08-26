@@ -62,12 +62,6 @@ func (b *ContainerBuilder) SetLayoutBoundary(isBoundary bool) *ContainerBuilder 
 	return b
 }
 
-// SetRelayoutBoundary はコンテナをレイアウト境界として設定します(後方互換性のため)。
-func (b *ContainerBuilder) SetRelayoutBoundary(isBoundary bool) *ContainerBuilder {
-	b.Widget.SetRelayoutBoundary(isBoundary)
-	return b
-}
-
 // SetClipsChildren はコンテナのクリッピング動作を設定します。
 func (b *ContainerBuilder) SetClipsChildren(clips bool) *ContainerBuilder {
 	b.Widget.SetClipsChildren(clips)

@@ -178,7 +178,7 @@ func (c *Container) HitTest(x, y int) component.Widget {
 	if !c.IsVisible() {
 		return nil
 	}
-	// 描画順とは逆に、最前面の子からヒットテスト
+	// 描画順とは逆に、最前面の子からヒットテストします。
 	for i := len(c.children) - 1; i >= 0; i-- {
 		child := c.children[i]
 		if !child.IsVisible() {
@@ -188,11 +188,9 @@ func (c *Container) HitTest(x, y int) component.Widget {
 			return target
 		}
 	}
-	// どの子にもヒットしなかった場合、コンテナ自身をテスト
-	if c.LayoutableWidget.HitTest(x, y) != nil {
-		return c
-	}
-	return nil
+	// どの子にもヒットしなかった場合、コンテナ自身をテストします。
+	// LayoutableWidget.HitTestは、ヒットした場合にコンテナ自身(c)を返します。
+	return c.LayoutableWidget.HitTest(x, y)
 }
 
 // Cleanup は、コンテナとすべての子ウィジェットのリソースを解放します。
