@@ -8,73 +8,94 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Button is a clickable UI element.
+// Button は、クリック可能なUI要素です。
 type Button struct {
 	*component.TextWidget
-	component.InteractiveMixin
+	stateStyles map[component.WidgetState]style.Style
 }
 
-// Compile-time check to ensure Button implements the interactiveTextWidget interface.
-var _ interactiveTextWidget = (*Button)(nil)
-
-// NewButton creates a new instance of a Button widget.
+// NewButtonは、ボタンウィジェットの新しいインスタンスを生成し、初期化します。
 func NewButton(text string) *Button {
-	button := &Button{}
-	button.TextWidget = component.NewTextWidget(text)
-
-	// Initialize the interactive mixin with styles from the theme.
-	t := theme.GetCurrent()
-	themeStyles := map[component.WidgetState]style.Style{
-		component.StateNormal:   t.Button.Normal,
-		component.StateHovered:  t.Button.Hovered,
-		component.StatePressed:  t.Button.Pressed,
-		component.StateDisabled: t.Button.Disabled,
+	button := &Button{
+		stateStyles: make(map[component.WidgetState]style.Style),
 	}
-	button.InteractiveMixin.InitStyles(themeStyles)
+	button.TextWidget = component.NewTextWidget(text)
+	button.Init(button) // LayoutableWidgetの初期化
 
-	// Set the base style and default size.
-	button.SetStyle(button.StateStyles[component.StateNormal])
+	t := theme.GetCurrent()
+	button.stateStyles[component.StateNormal] = t.Button.Normal.DeepCopy()
+	button.stateStyles[component.StateHovered] = t.Button.Hovered.DeepCopy()
+	button.stateStyles[component.StatePressed] = t.Button.Pressed.DeepCopy()
+	button.stateStyles[component.StateDisabled] = t.Button.Disabled.DeepCopy()
+
+	button.SetStyle(t.Button.Normal)
 	button.SetSize(100, 40)
-
-	// IMPORTANT: Initialize the LayoutableWidget with the final concrete type.
-	button.Init(button)
 
 	return button
 }
 
-// Draw renders the Button. It selects a style based on the current state.
+// Draw はButtonを描画します。現在の状態に応じたスタイルを選択し、描画を委譲します。
 func (b *Button) Draw(screen *ebiten.Image) {
-	styleToUse := b.GetActiveStyle(b.CurrentState(), b.GetStyle())
+	currentState := b.LayoutableWidget.CurrentState()
+	styleToUse := b.stateStyles[currentState]
 	b.TextWidget.DrawWithStyle(screen, styleToUse)
 }
 
-// SetStyleForState sets the style for a specific widget state.
-func (b *Button) SetStyleForState(state component.WidgetState, s style.Style) {
-	b.InteractiveMixin.SetStyleForState(state, s, b.SetStyle)
-}
-
-// StyleAllStates applies a style modification to all interaction states.
-func (b *Button) StyleAllStates(s style.Style) {
-	b.InteractiveMixin.SetAllStyles(s, b.SetStyle)
-}
-
 // --- ButtonBuilder ---
-
-// ButtonBuilder is a fluent builder for creating Button widgets.
 type ButtonBuilder struct {
-	InteractiveTextBuilder[*ButtonBuilder, *Button]
+	Builder[*ButtonBuilder, *Button]
 }
 
-// NewButtonBuilder creates a new builder for a Button.
+// NewButtonBuilder は新しいButtonBuilderを生成します。
 func NewButtonBuilder() *ButtonBuilder {
 	button := NewButton("")
 	b := &ButtonBuilder{}
-	// Initialize the embedded InteractiveTextBuilder.
-	b.InteractiveTextBuilder.Init(b, button)
+	b.Init(b, button)
 	return b
 }
 
-// Build finalizes the construction of the Button.
+// SetStyleForState は、指定された単一の状態のスタイルを設定します。
+func (b *ButtonBuilder) SetStyleForState(state component.WidgetState, s style.Style) *ButtonBuilder {
+	baseStyle := b.Widget.stateStyles[state]
+	b.Widget.stateStyles[state] = style.Merge(baseStyle, s)
+
+	// Normal状態のスタイルはレイアウト計算の基準となるため、ウィジェットの基本スタイルも更新します。
+	if state == component.StateNormal {
+		b.Widget.SetStyle(b.Widget.stateStyles[component.StateNormal])
+	}
+	return b
+}
+
+// Style は、ボタンの通常時（Normal状態）のスタイルを設定します。
+func (b *ButtonBuilder) Style(s style.Style) *ButtonBuilder {
+	return b.SetStyleForState(component.StateNormal, s)
+}
+
+// StyleAllStates は、ボタンの全てのインタラクティブな状態に共通のスタイル変更を適用します。
+func (b *ButtonBuilder) StyleAllStates(s style.Style) *ButtonBuilder {
+	for state, baseStyle := range b.Widget.stateStyles {
+		b.Widget.stateStyles[state] = style.Merge(baseStyle, s)
+	}
+	b.Widget.SetStyle(b.Widget.stateStyles[component.StateNormal])
+	return b
+}
+
+// HoverStyle は、ホバー時のスタイルを個別に設定します。
+func (b *ButtonBuilder) HoverStyle(s style.Style) *ButtonBuilder {
+	return b.SetStyleForState(component.StateHovered, s)
+}
+
+// PressedStyle は、押下時のスタイルを個別に設定します。
+func (b *ButtonBuilder) PressedStyle(s style.Style) *ButtonBuilder {
+	return b.SetStyleForState(component.StatePressed, s)
+}
+
+// DisabledStyle は、無効時のスタイルを個別に設定します。
+func (b *ButtonBuilder) DisabledStyle(s style.Style) *ButtonBuilder {
+	return b.SetStyleForState(component.StateDisabled, s)
+}
+
+// Build は、最終的なButtonを構築して返します。
 func (b *ButtonBuilder) Build() (*Button, error) {
 	return b.Builder.Build()
 }

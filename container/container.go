@@ -156,15 +156,35 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 		scrollOffsetX, scrollOffsetY = scroller.GetScrollOffset()
 	}
 
+	// 子ウィジェットとその子孫の座標を再帰的に変更するためのヘルパー関数
+	var offsetWidgets func(w component.Widget, dx, dy int)
+	offsetWidgets = func(w component.Widget, dx, dy int) {
+		x, y := w.GetPosition()
+		// NOTE: Drawループ中にSetPositionを呼ぶとダーティフラグが立ち、意図しない再描画や再計算が起きる可能性がある。
+		// この問題を根本的に解決するには、ライブラリの描画アーキテクチャの変更が必要になる。
+		w.SetPosition(x+dx, y+dy)
+		if cont, ok := w.(component.Container); ok {
+			for _, grandChild := range cont.GetChildren() {
+				offsetWidgets(grandChild, dx, dy)
+			}
+		}
+	}
+
 	// 子要素をオフスクリーン画像に描画
 	for _, child := range c.children {
-		originalX, originalY := child.GetPosition()
-		relativeX := originalX - containerX + scrollOffsetX
-		relativeY := originalY - containerY + scrollOffsetY
+		// オフセットを計算
+		// 子ウィジェットを、コンテナのローカル座標系(0,0)を基準とした位置に描画するためのオフセット
+		offsetX := -(containerX - scrollOffsetX)
+		offsetY := -(containerY - scrollOffsetY)
 
-		child.SetPosition(relativeX, relativeY)
+		// 座標を一時的に変更
+		offsetWidgets(child, offsetX, offsetY)
+
+		// オフセットされた座標でオフスクリーン画像に描画
 		child.Draw(c.offscreenImage)
-		child.SetPosition(originalX, originalY) // 座標を元に戻す
+
+		// 座標を元に戻す
+		offsetWidgets(child, -offsetX, -offsetY)
 	}
 
 	// 完成したオフスクリーン画像をスクリーンに描画
