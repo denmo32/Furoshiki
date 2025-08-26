@@ -136,11 +136,7 @@ func (w *LayoutableWidget) SetLayoutBoundary(isBoundary bool) {
 	}
 }
 
-// SetRelayoutBoundary は、このウィジェットをレイアウト計算の境界とするか設定します。
-// Deprecated: use SetLayoutBoundary instead.
-func (w *LayoutableWidget) SetRelayoutBoundary(isBoundary bool) {
-	w.SetLayoutBoundary(isBoundary)
-}
+
 
 // SetParent はウィジェットの親コンテナを設定します。
 func (w *LayoutableWidget) SetParent(parent Container) {
