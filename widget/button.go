@@ -32,7 +32,6 @@ func NewButton(text string) *Button {
 	button.InitStyles(styles)
 
 	// 通常時のスタイルをウィジェットの基本スタイルとして設定します。
-	// この時点でSetStyleを呼ぶと、オーバーライドされたSetStyleがStateStyles[StateNormal]も更新します。
 	button.SetStyle(styles[component.StateNormal])
 	button.SetSize(100, 40)
 
@@ -69,21 +68,27 @@ func (b *Button) Draw(screen *ebiten.Image) {
 }
 
 // SetStyleForState は、指定された単一の状態のスタイルを設定します。
-// Mixinを更新し、Normal状態が変更された場合はウィジェットの基本スタイルも同期させます。
+// InteractiveMixinの責務が状態マップの管理のみになったため、このメソッド内で
+// スタイルのマージと、必要に応じた基本スタイルの更新を行います。
 func (b *Button) SetStyleForState(state component.WidgetState, s style.Style) {
-	if newNormal, updated := b.InteractiveMixin.SetStyleForState(state, s); updated {
-		// Normal状態のスタイルが変更された場合、ウィジェットの基本スタイルも更新します。
-		// b.SetStyle()ではなくb.LayoutableWidget.SetStyle()を直接呼ぶことで、
-		// b.SetStyle()内で再度StateStyles[StateNormal]を更新する冗長な処理を避けます。
-		b.LayoutableWidget.SetStyle(newNormal)
+	// 1. Mixinに保存されている現在の状態のスタイルに、新しいスタイルをマージします。
+	b.InteractiveMixin.SetStyleForState(state, s)
+
+	// 2. もしNormal状態のスタイルが変更された場合は、ウィジェットの基本スタイルも同期させます。
+	if state == component.StateNormal {
+		// LayoutableWidget.SetStyleを直接呼ぶことで、このメソッド内で再度
+		// StateStyles[StateNormal]を更新する冗長な処理を避けます。
+		b.LayoutableWidget.SetStyle(b.InteractiveMixin.StateStyles[component.StateNormal])
 	}
 }
 
 // StyleAllStates は、ボタンの全てのインタラクティブな状態に共通のスタイル変更を適用します。
+// ここでも、Mixinの更新後に基本スタイルとの同期をこのメソッド内で行います。
 func (b *Button) StyleAllStates(s style.Style) {
-	newNormalStyle := b.InteractiveMixin.SetAllStyles(s)
-	// Mixinの更新後、新しいNormalスタイルをウィジェットの基本スタイルとして設定します。
-	b.LayoutableWidget.SetStyle(newNormalStyle)
+	// 1. Mixinが管理する全ての状態のスタイルを更新します。
+	b.InteractiveMixin.SetAllStyles(s)
+	// 2. 更新後の新しいNormalスタイルをウィジェットの基本スタイルとして設定します。
+	b.LayoutableWidget.SetStyle(b.InteractiveMixin.StateStyles[component.StateNormal])
 }
 
 // --- ButtonBuilder ---

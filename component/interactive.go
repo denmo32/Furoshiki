@@ -1,5 +1,3 @@
-
-
 package component
 
 import "furoshiki/style"
@@ -29,26 +27,20 @@ func (im *InteractiveMixin) GetActiveStyle(currentState WidgetState) style.Style
 	return im.StateStyles[StateNormal]
 }
 
-// SetStyleForState は指定された状態のスタイルをマージします。
-// normalStyleUpdated が true で返された場合、呼び出し元はウィジェットの
-// ベーススタイルを更新する必要があります。
-func (im *InteractiveMixin) SetStyleForState(state WidgetState, s style.Style) (newNormalStyle style.Style, normalStyleUpdated bool) {
+// SetStyleForState は指定された状態のスタイルを、既存のスタイルにマージします。
+// このメソッドは InteractiveMixin 内部のスタイルマップのみを更新し、
+// ウィジェットの基本スタイルへの反映は呼び出し元の責務です。
+func (im *InteractiveMixin) SetStyleForState(state WidgetState, s style.Style) {
 	baseStyle := im.StateStyles[state]
 	mergedStyle := style.Merge(baseStyle, s)
 	im.StateStyles[state] = mergedStyle
-	if state == StateNormal {
-		// Normal状態が更新されたことを、更新後のスタイルと共に呼び出し元に通知します。
-		return mergedStyle, true
-	}
-	return style.Style{}, false
 }
 
-// SetAllStyles はすべての状態に新しいスタイルをマージし、更新後のNormalスタイルを返します。
-// 呼び出し元は、この戻り値を使ってウィジェットのベーススタイルを更新する必要があります。
-func (im *InteractiveMixin) SetAllStyles(s style.Style) style.Style {
+// SetAllStyles はすべての状態に新しいスタイルをマージします。
+// このメソッドは InteractiveMixin 内部のスタイルマップのみを更新し、
+// ウィジェットの基本スタイルへの反映は呼び出し元の責務です。
+func (im *InteractiveMixin) SetAllStyles(s style.Style) {
 	for state, baseStyle := range im.StateStyles {
 		im.StateStyles[state] = style.Merge(baseStyle, s)
 	}
-	// 更新後のNormalスタイルを返します。
-	return im.StateStyles[StateNormal]
 }

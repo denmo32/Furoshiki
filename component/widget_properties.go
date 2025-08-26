@@ -4,14 +4,6 @@ import (
 	"furoshiki/style"
 )
 
-// max は2つのintのうち大きい方を返します。
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // SetPosition はウィジェットの絶対座標を設定します。
 // このメソッドはレイアウトシステムによって呼び出されるため、ここで初めてウィジェットが
 // 「レイアウト済み」であるとマークします。
