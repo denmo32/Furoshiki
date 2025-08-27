@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"furoshiki/utils"
 	"math"
 )
 
@@ -59,6 +60,7 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 	}
 
 	// 1. ギャップを考慮に入れた利用可能スペースを計算
+	// Go 1.21+ の組み込みmaxを使用します。
 	totalHorizontalGap := max(0, (numCols-1)*l.HorizontalGap)
 	totalVerticalGap := max(0, (numRows-1)*l.VerticalGap)
 	netWidth := availableWidth - totalHorizontalGap
@@ -81,10 +83,11 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 		}
 
 		// 範囲チェックを行い、グリッドの範囲内に収める
-		startCol := clamp(data.Col, 0, numCols-1)
-		startRow := clamp(data.Row, 0, numRows-1)
-		endCol := clamp(data.Col+data.ColSpan, startCol+1, numCols)
-		endRow := clamp(data.Row+data.RowSpan, startRow+1, numRows)
+		// utils.Clamp を使用して冗長性を解消します。
+		startCol := utils.Clamp(data.Col, 0, numCols-1)
+		startRow := utils.Clamp(data.Row, 0, numRows-1)
+		endCol := utils.Clamp(data.Col+data.ColSpan, startCol+1, numCols)
+		endRow := utils.Clamp(data.Row+data.RowSpan, startRow+1, numRows)
 
 		// 位置とサイズを計算
 		x := colPositions[startCol]
@@ -141,15 +144,4 @@ func calculateTrackPositions(sizes []int, gap int, startOffset int) []int {
 		currentPos += size + gap
 	}
 	return positions
-}
-
-// clamp は値を指定された最小値と最大値の範囲内に収めます。
-func clamp(value, min, max int) int {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
 }

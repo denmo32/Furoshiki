@@ -63,6 +63,7 @@ func (w *LayoutableWidget) GetMinSize() (width, height int) {
 
 	if w.contentMinSizeFunc != nil {
 		contentMinWidth, contentMinHeight := w.contentMinSizeFunc()
+		// ローカルのmax関数を削除し、Go 1.21+ で利用可能な組み込みのmax関数を使用します。
 		finalMinWidth := max(contentMinWidth, userMinWidth)
 		finalMinHeight := max(contentMinHeight, userMinHeight)
 		return finalMinWidth, finalMinHeight

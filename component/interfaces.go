@@ -41,7 +41,10 @@ type Widget interface {
 	InteractiveState
 
 	// --- イベント処理 ---
-	EventHandler
+	// NOTE: インターフェース名を EventHandler から EventProcessor に変更しました。
+	//       これにより、 event.EventHandler (func(e *event.Event)) 型との名前の衝突を避け、
+	//       コードの直感性を向上させます。
+	EventProcessor
 	HitTester
 }
 
@@ -123,8 +126,9 @@ type InteractiveState interface {
 	CurrentState() WidgetState
 }
 
-// EventHandler はイベント処理のためのインターフェースです
-type EventHandler interface {
+// EventProcessor はイベント処理のためのインターフェースです
+// NOTE: 以前の EventHandler から名称変更。
+type EventProcessor interface {
 	AddEventHandler(eventType event.EventType, handler event.EventHandler)
 	RemoveEventHandler(eventType event.EventType)
 	HandleEvent(e *event.Event)
