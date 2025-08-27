@@ -33,6 +33,8 @@ type EventHandler func(e *Event)
 
 // EventTargetは、Dispatcherがイベントをディスパッチするためにウィジェットが満たすべき最低限の振る舞いを定義するインターフェースです。
 // このインターフェースをeventパッケージ内で定義することで、componentパッケージへの依存をなくし、インポートサイクルを回避します。
+// 【提案1】component.Widgetがスリム化されたため、インタラクティブなウィジェットは
+// このEventTargetインターフェースを明示的に実装する(またはLayoutableWidgetを埋め込む)必要があります。
 type EventTarget interface {
 	SetHovered(bool)
 	SetPressed(bool)

@@ -140,8 +140,20 @@ func (g *Game) switchToDemo(demoCreator func() (component.Widget, error)) {
 func (g *Game) Update() error {
 	cx, cy := ebiten.CursorPosition()
 	dispatcher := event.GetDispatcher()
-	target := g.root.HitTest(cx, cy)
+
+	// 【提案1対応】HitTestはcomponent.Widgetを返します。
+	// Dispatcherはevent.EventTargetを期待するため、型アサーションで変換します。
+	hittableWidget := g.root.HitTest(cx, cy)
+	var target event.EventTarget
+	if hittableWidget != nil {
+		// ヒットしたウィジェットがEventTargetインターフェースを実装しているか確認します。
+		// 実装していれば、イベントディスパッチの対象となります。
+		if et, ok := hittableWidget.(event.EventTarget); ok {
+			target = et
+		}
+	}
 	dispatcher.Dispatch(target, cx, cy)
+
 	g.root.Update()
 	return nil
 }

@@ -20,8 +20,11 @@ type Insets struct {
 // ScrollViewLayoutのような複雑なレイアウト計算のために、子要素の取得やパディングだけでなく、
 // サイズ設定や更新といった、より多くのWidgetの機能にアクセスできる必要があります。
 // そのため、component.Containerを埋め込み、GetPaddingを追加で要求します。
+// 【提案1対応】Widgetのスリム化に伴い、レイアウト計算に必要なPositionSetterとSizeSetterを明示的に要求します。
 type Container interface {
-	component.Container // GetSize, GetPosition, GetChildren, SetSize, Updateなどを含む
+	component.Container // GetChildren, Updateなどを含む
+	component.PositionSetter
+	component.SizeSetter
 	GetPadding() Insets
 }
 

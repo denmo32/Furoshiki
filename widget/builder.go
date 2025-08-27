@@ -7,8 +7,10 @@ import (
 )
 
 // textWidget は、テキストを持つウィジェット（Button, Labelなど）が満たすインターフェースです。
+// 【提案1対応】component.Builderが要求するcomponent.Buildableインターフェースを埋め込むことで、
+// 型制約を満たすように修正しました。
 type textWidget interface {
-	component.Widget
+	component.Buildable
 	SetText(string)
 	SetWrapText(bool) // 折り返し設定メソッドを追加
 }

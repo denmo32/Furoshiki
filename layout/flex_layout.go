@@ -199,7 +199,13 @@ func calculateLineCrossSize(lineItems []*flexItemInfo) int {
 func collectItemInfo(children []component.Widget, isRow bool) []*flexItemInfo {
 	items := make([]*flexItemInfo, len(children))
 	for i, child := range children {
-		s := child.GetStyle()
+		// 【提案1】型アサーションの追加: スタイルやFlex値は特定のインターフェースが持つため、
+		// 型アサーションを通じて安全にアクセスします。
+		var s style.Style
+		if sg, ok := child.(component.StyleGetterSetter); ok {
+			s = sg.GetStyle()
+		}
+
 		margin := style.Insets{}
 		if s.Margin != nil {
 			margin = *s.Margin
@@ -216,9 +222,14 @@ func collectItemInfo(children []component.Widget, isRow bool) []*flexItemInfo {
 			crossMargin = margin.Left + margin.Right
 		}
 
+		flex := 0
+		if lp, ok := child.(component.LayoutProperties); ok {
+			flex = lp.GetFlex()
+		}
+
 		items[i] = &flexItemInfo{
 			widget:          child,
-			flex:            child.GetFlex(),
+			flex:            flex,
 			mainMargin:      mainMargin,
 			crossMargin:     crossMargin,
 			mainMarginStart: mainMarginStart,
@@ -231,8 +242,15 @@ func collectItemInfo(children []component.Widget, isRow bool) []*flexItemInfo {
 // VStacks (`isRow == false`) のために、crossSize と alignItems を受け取るように修正されました。
 func calculateBaseSizes(items []*flexItemInfo, isRow bool, crossSize int, alignItems Alignment) {
 	for _, item := range items {
-		w, h := item.widget.GetSize()
-		minW, minH := item.widget.GetMinSize()
+		// 【提案1】型アサーションの追加: サイズ関連のメソッドはSizeSetter/MinSizeSetterが持つため、
+		// 型アサーションを通じて安全にアクセスします。
+		var w, h, minW, minH int
+		if ss, ok := item.widget.(component.SizeSetter); ok {
+			w, h = ss.GetSize()
+		}
+		if mss, ok := item.widget.(component.MinSizeSetter); ok {
+			minW, minH = mss.GetMinSize()
+		}
 
 		if isRow { // HStack のロジックは変更なし
 			if item.flex > 0 {
@@ -295,8 +313,14 @@ func calculateCrossAxisSizes(items []*flexItemInfo, crossSize int, isRow bool, a
 		// AlignStretchでない場合、子は自身のコンテンツに合わせたサイズになることができます。
 		if alignItems != AlignStretch {
 			var intrinsicCrossSize int
-			w, h := item.widget.GetSize()
-			minW, minH := item.widget.GetMinSize()
+			// 【提案1】型アサーションの追加
+			var w, h, minW, minH int
+			if ss, ok := item.widget.(component.SizeSetter); ok {
+				w, h = ss.GetSize()
+			}
+			if mss, ok := item.widget.(component.MinSizeSetter); ok {
+				minW, minH = mss.GetMinSize()
+			}
 
 			if isRow { // HStack の交差軸(高さ)を計算
 				if hw, ok := item.widget.(component.HeightForWider); ok {
@@ -326,10 +350,13 @@ func calculateCrossAxisSizes(items []*flexItemInfo, crossSize int, isRow bool, a
 // ポインタのスライスを受け取るように変更しました。
 func applySizes(items []*flexItemInfo, isRow bool) {
 	for _, item := range items {
-		if isRow {
-			item.widget.SetSize(item.mainSize, item.crossSize)
-		} else {
-			item.widget.SetSize(item.crossSize, item.mainSize)
+		// 【提案1】型アサーションの追加
+		if ss, ok := item.widget.(component.SizeSetter); ok {
+			if isRow {
+				ss.SetSize(item.mainSize, item.crossSize)
+			} else {
+				ss.SetSize(item.crossSize, item.mainSize)
+			}
 		}
 	}
 }
@@ -395,10 +422,13 @@ func positionItems(items []*flexItemInfo, container Container, mainSize, crossSi
 		finalCrossPos := crossStart + crossOffset
 
 		// 最終的な座標を設定
-		if isRow {
-			item.widget.SetPosition(containerX+currentMain, containerY+finalCrossPos)
-		} else {
-			item.widget.SetPosition(containerX+finalCrossPos, containerY+currentMain)
+		// 【提案1】型アサーションの追加
+		if ps, ok := item.widget.(component.PositionSetter); ok {
+			if isRow {
+				ps.SetPosition(containerX+currentMain, containerY+finalCrossPos)
+			} else {
+				ps.SetPosition(containerX+finalCrossPos, containerY+currentMain)
+			}
 		}
 
 		currentMain += item.mainSize + (item.mainMargin - item.mainMarginStart) + gap

@@ -58,7 +58,10 @@ func (w *LayoutableWidget) HandleEvent(e *event.Event) {
 	// イベントがこのウィジェットで処理されておらず（Handledがfalse）、
 	// かつ親ウィジェットが存在する場合に、イベントを親に伝播させます。
 	if e != nil && !e.Handled && w.hierarchy.parent != nil {
-		w.hierarchy.parent.HandleEvent(e)
+		// 【提案1対応】親がイベントを処理できる(EventProcessorを実装している)かチェックします。
+		if processor, ok := w.hierarchy.parent.(EventProcessor); ok {
+			processor.HandleEvent(e)
+		}
 	}
 }
 

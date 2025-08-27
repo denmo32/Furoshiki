@@ -317,7 +317,11 @@ func add[W component.Widget, WB interface {
 		placement := layout.GridPlacementData{
 			Row: row, Col: col, RowSpan: rowSpan, ColSpan: colSpan,
 		}
-		widget.SetLayoutData(placement)
+		// 【提案1対応】ジェネリック型の変数に対して型アサーションを行うため、
+		// 一度any型にキャストしてからアサーションを実行します。
+		if lp, ok := any(widget).(component.LayoutProperties); ok {
+			lp.SetLayoutData(placement)
+		}
 		b.AddChild(widget)
 	}
 }

@@ -38,6 +38,19 @@ type LayoutableWidget struct {
 	self Widget
 }
 
+// 【提案1】コンパイル時にLayoutableWidgetが各種インターフェースを実装していることを保証します。
+// Widgetから分離されたインターフェースについても実装を検証することで、堅牢性を高めます。
+var _ Widget = (*LayoutableWidget)(nil)
+var _ PositionSetter = (*LayoutableWidget)(nil)
+var _ SizeSetter = (*LayoutableWidget)(nil)
+var _ MinSizeSetter = (*LayoutableWidget)(nil)
+var _ StyleGetterSetter = (*LayoutableWidget)(nil)
+var _ LayoutProperties = (*LayoutableWidget)(nil)
+var _ InteractiveState = (*LayoutableWidget)(nil)
+var _ event.EventTarget = (*LayoutableWidget)(nil) // event.EventTargetも実装していることを明記
+var _ EventProcessor = (*LayoutableWidget)(nil)
+var _ AbsolutePositioner = (*LayoutableWidget)(nil)
+
 // position はウィジェットの位置情報を保持します
 type position struct {
 	x, y int

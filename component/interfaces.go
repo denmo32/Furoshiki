@@ -7,7 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// UPDATE: DrawInfo構造体を新規追加
 // DrawInfoは、ウィジェットの描画に必要なすべてのコンテキストを保持します。
 // これを導入することで、Drawメソッドに状態変更の副作用（例: SetPositionの呼び出し）を
 // 持ち込む必要がなくなり、描画ロジックが純粋で予測可能になります。
@@ -20,12 +19,15 @@ type DrawInfo struct {
 
 // --- Widget Interface ---
 // Widgetは全てのUI要素の基本的な振る舞いを定義するインターフェースです。
-// 多くのメソッドを含んでいますが、責務ごとに小さなインターフェースに分割されています。
+// UIツリーの構成要素として最低限必要な機能（更新、描画、階層管理、ダーティ管理、ヒットテスト）を提供します。
+// 【提案1】インターフェースのスリム化:
+// 以前は全ての機能を一つの巨大なインターフェースにまとめていましたが、Goの思想に則り、
+// より小さく、責務が明確なインターフェースに分割しました。
+// レイアウトやイベント処理など、特定の機能は型アサーションを通じて利用されます。
 type Widget interface {
 	// --- ライフサイクル ---
 	Update()
-	// UPDATE: Drawメソッドのシグネチャを変更
-	// 画面だけでなく、描画コンテキスト(DrawInfo)を受け取るように変更しました。
+	// Drawメソッドは、描画コンテキスト(DrawInfo)を受け取り、ウィジェットを描画します。
 	// これにより、クリッピング描画などで必要になるオフセット情報を安全に渡せます。
 	Draw(info DrawInfo)
 	Cleanup()
@@ -33,32 +35,10 @@ type Widget interface {
 	// --- 階層構造 ---
 	HierarchyManager
 
-	// --- 位置とサイズ ---
-	PositionSetter
-	SizeSetter
-	MinSizeSetter
-
-	// --- スタイル ---
-	StyleGetterSetter
-
-	// --- レイアウト ---
-	LayoutProperties
-	// SetLayoutData は、このウィジェットにレイアウト固有のデータを設定します。
-	// 親コンテナのレイアウトシステム（例: AdvancedGridLayout）がこれを使用して、
-	// ウィジェットごとの配置情報（行、列、スパンなど）を管理します。
-	SetLayoutData(data any)
-	// GetLayoutData は、このウィジェットに設定されたレイアウト固有のデータを返します。
-	GetLayoutData() any
-
 	// --- 状態管理 ---
 	DirtyManager
-	InteractiveState
 
-	// --- イベント処理 ---
-	// NOTE: インターフェース名を EventHandler から EventProcessor に変更しました。
-	//       これにより、 event.EventHandler (func(e *event.Event)) 型との名前の衝突を避け、
-	//       コードの直感性を向上させます。
-	EventProcessor
+	// --- イベント処理の起点 ---
 	HitTester
 }
 
@@ -72,8 +52,13 @@ type HeightForWider interface {
 // ScrollBarWidget は、ScrollBarが実装すべきメソッドを定義します。
 // これにより、他のパッケージが具体的なScrollBar型に依存することなく、
 // このインターフェースを通じてScrollBarを操作できます。
+// 【提案1】インターフェースのスリム化に伴い、Widgetインターフェースの他に
+// 必要な振る舞いを明示的に埋め込みます。
 type ScrollBarWidget interface {
-	Widget // Widgetの基本機能を継承
+	Widget
+	InteractiveState // SetVisibleのため
+	SizeSetter       // GetSize, SetSizeのため
+	PositionSetter   // SetPositionのため
 	SetRatios(contentRatio, scrollRatio float64)
 }
 
@@ -116,6 +101,12 @@ type LayoutProperties interface {
 	SetFlex(flex int)
 	GetFlex() int
 	SetLayoutBoundary(isBoundary bool)
+	// SetLayoutData は、このウィジェットにレイアウト固有のデータを設定します。
+	// 親コンテナのレイアウトシステム（例: AdvancedGridLayout）がこれを使用して、
+	// ウィジェットごとの配置情報（行、列、スパンなど）を管理します。
+	SetLayoutData(data any)
+	// GetLayoutData は、このウィジェットに設定されたレイアウト固有のデータを返します。
+	GetLayoutData() any
 }
 
 // DirtyManager はウィジェットのダーティ状態を管理するためのインターフェースです

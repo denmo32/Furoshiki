@@ -8,9 +8,11 @@ import (
 // interactiveTextWidget defines the behavior for widgets using the InteractiveTextBuilder.
 // NOTE: StyleManagerの導入に伴い、ウィジェットは状態ごとのスタイルを設定する
 // SetStyleForStateと、全ての状態に一括でスタイルをマージするStyleAllStatesを実装します。
+// 【提案1対応】埋め込んでいるtextWidgetがcomponent.Buildableを内包するため、
+// 重複するSetStyleメソッドを削除しました。
 type interactiveTextWidget interface {
 	textWidget // From widget/builder.go
-	SetStyle(s style.Style)
+	// SetStyle(s style.Style) // 削除: textWidget -> Buildable -> StyleGetterSetter に含まれる
 	SetStyleForState(state component.WidgetState, s style.Style)
 	StyleAllStates(s style.Style)
 }

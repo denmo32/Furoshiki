@@ -30,6 +30,9 @@ func GetDispatcher() *Dispatcher {
 
 // Dispatch は、マウスイベントを処理し、適切なイベントをコンポーネントに発行します。
 // このメソッドは、アプリケーションのメインUpdateループから毎フレーム呼び出されることを想定しています。
+// 【提案1対応】循環参照を解消するため、引数の型をcomponent.WidgetからEventTargetに戻しました。
+// これにより、eventパッケージはcomponentパッケージに依存しなくなります。
+// 呼び出し側(main.goなど)は、HitTestの結果をEventTargetに型アサーションしてから渡す必要があります。
 func (d *Dispatcher) Dispatch(target EventTarget, cx, cy int) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()

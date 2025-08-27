@@ -1,6 +1,9 @@
 package layout
 
-import "math"
+import (
+	"furoshiki/component"
+	"math"
+)
 
 // GridLayout は、子要素を格子状（グリッド）に配置するレイアウトです。
 type GridLayout struct {
@@ -52,8 +55,14 @@ func (l *GridLayout) Layout(container Container) error {
 		cellX := containerX + padding.Left + col*(cellWidth+l.HorizontalGap)
 		cellY := containerY + padding.Top + row*(cellHeight+l.VerticalGap)
 
-		child.SetPosition(cellX, cellY)
-		child.SetSize(cellWidth, cellHeight)
+		// 【提案1】型アサーションの追加: 位置とサイズの設定はそれぞれ
+		// PositionSetterとSizeSetterインターフェースが持つため、型アサーションを行います。
+		if ps, ok := child.(component.PositionSetter); ok {
+			ps.SetPosition(cellX, cellY)
+		}
+		if ss, ok := child.(component.SizeSetter); ok {
+			ss.SetSize(cellWidth, cellHeight)
+		}
 	}
 	return nil
 }

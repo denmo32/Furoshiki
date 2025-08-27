@@ -206,7 +206,13 @@ func (c *Container) HitTest(x, y int) component.Widget {
 	// 描画順とは逆に、最前面の子からヒットテストします。
 	for i := len(c.children) - 1; i >= 0; i-- {
 		child := c.children[i]
-		if !child.IsVisible() {
+		// 【提案1対応】型アサーションの追加: IsVisibleはInteractiveStateインターフェースが持つため、
+		// 型アサーションでチェックします。実装していないウィジェットはデフォルトで可視(true)とみなします。
+		isVisible := true
+		if is, ok := child.(component.InteractiveState); ok {
+			isVisible = is.IsVisible()
+		}
+		if !isVisible {
 			continue
 		}
 		if target := child.HitTest(x, y); target != nil {

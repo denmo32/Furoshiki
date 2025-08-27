@@ -11,6 +11,8 @@ type ScrollViewLayout struct{}
 func (l *ScrollViewLayout) Layout(container Container) error {
 	scroller, ok := container.(ScrollViewer)
 	if !ok {
+		// 【提案1】インターフェースがスリム化したため、containerがScrollViewerを
+		// 実装していないケースも考慮し、エラーを返さず単に処理を中断します。
 		return nil
 	}
 	content := scroller.GetContentContainer()
@@ -29,6 +31,9 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 
 	var scrollBarWidth int
 	if vScrollBar != nil {
+		// NOTE: vScrollBarはScrollBarWidgetインターフェースです。
+		// GetSizeはSizeSetterが持ち、ScrollBarWidgetインターフェース定義に
+		// SizeSetterが含まれているため、直接呼び出し可能です。
 		scrollBarWidth, _ = vScrollBar.GetSize()
 	}
 
@@ -68,11 +73,23 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 		// コンテナ自身の座標は、この一時的なレイアウト計算では(0,0)に設定されているため、
 		// 子のY座標と高さから直接最大Y座標を求められます。
 		for _, child := range c.GetChildren() {
-			if !child.IsVisible() {
+			// 【提案1】型アサーションの追加
+			isVisible := true
+			if is, okIs := child.(component.InteractiveState); okIs {
+				isVisible = is.IsVisible()
+			}
+			if !isVisible {
 				continue
 			}
-			_, childY := child.GetPosition()
-			_, childH := child.GetSize()
+
+			var childY, childH int
+			if ps, okPos := child.(component.PositionSetter); okPos {
+				_, childY = ps.GetPosition()
+			}
+			if ss, okSize := child.(component.SizeSetter); okSize {
+				_, childH = ss.GetSize()
+			}
+
 			bottom := childY + childH
 			if bottom > maxY {
 				maxY = bottom
@@ -82,7 +99,10 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 	} else {
 		// ケース3: 上記以外のウィジェット (HeightForWiderを実装しない単一ウィジェット)
 		// コンテンツ自身の最小の高さを必要な高さとみなします。
-		_, measuredContentHeight = content.GetMinSize()
+		// 【提案1】型アサーションの追加
+		if mss, ok := content.(component.MinSizeSetter); ok {
+			_, measuredContentHeight = mss.GetMinSize()
+		}
 	}
 	scroller.SetContentHeight(measuredContentHeight)
 
@@ -90,6 +110,8 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 	// 計測した高さに基づき、スクロールバーの要否を決定し、最終的な配置を計算します。
 	isVScrollNeeded := measuredContentHeight > contentAreaHeight
 	if vScrollBar != nil {
+		// NOTE: SetVisibleはInteractiveStateが持ち、ScrollBarWidgetに
+		// 含まれているため、直接呼び出し可能です。
 		vScrollBar.SetVisible(isVScrollNeeded)
 	}
 
@@ -132,10 +154,17 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 	scroller.SetScrollY(currentScrollY)
 
 	// コンテンツの最終的な位置とサイズを設定
-	content.SetSize(finalContentWidth, measuredContentHeight)
-	content.SetPosition(viewX+padding.Left, viewY+padding.Top-int(currentScrollY))
+	// 【提案1】型アサーションの追加
+	if ss, ok := content.(component.SizeSetter); ok {
+		ss.SetSize(finalContentWidth, measuredContentHeight)
+	}
+	if ps, ok := content.(component.PositionSetter); ok {
+		ps.SetPosition(viewX+padding.Left, viewY+padding.Top-int(currentScrollY))
+	}
 
 	if isVScrollNeeded && vScrollBar != nil {
+		// NOTE: インターフェース定義にPositionSetterとSizeSetterを
+		// 含めたので直接呼び出し可能です。
 		vScrollBar.SetPosition(viewX+viewWidth-padding.Right-scrollBarWidth, viewY+padding.Top)
 		vScrollBar.SetSize(scrollBarWidth, contentAreaHeight)
 

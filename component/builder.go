@@ -18,11 +18,24 @@ var (
 	ErrInvalidBorderWidth   = errors.New("border width must be non-negative")
 )
 
+// 【提案1対応】ジェネリクス型Wの制約を強化します。
+// Builderが操作するウィジェットは、基本的なWidgetの振る舞いに加え、
+// サイズ、スタイル、レイアウト、イベント処理に関するインターフェースを実装している必要があります。
+type Buildable interface {
+	Widget
+	SizeSetter
+	MinSizeSetter
+	StyleGetterSetter
+	LayoutProperties
+	EventProcessor
+	AbsolutePositioner
+}
+
 // Builder は、すべてのウィジェットビルダーの汎用基底クラスです。
 // サイズ、スタイル、レイアウトプロパティを設定するための共通メソッドを提供します。
 // T は具体的なビルダー型（例: *LabelBuilder）です。
-// W は構築中のウィジェット型（例: *Label）です。
-type Builder[T any, W Widget] struct {
+// W は構築中のウィジェット型（例: *Label）で、Buildableインターフェースを満たす必要があります。
+type Builder[T any, W Buildable] struct {
 	Widget W
 	errors []error
 	Self   T
@@ -44,13 +57,9 @@ func (b *Builder[T, W]) AddError(err error) {
 // AbsolutePosition は、親コンテナ内でのウィジェットの希望相対位置を設定します。
 // これは、親コンテナがAbsoluteLayout（例: ZStack）を使用している場合にのみ有効です。
 func (b *Builder[T, W]) AbsolutePosition(x, y int) T {
-	// AbsolutePositionerインターフェースをサポートしているかチェックします。
-	// これにより、ウィジェットがこの機能をサポートしているかが型レベルで明確になります。
-	if p, ok := any(b.Widget).(AbsolutePositioner); ok {
-		p.SetRequestedPosition(x, y)
-	} else {
-		b.AddError(fmt.Errorf("%T does not support AbsolutePosition", b.Widget))
-	}
+	// 【提案1対応】WはAbsolutePositionerを実装していることが保証されているため、
+	// 以前の型アサーションは不要になりました。
+	b.Widget.SetRequestedPosition(x, y)
 	return b.Self
 }
 
@@ -59,6 +68,7 @@ func (b *Builder[T, W]) Size(width, height int) T {
 	if err := validateSize(width, height); err != nil {
 		b.AddError(err)
 	} else {
+		// 【提案1対応】WはSizeSetterを実装していることが保証されています。
 		b.Widget.SetSize(width, height)
 	}
 	return b.Self
@@ -69,6 +79,7 @@ func (b *Builder[T, W]) MinSize(width, height int) T {
 	if err := validateSize(width, height); err != nil {
 		b.AddError(err)
 	} else {
+		// 【提案1対応】WはMinSizeSetterを実装していることが保証されています。
 		b.Widget.SetMinSize(width, height)
 	}
 	return b.Self
@@ -84,6 +95,7 @@ func validateSize(width, height int) error {
 
 // Style は指定されたスタイルをウィジェットの既存のスタイルとマージします。
 func (b *Builder[T, W]) Style(s style.Style) T {
+	// 【提案1対応】WはStyleGetterSetterを実装していることが保証されています。
 	existingStyle := b.Widget.GetStyle()
 	b.Widget.SetStyle(style.Merge(existingStyle, s))
 	return b.Self
@@ -94,6 +106,7 @@ func (b *Builder[T, W]) Flex(flex int) T {
 	if flex < 0 {
 		b.AddError(fmt.Errorf("%w, got %d", ErrInvalidFlex, flex))
 	} else {
+		// 【提案1対応】WはLayoutPropertiesを実装していることが保証されています。
 		b.Widget.SetFlex(flex)
 	}
 	return b.Self
@@ -103,6 +116,7 @@ func (b *Builder[T, W]) Flex(flex int) T {
 
 // applyStyleProperty はスタイルプロパティを設定するための共通ヘルパー関数です
 func (b *Builder[T, W]) applyStyleProperty(setter func(style.Style) style.Style) T {
+	// 【提案1対応】WはStyleGetterSetterを実装していることが保証されています。
 	newStyle := setter(b.Widget.GetStyle())
 	b.Widget.SetStyle(newStyle)
 	return b.Self
@@ -169,6 +183,7 @@ func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 
 // AddOnClick は、ウィジェットがクリックされたときに実行されるイベントハンドラを追加します。
 func (b *Builder[T, W]) AddOnClick(handler event.EventHandler) T {
+	// 【提案1対応】WはEventProcessorを実装していることが保証されています。
 	b.Widget.AddEventHandler(event.EventClick, handler)
 	return b.Self
 }

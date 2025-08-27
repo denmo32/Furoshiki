@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"furoshiki/component"
 	"furoshiki/utils"
 	"math"
 )
@@ -76,18 +77,27 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 
 	// 4. 子要素を配置
 	for _, child := range children {
-		data, ok := child.GetLayoutData().(GridPlacementData)
-		if !ok {
+		var data any
+		var ok bool
+		var placementData GridPlacementData
+
+		// 【提案1】型アサーションの追加: GetLayoutDataはLayoutPropertiesインターフェースが持つため、
+		// 型アサーションを行い、実装しているウィジェットからデータを取得します。
+		if lp, okGet := child.(component.LayoutProperties); okGet {
+			data = lp.GetLayoutData()
+		}
+
+		if placementData, ok = data.(GridPlacementData); !ok {
 			// 配置情報がないウィジェットはレイアウト対象外とします。
 			continue
 		}
 
 		// 範囲チェックを行い、グリッドの範囲内に収める
 		// utils.Clamp を使用して冗長性を解消します。
-		startCol := utils.Clamp(data.Col, 0, numCols-1)
-		startRow := utils.Clamp(data.Row, 0, numRows-1)
-		endCol := utils.Clamp(data.Col+data.ColSpan, startCol+1, numCols)
-		endRow := utils.Clamp(data.Row+data.RowSpan, startRow+1, numRows)
+		startCol := utils.Clamp(placementData.Col, 0, numCols-1)
+		startRow := utils.Clamp(placementData.Row, 0, numRows-1)
+		endCol := utils.Clamp(placementData.Col+placementData.ColSpan, startCol+1, numCols)
+		endRow := utils.Clamp(placementData.Row+placementData.RowSpan, startRow+1, numRows)
 
 		// 位置とサイズを計算
 		x := colPositions[startCol]
@@ -95,8 +105,14 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 		width := colPositions[endCol-1] + colWidths[endCol-1] - x
 		height := rowPositions[endRow-1] + rowHeights[endRow-1] - y
 
-		child.SetPosition(x, y)
-		child.SetSize(width, height)
+		// 【提案1】型アサーションの追加: 位置とサイズの設定はそれぞれ
+		// PositionSetterとSizeSetterインターフェースが持つため、型アサーションを行います。
+		if ps, okSetPos := child.(component.PositionSetter); okSetPos {
+			ps.SetPosition(x, y)
+		}
+		if ss, okSetSize := child.(component.SizeSetter); okSetSize {
+			ss.SetSize(width, height)
+		}
 	}
 	return nil
 }
