@@ -2,10 +2,10 @@ package component
 
 import (
 	"furoshiki/style"
+	"furoshiki/utils" // UPDATE: utilsパッケージをインポート
 	"image"
 	"image/color"
 	"math"
-	"strings"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -199,8 +199,15 @@ func CalculateWrappedText(f font.Face, textContent string, maxWidth int) ([]stri
 	}
 
 	var lines []string
-	words := strings.Split(textContent, " ")
+	// UPDATE: strings.Splitから、ライブラリで共通化されたutils.SplitIntoWordsに変更。
+	// これにより、複数の空白文字の扱いなどがライブラリ全体で一貫します。
+	words := utils.SplitIntoWords(textContent)
 	if len(words) == 0 {
+		// NOTE: SplitIntoWords (strings.Fields) はテキストが空白のみの場合に空スライスを返すため、
+		//       元のテキストをそのまま返すように変更。
+		if textContent != "" {
+			return []string{textContent}, 0
+		}
 		return []string{}, 0
 	}
 

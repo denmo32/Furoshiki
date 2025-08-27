@@ -149,7 +149,14 @@ func (g *Game) Update() error {
 // Draw はゲームを描画します。
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{50, 50, 50, 255})
-	g.root.Draw(screen)
+	// UPDATE: 新しいDrawメソッドのシグネチャに合わせてDrawInfoを生成して渡します。
+	// ルートウィジェットの描画オフセットは(0, 0)です。
+	drawInfo := component.DrawInfo{
+		Screen:  screen,
+		OffsetX: 0,
+		OffsetY: 0,
+	}
+	g.root.Draw(drawInfo)
 }
 
 // Layout はEbitenにゲームの画面サイズを伝えます。

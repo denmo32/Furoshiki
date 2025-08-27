@@ -4,8 +4,6 @@ import (
 	"furoshiki/component"
 	"furoshiki/style"
 	"furoshiki/theme"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // Button は、クリック可能なUI要素です。
@@ -48,9 +46,10 @@ func (b *Button) SetStyle(s style.Style) {
 	b.LayoutableWidget.SetStyle(s)
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Draw はButtonを描画します。現在の状態に応じたスタイルを選択し、描画を委譲します。
 // NOTE: StyleManagerを利用して、現在の状態に最適なスタイルを効率的に取得します。
-func (b *Button) Draw(screen *ebiten.Image) {
+func (b *Button) Draw(info component.DrawInfo) {
 	// 現在の状態（Normal, Hoveredなど）を取得します。
 	currentState := b.LayoutableWidget.CurrentState()
 	// StyleManagerから、現在の状態に基づいて適用すべきスタイルを取得します。
@@ -58,7 +57,8 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
 	styleToUse := b.StyleManager.GetStyleForState(currentState)
 	// 取得したスタイルでウィジェットを描画します。
-	b.TextWidget.DrawWithStyle(screen, styleToUse)
+	// UPDATE: DrawWithStyleにinfoを渡すように変更
+	b.TextWidget.DrawWithStyle(info, styleToUse)
 }
 
 // SetStyleForState は、指定された単一の状態のスタイルを、既存のスタイルにマージします。

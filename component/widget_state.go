@@ -1,9 +1,5 @@
 package component
 
-import (
-	"github.com/hajimehoshi/ebiten/v2"
-)
-
 // WidgetState は、ウィジェットが取りうるインタラクティブな状態を定義します。
 type WidgetState int
 
@@ -26,15 +22,22 @@ func (w *LayoutableWidget) Update() {
 	// この基本実装では何もしません。
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Draw はウィジェットの背景と境界線を描画します。
 // テキストなどを持つウィジェットは、このメソッドをオーバーライドして追加の描画処理を行います。
-func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
+func (w *LayoutableWidget) Draw(info DrawInfo) {
 	if !w.state.isVisible || !w.state.hasBeenLaidOut {
 		return
 	}
 	// NOTE: [FIX] 削除された w.style の代わりに、StyleManagerから現在の状態に合ったスタイルを取得します。
 	styleToUse := w.StyleManager.GetStyleForState(w.CurrentState())
-	DrawStyledBackground(screen, w.position.x, w.position.y, w.size.width, w.size.height, styleToUse)
+
+	// UPDATE: 親から渡されたオフセットを描画座標に適用
+	// これにより、クリッピング描画などで座標を一時的に書き換える必要がなくなります。
+	finalX := w.position.x + info.OffsetX
+	finalY := w.position.y + info.OffsetY
+
+	DrawStyledBackground(info.Screen, finalX, finalY, w.size.width, w.size.height, styleToUse)
 }
 
 // MarkDirty はウィジェットの状態が変更されたことをマークします。

@@ -7,13 +7,27 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// UPDATE: DrawInfo構造体を新規追加
+// DrawInfoは、ウィジェットの描画に必要なすべてのコンテキストを保持します。
+// これを導入することで、Drawメソッドに状態変更の副作用（例: SetPositionの呼び出し）を
+// 持ち込む必要がなくなり、描画ロジックが純粋で予測可能になります。
+type DrawInfo struct {
+	Screen *ebiten.Image
+	// 親から渡される描画オフセット。
+	// ウィジェットは自身の絶対座標にこのオフセットを加算して描画します。
+	OffsetX, OffsetY int
+}
+
 // --- Widget Interface ---
 // Widgetは全てのUI要素の基本的な振る舞いを定義するインターフェースです。
 // 多くのメソッドを含んでいますが、責務ごとに小さなインターフェースに分割されています。
 type Widget interface {
 	// --- ライフサイクル ---
 	Update()
-	Draw(screen *ebiten.Image)
+	// UPDATE: Drawメソッドのシグネチャを変更
+	// 画面だけでなく、描画コンテキスト(DrawInfo)を受け取るように変更しました。
+	// これにより、クリッピング描画などで必要になるオフセット情報を安全に渡せます。
+	Draw(info DrawInfo)
 	Cleanup()
 
 	// --- 階層構造 ---

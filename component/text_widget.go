@@ -2,10 +2,9 @@ package component
 
 import (
 	"furoshiki/style"
+	"furoshiki/utils" // UPDATE: utilsパッケージをインポート
 	"image"
-	"strings"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
 )
 
@@ -90,10 +89,11 @@ func (t *TextWidget) GetHeightForWidth(width int) int {
 	return requiredHeight + padding.Top + padding.Bottom
 }
 
+// UPDATE: DrawWithStyleのシグネチャをDrawInfoを受け取るように変更
 // DrawWithStyleは、指定されたスタイルを用いてウィジェットの背景とテキストを描画する共通ロジックです。
 // 通常のDrawメソッドと分離することで、Buttonのように状態に応じてスタイルを切り替える必要のある
 // 具象ウィジェットが、描画ロジックを再利用しやすくなります。
-func (t *TextWidget) DrawWithStyle(screen *ebiten.Image, styleToUse style.Style) {
+func (t *TextWidget) DrawWithStyle(info DrawInfo, styleToUse style.Style) {
 	// IsVisible() に加えてレイアウト済みかもチェックします。
 	// これにより、ウィジェットがUIツリーに追加されてから最初のレイアウト計算が完了するまでの1フレーム間、
 	// 意図せず (0,0) 座標に描画されてしまうのを防ぎます。
@@ -104,18 +104,24 @@ func (t *TextWidget) DrawWithStyle(screen *ebiten.Image, styleToUse style.Style)
 	x, y := t.GetPosition()
 	width, height := t.GetSize()
 
-	DrawStyledBackground(screen, x, y, width, height, styleToUse)
+	// UPDATE: 親から渡されたオフセットを描画座標に適用
+	finalX := x + info.OffsetX
+	finalY := y + info.OffsetY
+
+	DrawStyledBackground(info.Screen, finalX, finalY, width, height, styleToUse)
 	// 描画ヘルパーに折り返し情報を渡します。
-	DrawAlignedText(screen, t.text, image.Rect(x, y, x+width, y+height), styleToUse, t.wrapText)
+	finalRect := image.Rect(finalX, finalY, finalX+width, finalY+height)
+	DrawAlignedText(info.Screen, t.text, finalRect, styleToUse, t.wrapText)
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Draw はTextWidgetを描画します。
 // このメソッドは、ウィジェット自身の現在のスタイルを使用して、共通の描画ロジック(DrawWithStyle)を呼び出します。
-func (t *TextWidget) Draw(screen *ebiten.Image) {
+func (t *TextWidget) Draw(info DrawInfo) {
 	// NOTE: パフォーマンス向上のため、ディープコピーを行うGetStyle()の代わりに
 	//       シャローコピーを行うReadOnlyStyle()を使用します。
 	currentStyle := t.ReadOnlyStyle()
-	t.DrawWithStyle(screen, currentStyle)
+	t.DrawWithStyle(info, currentStyle)
 }
 
 // calculateContentMinSize は、現在のテキストとスタイルに基づいてコンテンツが表示されるべき最小サイズを計算します。
@@ -137,7 +143,9 @@ func (t *TextWidget) calculateContentMinSize() (int, int) {
 	if t.wrapText {
 		// 折り返しが有効な場合、最小幅は最も長い単語の幅になります。
 		longestWord := ""
-		words := strings.Fields(t.text)
+		// UPDATE: strings.Fieldsから、ライブラリで共通化されたutils.SplitIntoWordsに変更。
+		// これにより、単語分割のロジックが一貫します。
+		words := utils.SplitIntoWords(t.text)
 		for _, word := range words {
 			if len(word) > len(longestWord) {
 				longestWord = word

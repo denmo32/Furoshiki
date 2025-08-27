@@ -2,7 +2,6 @@ package widget
 
 import (
 	"furoshiki/component"
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // SpacerはFlexLayout内で余白を埋めるために使用される、描画されないウィジェットです。
@@ -12,7 +11,8 @@ type Spacer struct {
 
 // newSpacerは、Spacerウィジェットの新しいインスタンスを生成し、初期化します。
 // NOTE: このコンストラクタは非公開になりました。ウィジェットの生成には
-//       常にNewSpacerBuilder()を使用してください。これにより、初期化漏れを防ぎます。
+//
+//	常にNewSpacerBuilder()を使用してください。これにより、初期化漏れを防ぎます。
 func newSpacer() (*Spacer, error) {
 	s := &Spacer{}
 	s.LayoutableWidget = component.NewLayoutableWidget()
@@ -22,8 +22,9 @@ func newSpacer() (*Spacer, error) {
 	return s, nil
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Draw は何もしません。Spacerは視覚的な表現を持たないためです。
-func (s *Spacer) Draw(screen *ebiten.Image) {}
+func (s *Spacer) Draw(info component.DrawInfo) {}
 
 // --- SpacerBuilder ---
 type SpacerBuilder struct {

@@ -4,7 +4,6 @@ import (
 	"furoshiki/component"
 	"image/color"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -21,7 +20,8 @@ var _ component.ScrollBarWidget = (*ScrollBar)(nil)
 
 // newScrollBarは、スクロールバーウィジェットの新しいインスタンスを生成し、初期化します。
 // NOTE: このコンストラクタは非公開になりました。ウィジェットの生成には
-//       常にNewScrollBarBuilder()を使用してください。これにより、初期化漏れを防ぎます。
+//
+//	常にNewScrollBarBuilder()を使用してください。これにより、初期化漏れを防ぎます。
 func newScrollBar() (*ScrollBar, error) {
 	s := &ScrollBar{
 		trackColor: color.RGBA{220, 220, 220, 255},
@@ -35,15 +35,20 @@ func newScrollBar() (*ScrollBar, error) {
 	return s, nil
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Draw はScrollBarを描画します。
-func (s *ScrollBar) Draw(screen *ebiten.Image) {
+func (s *ScrollBar) Draw(info component.DrawInfo) {
 	if !s.IsVisible() || !s.HasBeenLaidOut() {
 		return
 	}
 	x, y := s.GetPosition()
 	width, height := s.GetSize()
 
-	vector.DrawFilledRect(screen, float32(x), float32(y), float32(width), float32(height), s.trackColor, false)
+	// UPDATE: 親から渡されたオフセットを描画座標に適用
+	finalX := float32(x + info.OffsetX)
+	finalY := float32(y + info.OffsetY)
+
+	vector.DrawFilledRect(info.Screen, finalX, finalY, float32(width), float32(height), s.trackColor, false)
 
 	if s.contentRatio >= 1.0 {
 		return
@@ -58,9 +63,9 @@ func (s *ScrollBar) Draw(screen *ebiten.Image) {
 	}
 
 	thumbYRange := float32(height) - thumbHeight
-	thumbY := float32(y) + thumbYRange*float32(s.scrollRatio)
+	thumbY := finalY + thumbYRange*float32(s.scrollRatio)
 
-	vector.DrawFilledRect(screen, float32(x), thumbY, float32(width), thumbHeight, s.thumbColor, false)
+	vector.DrawFilledRect(info.Screen, finalX, thumbY, float32(width), thumbHeight, s.thumbColor, false)
 }
 
 // SetRatios は、つまみのサイズと位置を計算するための比率を設定します。

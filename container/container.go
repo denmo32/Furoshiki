@@ -113,33 +113,40 @@ func (c *Container) checkSizeWarning() {
 	}
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Drawはコンテナ自身と、そのすべての子を描画します。
-func (c *Container) Draw(screen *ebiten.Image) {
+func (c *Container) Draw(info component.DrawInfo) {
 	if !c.IsVisible() {
 		return
 	}
 
 	if c.clipsChildren {
-		c.drawWithClipping(screen)
+		c.drawWithClipping(info)
 	} else {
-		c.drawWithoutClipping(screen)
+		c.drawWithoutClipping(info)
 	}
 }
 
+// UPDATE: drawWithoutClippingのシグネチャをDrawInfoを受け取るように変更
 // drawWithoutClipping は、クリッピングを行わずにコンテナと子を描画します。
-func (c *Container) drawWithoutClipping(screen *ebiten.Image) {
+func (c *Container) drawWithoutClipping(info component.DrawInfo) {
 	x, y := c.GetPosition()
 	width, height := c.GetSize()
 	// NOTE: パフォーマンス向上のためReadOnlyStyle()を使用します。
-	component.DrawStyledBackground(screen, x, y, width, height, c.ReadOnlyStyle())
+	// UPDATE: 親から渡されたオフセットを描画座標に適用
+	finalX := x + info.OffsetX
+	finalY := y + info.OffsetY
+	component.DrawStyledBackground(info.Screen, finalX, finalY, width, height, c.ReadOnlyStyle())
 
 	for _, child := range c.children {
-		child.Draw(screen)
+		// UPDATE: 子の描画にもオフセット情報を伝播
+		child.Draw(info)
 	}
 }
 
+// UPDATE: drawWithClippingのシグネチャをDrawInfoを受け取るように変更し、副作用を完全排除
 // drawWithClipping は、オフスクリーンバッファを利用してクリッピングを行いながら描画します。
-func (c *Container) drawWithClipping(screen *ebiten.Image) {
+func (c *Container) drawWithClipping(info component.DrawInfo) {
 	containerX, containerY := c.GetPosition()
 	containerWidth, containerHeight := c.GetSize()
 
@@ -156,7 +163,7 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	}
 	c.offscreenImage.Clear()
 
-	// コンテナ自身の背景をオフスクリーン画像に描画
+	// コンテナ自身の背景をオフスクリーン画像に描画(オフセットは(0,0))
 	// NOTE: パフォーマンス向上のためReadOnlyStyle()を使用します。
 	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.ReadOnlyStyle())
 
@@ -166,48 +173,29 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 		scrollOffsetX, scrollOffsetY = scroller.GetScrollOffset()
 	}
 
-	// 子ウィジェットとその子孫の座標を再帰的に変更するためのヘルパー関数
-	var offsetWidgets func(w component.Widget, dx, dy int)
-	offsetWidgets = func(w component.Widget, dx, dy int) {
-		x, y := w.GetPosition()
-		// NOTE(設計上の判断):
-		// ここでは、描画ループ中に子のSetPositionを呼び出しています。
-		// SetPositionはダーティフラグ(levelRedrawDirty)を立てる副作用がありますが、
-		// これは再描画のみを要求するレベルであり、次のフレームで再レイアウトが発生することはありません。
-		// このアプローチは、各ウィジェットのDrawメソッドが自身の絶対座標に依存して描画するという
-		// ライブラリ全体の設計と一貫性を保ちつつ、オフスクリーンバッファへの描画（クリッピング）を
-		// 実現するためのトレードオフです。よりクリーンな実装（例: Drawメソッドで描画オフセットを
-		// 引数として渡す）は、ライブラリ全体のインターフェース変更を伴うため、現状では
-		// この方法が最も影響範囲の少ない現実的な解決策となります。
-		w.SetPosition(x+dx, y+dy)
-		if cont, ok := w.(component.Container); ok {
-			for _, grandChild := range cont.GetChildren() {
-				offsetWidgets(grandChild, dx, dy)
-			}
-		}
+	// UPDATE: 子ウィジェットの座標を変更する代わりに、描画オフセットを計算して渡します。
+	// これにより、描画処理中の状態変更（副作用）がなくなり、コードの堅牢性が向上します。
+	// 子ウィジェットは、自身の絶対座標をこのオフセットに基づいてオフスクリーンバッファ上の
+	// ローカル座標に変換して描画します。
+	childDrawInfo := component.DrawInfo{
+		Screen:  c.offscreenImage,
+		OffsetX: -(containerX - scrollOffsetX),
+		OffsetY: -(containerY - scrollOffsetY),
 	}
 
 	// 子要素をオフスクリーン画像に描画
 	for _, child := range c.children {
-		// オフセットを計算
-		// 子ウィジェットを、コンテナのローカル座標系(0,0)を基準とした位置に描画するためのオフセット
-		offsetX := -(containerX - scrollOffsetX)
-		offsetY := -(containerY - scrollOffsetY)
-
-		// 座標を一時的に変更
-		offsetWidgets(child, offsetX, offsetY)
-
 		// オフセットされた座標でオフスクリーン画像に描画
-		child.Draw(c.offscreenImage)
-
-		// 座標を元に戻す
-		offsetWidgets(child, -offsetX, -offsetY)
+		child.Draw(childDrawInfo)
 	}
 
 	// 完成したオフスクリーン画像をスクリーンに描画
 	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(containerX), float64(containerY))
-	screen.DrawImage(c.offscreenImage, opts)
+	// UPDATE: 親から渡されたオフセットを最終的な描画位置に適用
+	finalX := float64(containerX + info.OffsetX)
+	finalY := float64(containerY + info.OffsetY)
+	opts.GeoM.Translate(finalX, finalY)
+	info.Screen.DrawImage(c.offscreenImage, opts)
 }
 
 // HitTest は、指定された座標がコンテナまたはその子のいずれかにヒットするかをテストします。

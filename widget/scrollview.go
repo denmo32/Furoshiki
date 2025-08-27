@@ -6,8 +6,6 @@ import (
 	"furoshiki/event"
 	"furoshiki/layout"
 	"furoshiki/style"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // ScrollView は、コンテンツをスクロール表示するためのコンテナウィジェットです。
@@ -87,6 +85,7 @@ func (sv *ScrollView) SetStyle(s style.Style) {
 	}
 }
 
+// UPDATE: Updateメソッドから冗長な同期処理を削除
 // Update はScrollViewの状態を更新します。
 // 汎用コンテナのUpdateとは異なり、ScrollView専用のレイアウト計算を制御します。
 func (sv *ScrollView) Update() {
@@ -94,11 +93,8 @@ func (sv *ScrollView) Update() {
 		return
 	}
 
-	// 自身のサイズと位置を内部コンテナに常に同期させます。
-	w, h := sv.GetSize()
-	sv.container.SetSize(w, h)
-	x, y := sv.GetPosition()
-	sv.container.SetPosition(x, y)
+	// UPDATE: 毎フレーム実行していた冗長な同期処理を削除。
+	// 同期はSetPositionとSetSizeが責務を担うように変更されました。
 
 	// ScrollView自身が再レイアウトを要求されている場合のみ、専用のレイアウトを実行します。
 	if sv.NeedsRelayout() {
@@ -119,12 +115,39 @@ func (sv *ScrollView) Update() {
 	}
 }
 
+// UPDATE: DrawメソッドのシグネチャをDrawInfoを受け取るように変更
 // Draw はScrollViewを描画します。描画はクリッピング機能を持つ内部コンテナに完全に委譲します。
-func (sv *ScrollView) Draw(screen *ebiten.Image) {
+func (sv *ScrollView) Draw(info component.DrawInfo) {
 	if !sv.IsVisible() {
 		return
 	}
-	sv.container.Draw(screen)
+	// UPDATE: 内部コンテナの描画にもDrawInfoを渡します。
+	sv.container.Draw(info)
+}
+
+// UPDATE: SetPositionメソッドを新規追加 (オーバーライド)
+// SetPosition は自身の位置を設定し、その変更を内部コンテナにも伝播させます。
+// これにより、Updateメソッドから状態同期ロジックを分離し、責務を明確化します。
+func (sv *ScrollView) SetPosition(x, y int) {
+	// 1. 基底ウィジェット(自身)の位置を設定
+	sv.LayoutableWidget.SetPosition(x, y)
+
+	// 2. 内部コンテナの位置も同期
+	if sv.container != nil {
+		sv.container.SetPosition(x, y)
+	}
+}
+
+// UPDATE: SetSizeメソッドを新規追加 (オーバーライド)
+// SetSize は自身のサイズを設定し、その変更を内部コンテナにも伝播させます。
+func (sv *ScrollView) SetSize(width, height int) {
+	// 1. 基底ウィジェット(自身)のサイズを設定
+	sv.LayoutableWidget.SetSize(width, height)
+
+	// 2. 内部コンテナのサイズも同期
+	if sv.container != nil {
+		sv.container.SetSize(width, height)
+	}
 }
 
 // HandleEvent はScrollViewのイベントを処理します。
