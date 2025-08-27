@@ -60,7 +60,20 @@ func newScrollView() (*ScrollView, error) {
 	sv.vScrollBar = vScrollBar
 	sv.AddChild(vScrollBar)
 
+	// 【提案2対応】HandleEventをオーバーライドする代わりに、専用のイベントハンドラを登録します。
+	// これにより、イベント処理ロジックが一貫した方法で管理されます。
+	sv.AddEventHandler(event.MouseScroll, sv.onMouseScroll)
+
 	return sv, nil
+}
+
+// onMouseScroll は、MouseScrollイベントに応答してコンテンツをスクロールします。
+func (sv *ScrollView) onMouseScroll(e *event.Event) event.Propagation {
+	scrollAmount := e.ScrollY * sv.ScrollSensitivity
+	sv.scrollY -= scrollAmount
+	sv.MarkDirty(true)
+	// ScrollViewがスクロールイベントを処理したので、親ウィジェットへの伝播を停止します。
+	return event.StopPropagation
 }
 
 // SetContent は、スクロールさせるコンテンツコンテナを設定します。
@@ -150,16 +163,18 @@ func (sv *ScrollView) SetSize(width, height int) {
 	}
 }
 
-// HandleEvent はScrollViewのイベントを処理します。
-func (sv *ScrollView) HandleEvent(e *event.Event) {
-	if !e.Handled && e.Type == event.MouseScroll {
-		scrollAmount := e.ScrollY * sv.ScrollSensitivity
-		sv.scrollY -= scrollAmount
-		sv.MarkDirty(true)
-		e.Handled = true
-	}
-	sv.LayoutableWidget.HandleEvent(e)
-}
+// 【提案2対応】HandleEventのオーバーライドを削除。
+// イベント処理はLayoutableWidgetのHandleEventに完全に委譲されます。
+//
+// func (sv *ScrollView) HandleEvent(e *event.Event) {
+// 	if !e.Handled && e.Type == event.MouseScroll {
+// 		scrollAmount := e.ScrollY * sv.ScrollSensitivity
+// 		sv.scrollY -= scrollAmount
+// 		sv.MarkDirty(true)
+// 		e.Handled = true
+// 	}
+// 	sv.LayoutableWidget.HandleEvent(e)
+// }
 
 // HitTest は、指定された座標がヒットするウィジェットを探します。
 func (sv *ScrollView) HitTest(x, y int) component.Widget {

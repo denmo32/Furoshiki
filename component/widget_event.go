@@ -50,7 +50,10 @@ func (w *LayoutableWidget) HandleEvent(e *event.Event) {
 				// NOTE: このハンドラ呼び出しを個別に保護することで、特定のハンドラがパニックを起こしても、
 				//       同じイベントに登録された他のハンドラの実行が継続されます。
 				//       これは、UIの堅牢性を高めるための意図的な設計です。
-				handler(e)
+				// 【提案2】ハンドラの戻り値をチェックし、イベントの伝播を停止するか判断します。
+				if handler(e) == event.StopPropagation {
+					e.Handled = true
+				}
 			}()
 		}
 	}

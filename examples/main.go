@@ -54,38 +54,45 @@ func NewGame() *Game {
 
 			// 各デモへの切り替えボタン
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Flex Layout").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("Flex Layout").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createFlexLayoutDemo)
+					return event.Propagate
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Flex Wrap").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("Flex Wrap").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createFlexWrapDemo)
+					return event.Propagate
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Text Wrap").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("Text Wrap").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createWrapTextDemo)
+					return event.Propagate
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Grid Layout").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("Grid Layout").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createGridLayoutDemo)
+					return event.Propagate
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Advanced Grid").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("Advanced Grid").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createAdvancedGridLayoutDemo)
+					return event.Propagate
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("ZStack Layout").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("ZStack Layout").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createZStackDemo)
+					return event.Propagate
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("ScrollView").Flex(1).AddOnClick(func(e *event.Event) {
+				btn.Text("ScrollView").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createScrollViewDemo)
+					return event.Propagate
 				})
 			})
 		})
@@ -304,8 +311,9 @@ func (g *Game) createGridLayoutDemo() (component.Widget, error) {
 		for i := 1; i <= 20; i++ {
 			itemNum := i
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text(strconv.Itoa(itemNum)).AddOnClick(func(e *event.Event) {
+				btn.Text(strconv.Itoa(itemNum)).AddOnClick(func(e *event.Event) event.Propagation {
 					log.Printf("Grid item %d clicked", itemNum)
+					return event.Propagate
 				})
 			})
 		}
@@ -349,8 +357,9 @@ func (g *Game) createAdvancedGridLayoutDemo() (component.Widget, error) {
 		// フッター (2行目、0列目から3列にまたがる)
 		b.ButtonAt(2, 0, 1, 3, func(btn *widget.ButtonBuilder) {
 			btn.Text("Footer Button (Spans 3 Columns, 30px Fixed Height)").
-				AddOnClick(func(e *event.Event) {
+				AddOnClick(func(e *event.Event) event.Propagation {
 					log.Println("Advanced Grid Footer clicked!")
+					return event.Propagate
 				})
 		})
 	}).Build()
@@ -385,7 +394,10 @@ func (g *Game) createZStackDemo() (component.Widget, error) {
 			btn.Text("Foreground Button").
 				Size(150, 50).
 				AbsolutePosition(175, 175).
-				AddOnClick(func(e *event.Event) { log.Println("Foreground button clicked!") }).
+				AddOnClick(func(e *event.Event) event.Propagation {
+					log.Println("Foreground button clicked!")
+					return event.Propagate
+				}).
 				WrapText(true) // Buttonでも有効
 		})
 
@@ -419,7 +431,7 @@ func (g *Game) createScrollViewDemo() (component.Widget, error) {
 					b.Button(func(btn *widget.ButtonBuilder) {
 						btn.Text(fmt.Sprintf("Item %d", itemNumber)).
 							Size(0, 30). // 幅は親に合わせる
-							AddOnClick(func(e *event.Event) {
+							AddOnClick(func(e *event.Event) event.Propagation {
 								log.Printf("Clicked: Item %d", itemNumber)
 								if detailTitleLabel != nil {
 									detailTitleLabel.SetText(fmt.Sprintf("Details for Item %d", itemNumber))
@@ -427,6 +439,7 @@ func (g *Game) createScrollViewDemo() (component.Widget, error) {
 								if detailInfoLabel != nil {
 									detailInfoLabel.SetText(fmt.Sprintf("Here you would see more detailed information about item number %d. This text is updated dynamically when you select an item from the list. It can be quite long, so text wrapping is essential here.", itemNumber))
 								}
+								return event.Propagate
 							})
 					})
 				}
