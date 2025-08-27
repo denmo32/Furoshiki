@@ -4,19 +4,17 @@ import (
 	"furoshiki/component"
 	"furoshiki/style"
 	"furoshiki/utils"
+	"image"
 )
 
 // FlexLayout は、CSS Flexboxにインスパイアされたレイアウトシステムです。
 type FlexLayout struct {
-	Direction  Direction
-	Justify    Alignment
-	AlignItems Alignment
-	// AlignContent は、複数行/列になった際の、交差軸方向のラインの揃え位置を設定します。
-	// このプロパティは、Wrapがtrueの場合にのみ効果があります。
+	Direction    Direction
+	Justify      Alignment
+	AlignItems   Alignment
 	AlignContent Alignment
-	// Wrap は、アイテムが一行に収らない場合に折り返すかどうかを指定します。
-	Wrap bool
-	Gap  int
+	Wrap         bool
+	Gap          int
 }
 
 // flexItemInfo は、レイアウト計算中に各子要素の情報を保持するための中間構造体です。
@@ -31,46 +29,142 @@ type flexItemInfo struct {
 // flexLine は、折り返しレイアウト時に一行（または一列）を表現する内部構造体です。
 type flexLine struct {
 	items         []*flexItemInfo
+	mainAxisSize  int // このラインの主軸方向のサイズ
 	crossAxisSize int // このラインの交差軸方向のサイズ
 }
 
-// Layout は FlexLayout のレイアウトロジックを実装します。
-// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
-func (l *FlexLayout) Layout(container Container) error {
+// Measure は FlexLayout の要求サイズを計算します。
+func (l *FlexLayout) Measure(container Container, availableSize image.Point) image.Point {
+	children := getVisibleChildren(container)
+	if len(children) == 0 {
+		return image.Point{}
+	}
+
+	padding := container.GetPadding()
+	isRow := l.Direction == DirectionRow
+
+	// 子が利用できるスペース
+	availableW := availableSize.X - padding.Left - padding.Right
+	availableH := availableSize.Y - padding.Top - padding.Bottom
+	if availableW < 0 {
+		availableW = 0
+	}
+	if availableH < 0 {
+		availableH = 0
+	}
+
+	mainAvailable, crossAvailable := availableW, availableH
+	if !isRow {
+		mainAvailable, crossAvailable = availableH, availableW
+	}
+
+	items := collectItemInfo(children, isRow)
+	// NOTE: Measureパスでは、子のサイズを純粋に計測したい。
+	// そのため、利用可能な交差軸サイズ(crossAvailable)を渡して、HeightForWiderなどが正しく動作するようにする。
+	calculateBaseSizes(items, isRow, crossAvailable, l.AlignItems)
+
+	var desiredMain, desiredCross int
+
+	if l.Wrap {
+		lines := l.splitIntoLines(items, mainAvailable)
+		maxMain := 0
+		totalCross := 0
+		for i, line := range lines {
+			lineMainSize := 0
+			for _, item := range line.items {
+				lineMainSize += item.mainSize + item.mainMargin
+			}
+			if len(line.items) > 1 {
+				lineMainSize += (len(line.items) - 1) * l.Gap
+			}
+			if lineMainSize > maxMain {
+				maxMain = lineMainSize
+			}
+			line.crossAxisSize = calculateLineCrossSize(line.items)
+			totalCross += line.crossAxisSize
+			if i > 0 {
+				totalCross += l.Gap
+			}
+		}
+		desiredMain = maxMain
+		desiredCross = totalCross
+	} else {
+		totalMain := 0
+		maxCross := 0
+		for _, item := range items {
+			totalMain += item.mainSize + item.mainMargin
+			if item.crossSize+item.crossMargin > maxCross {
+				maxCross = item.crossSize + item.crossMargin
+			}
+		}
+		if len(items) > 1 {
+			totalMain += (len(items) - 1) * l.Gap
+		}
+		desiredMain = totalMain
+		desiredCross = maxCross
+	}
+
+	var desiredW, desiredH int
+	if isRow {
+		desiredW, desiredH = desiredMain, desiredCross
+	} else {
+		desiredW, desiredH = desiredCross, desiredMain
+	}
+
+	return image.Point{
+		X: desiredW + padding.Left + padding.Right,
+		Y: desiredH + padding.Top + padding.Bottom,
+	}
+}
+
+// Arrange は FlexLayout のレイアウトロジックを実装します。
+func (l *FlexLayout) Arrange(container Container, finalBounds image.Rectangle) error {
 	children := getVisibleChildren(container)
 	if len(children) == 0 {
 		return nil
 	}
 
 	padding := container.GetPadding()
-	containerWidth, containerHeight := container.GetSize()
-	if containerWidth <= 0 || containerHeight <= 0 {
-		return nil
+	isRow := l.Direction == DirectionRow
+
+	availableW := finalBounds.Dx() - padding.Left - padding.Right
+	availableH := finalBounds.Dy() - padding.Top - padding.Bottom
+	if availableW < 0 {
+		availableW = 0
+	}
+	if availableH < 0 {
+		availableH = 0
 	}
 
-	availableWidth := max(0, containerWidth-padding.Left-padding.Right)
-	availableHeight := max(0, containerHeight-padding.Top-padding.Bottom)
-
-	isRow := l.Direction == DirectionRow
-	mainSize, crossSize := availableWidth, availableHeight
+	mainSize, crossSize := availableW, availableH
 	if !isRow {
-		mainSize, crossSize = availableHeight, availableWidth
+		mainSize, crossSize = availableH, availableW
 	}
 
 	items := collectItemInfo(children, isRow)
-	// VStacksで正しい高さを計算するために、crossSize(幅)とAlignItemsを渡します。
 	calculateBaseSizes(items, isRow, crossSize, l.AlignItems)
 
 	if l.Wrap {
-		l.layoutMultiLine(items, container, mainSize, crossSize, isRow)
+		l.layoutMultiLine(items, container, mainSize, crossSize, isRow, finalBounds)
 	} else {
-		l.layoutSingleLine(items, container, mainSize, crossSize, isRow)
+		l.layoutSingleLine(items, container, mainSize, crossSize, isRow, finalBounds)
 	}
+
+	// すべての子のArrangeを再帰的に呼び出す
+	for _, item := range items {
+		x, y := item.widget.GetPosition()
+		w, h := item.widget.GetSize()
+		childBounds := image.Rect(x, y, x+w, y+h)
+		if err := item.widget.Arrange(childBounds); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-// layoutSingleLine は、折り返しなしのレイアウト計算を実行します。
-func (l *FlexLayout) layoutSingleLine(items []*flexItemInfo, container Container, mainSize, crossSize int, isRow bool) {
+// layoutSingleLine は、折り返しなしのレイアウト計算と配置を実行します。
+func (l *FlexLayout) layoutSingleLine(items []*flexItemInfo, container Container, mainSize, crossSize int, isRow bool, finalBounds image.Rectangle) {
 	var totalFlex float64
 	var totalBaseMainSize int
 	for _, item := range items {
@@ -82,20 +176,21 @@ func (l *FlexLayout) layoutSingleLine(items []*flexItemInfo, container Container
 
 	distributeRemainingSpace(items, mainSize, totalBaseMainSize, totalFlex, l.Gap)
 	calculateCrossAxisSizes(items, crossSize, isRow, l.AlignItems)
-	// シングルラインの場合、最終的なサイズを適用してから配置します。
 	applySizes(items, isRow)
-	positionItems(items, container, mainSize, crossSize, isRow, l.Justify, l.AlignItems, l.Gap)
+	positionItems(items, container, mainSize, crossSize, isRow, l.Justify, l.AlignItems, l.Gap, finalBounds)
 }
 
-// layoutMultiLine は、折り返しありのレイアウト計算を実行します。
-func (l *FlexLayout) layoutMultiLine(items []*flexItemInfo, container Container, mainSize, crossSize int, isRow bool) {
-	// 1. アイテムを複数のラインに分割
+// layoutMultiLine は、折り返しありのレイアウト計算と配置を実行します。
+// [修正] 折り返しレイアウトのロジックを全面的に修正しました。
+func (l *FlexLayout) layoutMultiLine(items []*flexItemInfo, container Container, mainSize, crossSize int, isRow bool, finalBounds image.Rectangle) {
 	lines := l.splitIntoLines(items, mainSize)
+	if len(lines) == 0 {
+		return
+	}
 
-	// 2. 各ラインのサイズを計算
 	var totalCrossAxisSize int
+	// 最初のループ: 各行のサイズを計算します
 	for _, line := range lines {
-		// ライン内のflexアイテムに余剰スペースを分配
 		var lineTotalFlex float64
 		var lineTotalBaseMainSize int
 		for _, item := range line.items {
@@ -104,43 +199,65 @@ func (l *FlexLayout) layoutMultiLine(items []*flexItemInfo, container Container,
 			}
 			lineTotalBaseMainSize += item.mainSize + item.mainMargin
 		}
+		// 1. 主軸方向のサイズを確定させます
 		distributeRemainingSpace(line.items, mainSize, lineTotalBaseMainSize, lineTotalFlex, l.Gap)
 
-		// ライン内のアイテムの交差軸サイズと、ライン自体の交差軸サイズを計算
-		calculateCrossAxisSizes(line.items, crossSize, isRow, l.AlignItems)
+		// 2. 確定した主軸サイズを元に、各アイテムの交差軸サイズを再計算します。
+		//    (テキスト折り返しなどで高さが変わるウィジェットに対応するため)
+		for _, item := range line.items {
+			measuredSize := item.widget.Measure(image.Point{
+				X: utils.IfThen(isRow, item.mainSize, crossSize-item.crossMargin),
+				Y: utils.IfThen(isRow, crossSize-item.crossMargin, item.mainSize),
+			})
+			if isRow {
+				item.crossSize = measuredSize.Y
+			} else {
+				item.crossSize = measuredSize.X
+			}
+		}
+
+		// 3. アイテムの最終的な交差軸サイズに基づいて、行自体のサイズを計算します
 		line.crossAxisSize = calculateLineCrossSize(line.items)
 		totalCrossAxisSize += line.crossAxisSize
 	}
 
-	// 3. ラインを交差軸方向に配置 (AlignContent)
-	padding := container.GetPadding()
-	crossStart := utils.IfThen(isRow, padding.Top, padding.Left)
-	currentCross := crossStart
-
-	freeCrossSpace := crossSize - totalCrossAxisSize
 	if len(lines) > 1 {
-		freeCrossSpace -= (len(lines) - 1) * l.Gap
+		totalCrossAxisSize += (len(lines) - 1) * l.Gap
 	}
 
+	// 4. AlignContent に基づいて、各行の配置開始位置を計算します
+	padding := container.GetPadding()
+	crossStart := utils.IfThen(isRow, finalBounds.Min.Y+padding.Top, finalBounds.Min.X+padding.Left)
+	currentCross := float64(crossStart)
+
+	freeCrossSpace := crossSize - totalCrossAxisSize
 	if freeCrossSpace > 0 {
 		switch l.AlignContent {
 		case AlignCenter:
-			currentCross += freeCrossSpace / 2
+			currentCross += float64(freeCrossSpace) / 2.0
 		case AlignEnd:
-			currentCross += freeCrossSpace
-			// NOTE: AlignStretch や AlignSpaceBetween などは、より複雑な計算が必要なため現バージョンでは未サポートです。
+			currentCross += float64(freeCrossSpace)
 		}
 	}
 
-	// 4. 各ライン内のアイテムを最終配置
+	// 2番目のループ: 計算した行サイズに基づいてアイテムを配置します
 	for _, line := range lines {
-		// positionItemsをラインごとに呼び出し、ラインの開始位置 (currentCross) を渡してアイテムを配置します。
-		positionItems(line.items, container, mainSize, line.crossAxisSize, isRow, l.Justify, l.AlignItems, l.Gap, currentCross)
-		currentCross += line.crossAxisSize + l.Gap
+		// AlignItems == AlignStretch の場合、アイテムを行の高さまで引き伸ばします
+		if l.AlignItems == AlignStretch {
+			for _, item := range line.items {
+				item.crossSize = line.crossAxisSize - item.crossMargin
+				if item.crossSize < 0 {
+					item.crossSize = 0
+				}
+			}
+		}
+
+		// positionItems は、確定したサイズと AlignItems に基づいてオフセットを計算し、位置を設定します
+		positionItems(line.items, container, mainSize, line.crossAxisSize, isRow, l.Justify, l.AlignItems, l.Gap, finalBounds, int(currentCross))
+		currentCross += float64(line.crossAxisSize + l.Gap)
 	}
 
-	// 5. 計算された最終的なサイズを全ウィジェットに適用
-	// マルチラインの場合、すべての配置計算が終わった後にサイズを適用します。
+	// 5. すべてのアイテムに最終的なサイズを適用します
 	applySizes(items, isRow)
 }
 
@@ -156,12 +273,8 @@ func (l *FlexLayout) splitIntoLines(items []*flexItemInfo, mainSize int) []*flex
 
 	for _, item := range items {
 		itemMainSize := item.mainSize + item.mainMargin
-		gap := 0
-		if len(currentLineItems) > 0 {
-			gap = l.Gap
-		}
+		gap := utils.IfThen(len(currentLineItems) > 0, l.Gap, 0)
 
-		// アイテムを追加すると主軸サイズを超える場合、現在のラインを確定して新しいラインを開始します。
 		if len(currentLineItems) > 0 && currentMainSize+itemMainSize+gap > mainSize {
 			lines = append(lines, &flexLine{items: currentLineItems})
 			currentLineItems = make([]*flexItemInfo, 0)
@@ -173,7 +286,6 @@ func (l *FlexLayout) splitIntoLines(items []*flexItemInfo, mainSize int) []*flex
 		currentMainSize += itemMainSize + gap
 	}
 
-	// 最後のラインを追加します。
 	if len(currentLineItems) > 0 {
 		lines = append(lines, &flexLine{items: currentLineItems})
 	}
@@ -182,7 +294,6 @@ func (l *FlexLayout) splitIntoLines(items []*flexItemInfo, mainSize int) []*flex
 }
 
 // calculateLineCrossSize は、ライン内のアイテムに基づいてライン自体の交差軸サイズを決定します。
-// ラインのサイズは、その中の最も大きいアイテムのサイズに合わせられます。
 func calculateLineCrossSize(lineItems []*flexItemInfo) int {
 	maxCrossSize := 0
 	for _, item := range lineItems {
@@ -195,11 +306,10 @@ func calculateLineCrossSize(lineItems []*flexItemInfo) int {
 }
 
 // collectItemInfo は、子ウィジェットからレイアウト計算に必要な情報を収集します。
-// ポインタのスライスを返すように変更しました。
 func collectItemInfo(children []component.Widget, isRow bool) []*flexItemInfo {
 	items := make([]*flexItemInfo, len(children))
 	for i, child := range children {
-		s := child.GetStyle()
+		s := child.ReadOnlyStyle()
 		margin := style.Insets{}
 		if s.Margin != nil {
 			margin = *s.Margin
@@ -228,51 +338,49 @@ func collectItemInfo(children []component.Widget, isRow bool) []*flexItemInfo {
 }
 
 // calculateBaseSizes は、各アイテムの基本サイズを決定します。
-// VStacks (`isRow == false`) のために、crossSize と alignItems を受け取るように修正されました。
-func calculateBaseSizes(items []*flexItemInfo, isRow bool, crossSize int, alignItems Alignment) {
+func calculateBaseSizes(items []*flexItemInfo, isRow bool, crossAvailable int, alignItems Alignment) {
 	for _, item := range items {
-		w, h := item.widget.GetSize()
 		minW, minH := item.widget.GetMinSize()
 
-		if isRow { // HStack のロジックは変更なし
-			if item.flex > 0 {
-				item.mainSize = minW
-			} else {
-				item.mainSize = max(utils.IfThen(w <= 0, minW, w), minW)
-			}
-		} else { // VStack のための新しいロジック
-			// mainSize は高さであり、幅(crossSize)に依存する可能性があるため、先に幅を決定します。
-			itemWidth := crossSize - item.crossMargin // 利用可能な最大幅から開始
-			if alignItems != AlignStretch {
-				// stretchでない場合、アイテムは自身の本来の幅を使います。
-				intrinsicWidth := max(utils.IfThen(w <= 0, minW, w), minW)
-				if intrinsicWidth < itemWidth {
-					itemWidth = intrinsicWidth
-				}
-			}
-			if itemWidth < 0 {
-				itemWidth = 0
-			}
+		var mainMin int
+		if isRow {
+			mainMin = minW
+		} else {
+			mainMin = minH
+		}
 
-			// 確定した幅を使って、正しい基本の高さを計算します。
-			if hw, ok := item.widget.(component.HeightForWider); ok {
-				item.mainSize = hw.GetHeightForWidth(itemWidth)
-			} else {
-				// 折り返しをサポートしないウィジェットのフォールバック
-				item.mainSize = max(utils.IfThen(h <= 0, minH, h), minH)
+		if item.flex > 0 {
+			item.mainSize = mainMin
+		} else {
+			// flexでないアイテムは、自身のMeasure結果を基本サイズとする
+			childAvailable := image.Point{X: utils.IfThen(isRow, 0, crossAvailable-item.crossMargin), Y: utils.IfThen(isRow, crossAvailable-item.crossMargin, 0)}
+			if childAvailable.X < 0 {
+				childAvailable.X = 0
 			}
+			if childAvailable.Y < 0 {
+				childAvailable.Y = 0
+			}
+			measuredSize := item.widget.Measure(childAvailable)
+			if isRow {
+				item.mainSize = measuredSize.X
+			} else {
+				item.mainSize = measuredSize.Y
+			}
+		}
+
+		// crossSizeの基本もMeasure結果から取得
+		measuredSize := item.widget.Measure(image.Point{X: utils.IfThen(isRow, item.mainSize, crossAvailable-item.crossMargin), Y: utils.IfThen(isRow, crossAvailable-item.crossMargin, item.mainSize)})
+		if isRow {
+			item.crossSize = measuredSize.Y
+		} else {
+			item.crossSize = measuredSize.X
 		}
 	}
 }
 
 // distributeRemainingSpace は、残りの空間をflexアイテムに分配します。
-// ポインタのスライスを受け取るように変更しました。
 func distributeRemainingSpace(items []*flexItemInfo, mainSize, totalBaseMainSize int, totalFlex float64, gap int) {
-	totalGap := 0
-	if len(items) > 1 {
-		totalGap = (len(items) - 1) * gap
-	}
-
+	totalGap := utils.IfThen(len(items) > 1, (len(items)-1)*gap, 0)
 	remainingSpace := mainSize - totalBaseMainSize - totalGap
 
 	if totalFlex > 0 && remainingSpace > 0 {
@@ -286,44 +394,24 @@ func distributeRemainingSpace(items []*flexItemInfo, mainSize, totalBaseMainSize
 }
 
 // calculateCrossAxisSizes は、交差軸のサイズを計算します。
-// ポインタのスライスを受け取るように変更しました。
 func calculateCrossAxisSizes(items []*flexItemInfo, crossSize int, isRow bool, alignItems Alignment) {
 	for _, item := range items {
-		// デフォルトでは、子は親の利用可能な交差軸スペース全体を占有します (AlignStretch)。
-		item.crossSize = crossSize - item.crossMargin
-
-		// AlignStretchでない場合、子は自身のコンテンツに合わせたサイズになることができます。
+		finalCrossSize := crossSize - item.crossMargin
 		if alignItems != AlignStretch {
-			var intrinsicCrossSize int
-			w, h := item.widget.GetSize()
-			minW, minH := item.widget.GetMinSize()
-
-			if isRow { // HStack の交差軸(高さ)を計算
-				if hw, ok := item.widget.(component.HeightForWider); ok {
-					// アイテムの幅(mainSize)は既に確定しているので、それに基づき正しい高さを計算
-					intrinsicCrossSize = hw.GetHeightForWidth(item.mainSize)
-				} else {
-					intrinsicCrossSize = max(utils.IfThen(h <= 0, minH, h), minH)
-				}
-			} else { // VStack の交差軸(幅)を計算
-				// 幅はテキストの折り返しに依存しないので、単純に本来の幅を計算
-				intrinsicCrossSize = max(utils.IfThen(w <= 0, minW, w), minW)
-			}
-
-			if intrinsicCrossSize > 0 && intrinsicCrossSize < item.crossSize {
-				item.crossSize = intrinsicCrossSize
+			measuredSize := item.widget.Measure(image.Point{X: utils.IfThen(isRow, item.mainSize, 0), Y: utils.IfThen(isRow, 0, item.mainSize)})
+			intrinsicCrossSize := utils.IfThen(isRow, measuredSize.Y, measuredSize.X)
+			if intrinsicCrossSize < finalCrossSize {
+				finalCrossSize = intrinsicCrossSize
 			}
 		}
-
-		// サイズが負の値にならないように保証します。
-		if item.crossSize < 0 {
-			item.crossSize = 0
+		if finalCrossSize < 0 {
+			finalCrossSize = 0
 		}
+		item.crossSize = finalCrossSize
 	}
 }
 
 // applySizes は、計算されたサイズを各ウィジェットに設定します。
-// ポインタのスライスを受け取るように変更しました。
 func applySizes(items []*flexItemInfo, isRow bool) {
 	for _, item := range items {
 		if isRow {
@@ -335,51 +423,40 @@ func applySizes(items []*flexItemInfo, isRow bool) {
 }
 
 // positionItems は、主軸と交差軸の揃え位置に基づいて各ウィジェットを配置します。
-// crossOffsetOverride をオプションの引数として追加し、マルチラインレイアウト時に
-// ラインの開始位置を指定できるように変更しました。
-// ポインタのスライスを受け取るように変更しました。
-func positionItems(items []*flexItemInfo, container Container, mainSize, crossSize int, isRow bool, justify, alignItems Alignment, gap int, crossOffsetOverride ...int) {
+func positionItems(items []*flexItemInfo, container Container, mainSize, crossSize int, isRow bool, justify, alignItems Alignment, gap int, finalBounds image.Rectangle, crossOffsetOverride ...int) {
 	var currentTotalMainSize int
-	totalGap := 0
-	if len(items) > 1 {
-		totalGap = (len(items) - 1) * gap
-	}
+	totalGap := utils.IfThen(len(items) > 1, (len(items)-1)*gap, 0)
 
-	// 主軸方向のアイテムの合計サイズを計算
 	for _, item := range items {
 		currentTotalMainSize += item.mainSize + item.mainMargin
 	}
 	currentTotalMainSize += totalGap
 
-	// Justifyプロパティに基づいて主軸方向の開始オフセットを計算
 	freeSpace := mainSize - currentTotalMainSize
-	mainOffset := 0
+	mainOffset := 0.0
+	spacing := 0.0
+
 	if freeSpace > 0 {
 		switch justify {
 		case AlignCenter:
-			mainOffset = freeSpace / 2
+			mainOffset = float64(freeSpace) / 2.0
 		case AlignEnd:
-			mainOffset = freeSpace
+			mainOffset = float64(freeSpace)
 		}
 	}
 
 	padding := container.GetPadding()
-	containerX, containerY := container.GetPosition()
-
-	mainStart := utils.IfThen(isRow, padding.Left, padding.Top)
-
-	// 交差軸の開始位置を決定。マルチラインの場合はオーバーライド値を使用します。
-	crossStart := utils.IfThen(isRow, padding.Top, padding.Left)
+	mainStart := utils.IfThen(isRow, finalBounds.Min.X+padding.Left, finalBounds.Min.Y+padding.Top)
+	crossStart := utils.IfThen(isRow, finalBounds.Min.Y+padding.Top, finalBounds.Min.X+padding.Left)
 	if len(crossOffsetOverride) > 0 {
 		crossStart = crossOffsetOverride[0]
 	}
 
-	currentMain := mainStart + mainOffset
+	currentMain := float64(mainStart) + mainOffset
 
 	for _, item := range items {
-		currentMain += item.mainMarginStart
+		currentMain += float64(item.mainMarginStart)
 
-		// AlignItemsプロパティに基づいて交差軸方向のオフセットを計算
 		crossOffset := 0
 		availableCrossSpace := crossSize - item.crossSize - item.crossMargin
 		if availableCrossSpace > 0 {
@@ -388,19 +465,18 @@ func positionItems(items []*flexItemInfo, container Container, mainSize, crossSi
 				crossOffset = availableCrossSpace / 2
 			case AlignEnd:
 				crossOffset = availableCrossSpace
-				// AlignStretch の場合、item.crossSize が既に crossSize - item.crossMargin になっているため offset は 0
 			}
 		}
 
 		finalCrossPos := crossStart + crossOffset
 
-		// 最終的な座標を設定
 		if isRow {
-			item.widget.SetPosition(containerX+currentMain, containerY+finalCrossPos)
+			item.widget.SetPosition(int(currentMain), finalCrossPos)
 		} else {
-			item.widget.SetPosition(containerX+finalCrossPos, containerY+currentMain)
+			item.widget.SetPosition(finalCrossPos, int(currentMain))
 		}
 
-		currentMain += item.mainSize + (item.mainMargin - item.mainMarginStart) + gap
+		currentMain += float64(item.mainSize + (item.mainMargin - item.mainMarginStart) + gap)
+		currentMain += spacing
 	}
 }

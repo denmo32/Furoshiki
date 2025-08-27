@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"furoshiki/component"
 	"furoshiki/layout"
-	"log"
-	"runtime/debug"
+	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -70,29 +69,18 @@ func (c *Container) SetLayout(layout layout.Layout) {
 	c.MarkDirty(true)
 }
 
-// Updateはコンテナと子要素の状態を更新します。
+// Update はコンテナと子要素の状態を更新します。
 // このメソッドはUIツリーのルートから毎フレーム再帰的に呼び出されます。
+// 新しいレイアウトシステムでは、レイアウト計算はトップダウンのMeasure/Arrangeパスで
+// 処理されるため、このUpdateメソッドはレイアウト以外の更新（アニメーションなど）のみを行います。
 func (c *Container) Update() {
 	if !c.IsVisible() {
 		return
 	}
 
+	// レイアウトロジックはMeasure/Arrangeパスに移行しました。
+	// このメソッドは子の更新のみを再帰的に呼び出します。
 	c.checkSizeWarning()
-
-	if c.IsDirty() {
-		if c.NeedsRelayout() {
-			if c.layout != nil {
-				// NOTE: レイアウト計算がエラーを返すように変更されたため、ここでハンドリングします。
-				//       以前のpanic/recoverモデルから移行し、より予測可能なエラー処理を実現します。
-				if err := c.layout.Layout(c); err != nil {
-					// レイアウト計算中にエラーが発生した場合、ログに出力します。
-					// これにより、開発者はレイアウトに関する問題を早期に発見できます。
-					log.Printf("Error during layout calculation: %v\n%s", err, debug.Stack())
-				}
-			}
-		}
-		c.ClearDirty()
-	}
 
 	for _, child := range c.children {
 		child.Update()
@@ -302,4 +290,26 @@ func (c *Container) GetPadding() layout.Insets {
 		}
 	}
 	return layout.Insets{}
+}
+
+// Measure implements the component.LayoutManager interface.
+// It delegates the measurement to its assigned layout object.
+func (c *Container) Measure(availableSize image.Point) image.Point {
+	if c.layout != nil {
+		return c.layout.Measure(c, availableSize)
+	}
+	// If no layout, just return the minimum size of the container itself
+	minW, minH := c.GetMinSize()
+	return image.Point{X: minW, Y: minH}
+}
+
+// Arrange implements the component.LayoutManager interface.
+// It delegates the arrangement of its children to its assigned layout object.
+func (c *Container) Arrange(finalBounds image.Rectangle) error {
+	// The container's own size and position are set by its parent's Arrange pass.
+	// This method is responsible for arranging this container's children.
+	if c.layout != nil {
+		return c.layout.Arrange(c, finalBounds)
+	}
+	return nil
 }

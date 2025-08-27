@@ -1,14 +1,103 @@
 package layout
 
-import "furoshiki/component"
+import (
+	"furoshiki/component"
+	"image"
+)
+
+var _ component.Widget // Dummy var to force import usage
 
 // ScrollViewLayout は、ScrollViewウィジェットのための専用レイアウトマネージャです。
 type ScrollViewLayout struct{}
 
-// Layout は、ScrollViewのレイアウトロジックを実行します。
-// 2パスレイアウト（計測→配置）のアプローチを取ります。
-// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
-func (l *ScrollViewLayout) Layout(container Container) error {
+// measureResult は、Measureパスの結果をArrangeパスに渡すための中間構造体です。
+type measureResult struct {
+	contentSize     image.Point
+	isVScrollNeeded bool
+	scrollBarWidth  int
+}
+
+// measureInternal は、MeasureとArrangeの両方から呼び出される共通の計測ロジックです。
+// これにより、ロジックの重複を防ぎ、一貫性を保ちます。
+func (l *ScrollViewLayout) measureInternal(scroller ScrollViewer, availableSize image.Point) measureResult {
+	content := scroller.GetContentContainer()
+	vScrollBar := scroller.GetVScrollBar()
+	if content == nil {
+		return measureResult{}
+	}
+
+	padding := scroller.GetPadding()
+	viewWidth := availableSize.X
+	viewHeight := availableSize.Y
+
+	// 1. スクロールバーがないと仮定した幅でコンテンツを計測
+	contentAvailableWidth := viewWidth - padding.Left - padding.Right
+	if contentAvailableWidth < 0 {
+		contentAvailableWidth = 0
+	}
+	// 高さは無制限として渡し、コンテンツが要求する真の高さを取得
+	contentDesiredSize := content.Measure(image.Point{X: contentAvailableWidth, Y: 0})
+
+	// 2. スクロールバーの要否を判断
+	contentAreaHeight := viewHeight - padding.Top - padding.Bottom
+	if contentAreaHeight < 0 {
+		contentAreaHeight = 0
+	}
+	isVScrollNeeded := contentDesiredSize.Y > contentAreaHeight
+
+	// 3. スクロールバーが必要な場合、幅を考慮して再計測
+	scrollBarWidth := 0
+	if isVScrollNeeded {
+		if vScrollBar != nil {
+			// スクロールバー自体の要求サイズを取得
+			sbSize := vScrollBar.Measure(image.Point{X: 0, Y: contentAreaHeight})
+			scrollBarWidth = sbSize.X
+		}
+		// スクロールバーの幅を差し引いて再度コンテンツの利用可能幅を計算
+		newContentAvailableWidth := viewWidth - padding.Left - padding.Right - scrollBarWidth
+		if newContentAvailableWidth < 0 {
+			newContentAvailableWidth = 0
+		}
+		// 幅が変わった場合のみ、コンテンツを再計測
+		if newContentAvailableWidth != contentAvailableWidth {
+			contentDesiredSize = content.Measure(image.Point{X: newContentAvailableWidth, Y: 0})
+		}
+	}
+
+	return measureResult{
+		contentSize:     contentDesiredSize,
+		isVScrollNeeded: isVScrollNeeded,
+		scrollBarWidth:  scrollBarWidth,
+	}
+}
+
+// Measure は、ScrollViewの要求サイズを計算します。
+func (l *ScrollViewLayout) Measure(container Container, availableSize image.Point) image.Point {
+	scroller, ok := container.(ScrollViewer)
+	if !ok {
+		// 型アサーションが失敗した場合、コンテナの最小サイズを返す
+		minW, minH := container.GetMinSize()
+		return image.Point{X: minW, Y: minH}
+	}
+
+	// ScrollViewは通常、親から与えられたスペースを埋めるように動作するため、
+	// availableSizeをそのまま自身の要求サイズとして返します。
+	// コンテンツのサイズによってScrollView自体のサイズが変わるわけではありません。
+	// ただし、もし親がサイズを指定しない場合（availableSizeが0の場合）のために、
+	// コンテンツの最小幅を考慮した最小サイズを返すこともできます。
+	res := l.measureInternal(scroller, availableSize)
+	padding := scroller.GetPadding()
+
+	desiredW := res.contentSize.X + padding.Left + padding.Right
+	if res.isVScrollNeeded {
+		desiredW += res.scrollBarWidth
+	}
+	// 高さは利用可能な高さに依存するため、ここではavailableSize.Yを尊重する
+	return image.Point{X: desiredW, Y: availableSize.Y}
+}
+
+// Arrange は、ScrollView内のコンテンツとスクロールバーを配置します。
+func (l *ScrollViewLayout) Arrange(container Container, finalBounds image.Rectangle) error {
 	scroller, ok := container.(ScrollViewer)
 	if !ok {
 		return nil
@@ -23,100 +112,25 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 		return nil
 	}
 
-	viewX, viewY := scroller.GetPosition()
-	viewWidth, viewHeight := scroller.GetSize()
-	padding := scroller.GetPadding()
+	// NOTE: Measureパスの結果をキャッシュするのが理想的だが、ここでは再計算する
+	res := l.measureInternal(scroller, finalBounds.Size())
+	scroller.SetContentHeight(res.contentSize.Y)
 
-	var scrollBarWidth int
 	if vScrollBar != nil {
-		scrollBarWidth, _ = vScrollBar.GetSize()
+		vScrollBar.SetVisible(res.isVScrollNeeded)
 	}
 
+	padding := scroller.GetPadding()
+	viewHeight := finalBounds.Dy()
 	contentAreaHeight := viewHeight - padding.Top - padding.Bottom
 	if contentAreaHeight < 0 {
 		contentAreaHeight = 0
 	}
 
-	// --- 1. 計測(Measure)パス ---
-	// スクロールバーがないと仮定した幅で、コンテンツが本来必要とする高さを計測します。
-	potentialContentWidth := viewWidth - padding.Left - padding.Right
-	if potentialContentWidth < 0 {
-		potentialContentWidth = 0
-	}
-
-	var measuredContentHeight int
-
-	// content の種類に応じて、最適な方法で高さを計測します。
-	if hw, ok := content.(component.HeightForWider); ok {
-		// ケース1: HeightForWiderを実装するウィジェット (例: 折り返し可能なLabel)
-		// 幅から直接、必要な高さを計算できるため、最も効率的です。
-		measuredContentHeight = hw.GetHeightForWidth(potentialContentWidth)
-	} else if c, ok := content.(Container); ok {
-		// ケース2: コンテナウィジェット (例: VStack, HStack)
-		// 実際にレイアウトを実行させて、子要素の配置から最終的な高さを割り出します。
-		const veryLargeHeight = 1_000_000 // 計測用に十分大きな高さを設定
-		c.SetSize(potentialContentWidth, veryLargeHeight)
-		c.SetPosition(0, 0) // レイアウト計算のために一時的に原点に配置
-		c.MarkDirty(true)
-		c.Update() // content のレイアウトを強制的に実行
-
-		contentPadding := c.GetPadding()
-		maxY := 0
-		// コンテナ自身の座標は、この一時的なレイアウト計算では(0,0)に設定されているため、
-		// 子のY座標と高さから直接最大Y座標を求められます。
-		for _, child := range c.GetChildren() {
-			if !child.IsVisible() {
-				continue
-			}
-			_, childY := child.GetPosition()
-			_, childH := child.GetSize()
-			bottom := childY + childH
-			if bottom > maxY {
-				maxY = bottom
-			}
-		}
-		measuredContentHeight = maxY + contentPadding.Bottom
-	} else {
-		// ケース3: 上記以外のウィジェット (HeightForWiderを実装しない単一ウィジェット)
-		// コンテンツ自身の最小の高さを必要な高さとみなします。
-		_, measuredContentHeight = content.GetMinSize()
-	}
-	scroller.SetContentHeight(measuredContentHeight)
-
-	// --- 2. 配置(Arrange)パス ---
-	// 計測した高さに基づき、スクロールバーの要否を決定し、最終的な配置を計算します。
-	isVScrollNeeded := measuredContentHeight > contentAreaHeight
-	if vScrollBar != nil {
-		vScrollBar.SetVisible(isVScrollNeeded)
-	}
-
-	finalContentWidth := viewWidth - padding.Left - padding.Right
-	if isVScrollNeeded {
-		finalContentWidth -= scrollBarWidth
-	}
-	if finalContentWidth < 0 {
-		finalContentWidth = 0
-	}
-
-	// スクロールバーの有無で幅が変わった場合、再度レイアウトを実行
-	if finalContentWidth != potentialContentWidth {
-		// 再計測が必要なのは、幅に依存して高さが変わるウィジェットのみ
-		if hw, ok := content.(component.HeightForWider); ok {
-			measuredContentHeight = hw.GetHeightForWidth(finalContentWidth)
-		} else if c, ok := content.(Container); ok {
-			const veryLargeHeight = 1_000_000
-			c.SetSize(finalContentWidth, veryLargeHeight)
-			c.SetPosition(0, 0)
-			c.MarkDirty(true)
-			c.Update()
-		}
-		// NOTE: コンテナ内の子の再計算は c.Update() で行われるため、ここでは不要
-		scroller.SetContentHeight(measuredContentHeight)
-	}
-
+	// スクロール位置を正規化
 	maxScrollY := 0.0
-	if measuredContentHeight > contentAreaHeight {
-		maxScrollY = float64(measuredContentHeight - contentAreaHeight)
+	if res.contentSize.Y > contentAreaHeight {
+		maxScrollY = float64(res.contentSize.Y - contentAreaHeight)
 	}
 	currentScrollY := scroller.GetScrollY()
 	if currentScrollY > maxScrollY {
@@ -127,20 +141,35 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 	}
 	scroller.SetScrollY(currentScrollY)
 
-	// コンテンツの最終的な位置とサイズを設定
-	content.SetSize(finalContentWidth, measuredContentHeight)
-	content.SetPosition(viewX+padding.Left, viewY+padding.Top-int(currentScrollY))
+	// コンテンツの配置
+	contentX := finalBounds.Min.X + padding.Left
+	contentY := finalBounds.Min.Y + padding.Top - int(currentScrollY)
+	contentBounds := image.Rect(contentX, contentY, contentX+res.contentSize.X, contentY+res.contentSize.Y)
+	content.SetPosition(contentBounds.Min.X, contentBounds.Min.Y)
+	content.SetSize(contentBounds.Dx(), contentBounds.Dy())
+	if err := content.Arrange(contentBounds); err != nil {
+		return err
+	}
 
-	if isVScrollNeeded && vScrollBar != nil {
-		vScrollBar.SetPosition(viewX+viewWidth-padding.Right-scrollBarWidth, viewY+padding.Top)
-		vScrollBar.SetSize(scrollBarWidth, contentAreaHeight)
+	// スクロールバーの配置
+	if res.isVScrollNeeded && vScrollBar != nil {
+		sbX := finalBounds.Max.X - padding.Right - res.scrollBarWidth
+		sbY := finalBounds.Min.Y + padding.Top
+		sbBounds := image.Rect(sbX, sbY, sbX+res.scrollBarWidth, sbY+contentAreaHeight)
+		vScrollBar.SetPosition(sbBounds.Min.X, sbBounds.Min.Y)
+		vScrollBar.SetSize(sbBounds.Dx(), sbBounds.Dy())
 
-		contentRatio := float64(contentAreaHeight) / float64(measuredContentHeight)
+		contentRatio := float64(contentAreaHeight) / float64(res.contentSize.Y)
 		scrollRatio := 0.0
 		if maxScrollY > 0 {
 			scrollRatio = currentScrollY / maxScrollY
 		}
 		vScrollBar.SetRatios(contentRatio, scrollRatio)
+
+		if err := vScrollBar.Arrange(sbBounds); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }

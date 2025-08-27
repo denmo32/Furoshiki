@@ -2,13 +2,24 @@ package layout
 
 import (
 	"furoshiki/component"
+	"image"
 )
 
-// Layout は、コンテナ内の子要素をどのように配置するかを決定するロジックのインターフェースです。
-// NOTE: Layoutメソッドがerrorを返すようにシグネチャが変更されました。
-//       これにより、レイアウト計算中の問題をpanicさせることなく、安全に呼び出し元へ伝えることができます。
+// Layout defines the interface for UI layout algorithms.
+// It separates the layout process into two phases: Measure and Arrange.
 type Layout interface {
-	Layout(container Container) error
+	// Measure calculates the desired size of a container based on its content
+	// and the available space.
+	// container: The container to measure.
+	// availableSize: The space available for the container, provided by its parent.
+	// Returns the size the container wishes to be.
+	Measure(container Container, availableSize image.Point) (desiredSize image.Point)
+
+	// Arrange assigns the final size and position to the children of a container.
+	// container: The container whose children are to be arranged.
+	// finalBounds: The final area the container is allocated within its parent.
+	// Returns an error if the arrangement fails.
+	Arrange(container Container, finalBounds image.Rectangle) error
 }
 
 // Insets はパディングやマージンの四方の値を表します。

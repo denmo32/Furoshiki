@@ -3,6 +3,7 @@ package component
 import (
 	"furoshiki/event"
 	"furoshiki/style"
+	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -28,6 +29,7 @@ type Widget interface {
 	StyleGetterSetter
 
 	// --- レイアウト ---
+	LayoutManager // NEW: Measure/Arrange pass
 	LayoutProperties
 	// SetLayoutData は、このウィジェットにレイアウト固有のデータを設定します。
 	// 親コンテナのレイアウトシステム（例: AdvancedGridLayout）がこれを使用して、
@@ -46,6 +48,12 @@ type Widget interface {
 	//       コードの直感性を向上させます。
 	EventProcessor
 	HitTester
+}
+
+// LayoutManager defines the methods for the Measure/Arrange layout pass.
+type LayoutManager interface {
+	Measure(availableSize image.Point) (desiredSize image.Point)
+	Arrange(finalBounds image.Rectangle) error
 }
 
 // HeightForWider は、ウィジェットが特定の幅を与えられた場合に

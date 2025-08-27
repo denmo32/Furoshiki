@@ -6,6 +6,7 @@ import (
 	"furoshiki/event"
 	"furoshiki/layout"
 	"furoshiki/style"
+	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -88,34 +89,25 @@ func (sv *ScrollView) SetStyle(s style.Style) {
 }
 
 // Update はScrollViewの状態を更新します。
-// 汎用コンテナのUpdateとは異なり、ScrollView専用のレイアウト計算を制御します。
+// 新しいレイアウトシステムでは、レイアウト計算はトップダウンのMeasure/Arrangeパスで
+// 処理されるため、このUpdateメソッドはレイアウト以外の更新（アニメーションなど）のみを行います。
 func (sv *ScrollView) Update() {
 	if !sv.IsVisible() {
 		return
 	}
 
 	// 自身のサイズと位置を内部コンテナに常に同期させます。
+	// これは、親のArrangeパスで設定されたScrollViewのジオメトリを、
+	// 描画を担当する内部コンテナに反映させるために必要です。
 	w, h := sv.GetSize()
 	sv.container.SetSize(w, h)
 	x, y := sv.GetPosition()
 	sv.container.SetPosition(x, y)
 
-	// ScrollView自身が再レイアウトを要求されている場合のみ、専用のレイアウトを実行します。
-	if sv.NeedsRelayout() {
-		if sv.layout != nil {
-			if err := sv.layout.Layout(sv); err != nil {
-				// TODO: エラーハンドリング
-			}
-		}
-	}
-
-	// 内部コンテナのレイアウト処理は行わず、子要素のUpdateのみを再帰的に呼び出します。
+	// レイアウトロジックはMeasure/Arrangeパスに移行しました。
+	// このメソッドは子の更新のみを再帰的に呼び出します。
 	for _, child := range sv.container.GetChildren() {
 		child.Update()
-	}
-
-	if sv.IsDirty() {
-		sv.ClearDirty()
 	}
 }
 
@@ -172,3 +164,24 @@ func (sv *ScrollView) SetScrollY(y float64) {
 
 // --- container.Scroller interface ---
 func (sv *ScrollView) GetScrollOffset() (x, y int) { return 0, -int(sv.scrollY) }
+
+// Measure implements the component.LayoutManager interface.
+// It delegates the measurement to its assigned layout object.
+func (sv *ScrollView) Measure(availableSize image.Point) image.Point {
+	if sv.layout != nil {
+		return sv.layout.Measure(sv, availableSize)
+	}
+	minW, minH := sv.GetMinSize()
+	return image.Point{X: minW, Y: minH}
+}
+
+// Arrange implements the component.LayoutManager interface.
+// It delegates the arrangement of its children to its assigned layout object.
+func (sv *ScrollView) Arrange(finalBounds image.Rectangle) error {
+	if sv.layout != nil {
+		// The actual positioning of the ScrollView itself is done by its parent's Arrange pass.
+		// This delegates the arrangement of the content and scrollbar to the ScrollViewLayout.
+		return sv.layout.Arrange(sv, finalBounds)
+	}
+	return nil
+}

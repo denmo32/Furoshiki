@@ -3,6 +3,7 @@ package component
 import (
 	"errors"
 	"furoshiki/event"
+	"image"
 )
 
 // LayoutableWidgetは、Widgetインターフェースの基本的な実装を提供する構造体です。
@@ -116,5 +117,18 @@ func (w *LayoutableWidget) Init(self Widget) error {
 		return errors.New("LayoutableWidget.Init: widget has already been initialized")
 	}
 	w.self = self
+	return nil
+}
+
+// Measure calculates the desired size of the widget.
+// For a basic LayoutableWidget, this is its minimum size.
+func (w *LayoutableWidget) Measure(availableSize image.Point) image.Point {
+	minW, minH := w.GetMinSize()
+	return image.Point{X: minW, Y: minH}
+}
+
+// Arrange is a placeholder for container widgets.
+// A basic LayoutableWidget has no children to arrange.
+func (w *LayoutableWidget) Arrange(finalBounds image.Rectangle) error {
 	return nil
 }

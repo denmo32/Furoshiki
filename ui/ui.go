@@ -21,13 +21,17 @@ type FlexBuilder struct {
 
 // VStack は子要素を垂直方向に配置するコンテナを構築します。
 func VStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
-	flexLayout := &layout.FlexLayout{Direction: layout.DirectionColumn}
+	// [修正] AlignItemsのデフォルトをAlignStretchに設定します。
+	// これにより、VStack内の子はデフォルトで水平方向いっぱいに広がります。
+	flexLayout := &layout.FlexLayout{Direction: layout.DirectionColumn, AlignItems: layout.AlignStretch}
 	return buildFlexContainer(flexLayout, buildFunc)
 }
 
 // HStack は子要素を水平方向に配置するコンテナを構築します。
 func HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
-	flexLayout := &layout.FlexLayout{Direction: layout.DirectionRow}
+	// [修正] AlignItemsのデフォルトをAlignStretchに設定します。
+	// これにより、HStack内の子はデフォルトで垂直方向いっぱいに広がります。
+	flexLayout := &layout.FlexLayout{Direction: layout.DirectionRow, AlignItems: layout.AlignStretch}
 	return buildFlexContainer(flexLayout, buildFunc)
 }
 

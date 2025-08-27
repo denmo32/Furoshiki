@@ -1,9 +1,13 @@
 package layout
 
 import (
+	"furoshiki/component"
 	"furoshiki/utils"
+	"image"
 	"math"
 )
+
+var _ component.Widget // Dummy var to force import usage
 
 // --- AdvancedGridLayout ---
 
@@ -38,20 +42,73 @@ type AdvancedGridLayout struct {
 	VerticalGap       int
 }
 
-// Layout は AdvancedGridLayout のレイアウトロジックを実装します。
-// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
-func (l *AdvancedGridLayout) Layout(container Container) error {
+// Measure は、AdvancedGridLayoutの要求サイズを計算します。
+func (l *AdvancedGridLayout) Measure(container Container, availableSize image.Point) image.Point {
+	numCols := len(l.ColumnDefinitions)
+	numRows := len(l.RowDefinitions)
+	if numCols == 0 || numRows == 0 {
+		return image.Point{}
+	}
+
+	children := getVisibleChildren(container)
+	minColWidths := make([]int, numCols)
+	minRowHeights := make([]int, numRows)
+
+	// 1. セル結合(span > 1)のないウィジェットを計測し、各トラックの最小サイズを決定
+	for _, child := range children {
+		data, ok := child.GetLayoutData().(GridPlacementData)
+		if !ok {
+			continue
+		}
+		if data.ColSpan == 1 {
+			// 利用可能サイズ0で計測し、ウィジェットの純粋な最小サイズを取得
+			minSize := child.Measure(image.Point{0, 0})
+			if minSize.X > minColWidths[data.Col] {
+				minColWidths[data.Col] = minSize.X
+			}
+		}
+		if data.RowSpan == 1 {
+			minSize := child.Measure(image.Point{0, 0})
+			if minSize.Y > minRowHeights[data.Row] {
+				minRowHeights[data.Row] = minSize.Y
+			}
+		}
+	}
+	// TODO: セル結合を持つウィジェットの最小サイズを考慮に入れるロジックを追加
+
+	// 2. トラック定義と最小サイズから、全体の要求サイズを計算
+	colSizes := calculateTrackSizes(l.ColumnDefinitions, 0, minColWidths)
+	rowSizes := calculateTrackSizes(l.RowDefinitions, 0, minRowHeights)
+
+	totalWidth := 0
+	for _, w := range colSizes {
+		totalWidth += w
+	}
+	totalHeight := 0
+	for _, h := range rowSizes {
+		totalHeight += h
+	}
+
+	padding := container.GetPadding()
+	totalHorizontalGap := max(0, (numCols-1)*l.HorizontalGap)
+	totalVerticalGap := max(0, (numRows-1)*l.VerticalGap)
+
+	return image.Point{
+		X: totalWidth + totalHorizontalGap + padding.Left + padding.Right,
+		Y: totalHeight + totalVerticalGap + padding.Top + padding.Bottom,
+	}
+}
+
+// Arrange は、AdvancedGridLayout内の子要素を最終的な位置に配置します。
+func (l *AdvancedGridLayout) Arrange(container Container, finalBounds image.Rectangle) error {
 	children := getVisibleChildren(container)
 	if len(children) == 0 {
 		return nil
 	}
 
 	padding := container.GetPadding()
-	containerX, containerY := container.GetPosition()
-	containerWidth, containerHeight := container.GetSize()
-
-	availableWidth := containerWidth - padding.Left - padding.Right
-	availableHeight := containerHeight - padding.Top - padding.Bottom
+	availableWidth := finalBounds.Dx() - padding.Left - padding.Right
+	availableHeight := finalBounds.Dy() - padding.Top - padding.Bottom
 
 	numCols := len(l.ColumnDefinitions)
 	numRows := len(l.RowDefinitions)
@@ -59,72 +116,73 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 		return nil
 	}
 
-	// 1. ギャップを考慮に入れた利用可能スペースを計算
-	// Go 1.21+ の組み込みmaxを使用します。
 	totalHorizontalGap := max(0, (numCols-1)*l.HorizontalGap)
 	totalVerticalGap := max(0, (numRows-1)*l.VerticalGap)
 	netWidth := availableWidth - totalHorizontalGap
 	netHeight := availableHeight - totalVerticalGap
 
-	// 2. 各トラックのサイズを計算
-	colWidths := calculateTrackSizes(l.ColumnDefinitions, netWidth)
-	rowHeights := calculateTrackSizes(l.RowDefinitions, netHeight)
+	colWidths := calculateTrackSizes(l.ColumnDefinitions, netWidth, nil)
+	rowHeights := calculateTrackSizes(l.RowDefinitions, netHeight, nil)
 
-	// 3. 各トラックの開始位置を計算
-	colPositions := calculateTrackPositions(colWidths, l.HorizontalGap, containerX+padding.Left)
-	rowPositions := calculateTrackPositions(rowHeights, l.VerticalGap, containerY+padding.Top)
+	colPositions := calculateTrackPositions(colWidths, l.HorizontalGap, finalBounds.Min.X+padding.Left)
+	rowPositions := calculateTrackPositions(rowHeights, l.VerticalGap, finalBounds.Min.Y+padding.Top)
 
-	// 4. 子要素を配置
 	for _, child := range children {
 		data, ok := child.GetLayoutData().(GridPlacementData)
 		if !ok {
-			// 配置情報がないウィジェットはレイアウト対象外とします。
 			continue
 		}
 
-		// 範囲チェックを行い、グリッドの範囲内に収める
-		// utils.Clamp を使用して冗長性を解消します。
 		startCol := utils.Clamp(data.Col, 0, numCols-1)
 		startRow := utils.Clamp(data.Row, 0, numRows-1)
 		endCol := utils.Clamp(data.Col+data.ColSpan, startCol+1, numCols)
 		endRow := utils.Clamp(data.Row+data.RowSpan, startRow+1, numRows)
 
-		// 位置とサイズを計算
 		x := colPositions[startCol]
 		y := rowPositions[startRow]
-		width := colPositions[endCol-1] + colWidths[endCol-1] - x
-		height := rowPositions[endRow-1] + rowHeights[endRow-1] - y
+		width := (colPositions[endCol-1] + colWidths[endCol-1]) - x
+		height := (rowPositions[endRow-1] + rowHeights[endRow-1]) - y
 
-		child.SetPosition(x, y)
-		child.SetSize(width, height)
+		childBounds := image.Rect(x, y, x+width, y+height)
+		child.SetPosition(childBounds.Min.X, childBounds.Min.Y)
+		child.SetSize(childBounds.Dx(), childBounds.Dy())
+
+		if err := child.Arrange(childBounds); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// calculateTrackSizes は、定義に基づいて各トラック（列または行）の最終的なサイズを計算します。
-func calculateTrackSizes(definitions []TrackDefinition, availableSpace int) []int {
+// calculateTrackSizes は、定義と利用可能スペース、最小サイズに基づいて各トラックのサイズを計算します。
+func calculateTrackSizes(definitions []TrackDefinition, availableSpace int, minSizes []int) []int {
 	sizes := make([]int, len(definitions))
 	var totalWeightedValue float64
 	remainingSpace := float64(availableSpace)
 
-	// 固定サイズのトラックを先に計算し、残りのスペースから引きます。
+	// 1. 固定サイズと最小サイズを適用
 	for i, def := range definitions {
+		minSize := 0
+		if minSizes != nil && i < len(minSizes) {
+			minSize = minSizes[i]
+		}
+
 		if def.Sizing == TrackSizingFixed {
-			size := int(def.Value)
-			sizes[i] = size
-			remainingSpace -= float64(size)
+			sizes[i] = max(int(def.Value), minSize)
 		} else {
+			sizes[i] = minSize
 			totalWeightedValue += def.Value
 		}
+		remainingSpace -= float64(sizes[i])
 	}
 
 	remainingSpace = math.Max(0, remainingSpace)
 
-	// 重み付けされたトラックを、残りのスペースと重みの比率で計算します。
+	// 2. 重み付けされたトラックに残りスペースを分配
 	if totalWeightedValue > 0 {
 		for i, def := range definitions {
 			if def.Sizing == TrackSizingWeighted {
-				sizes[i] = int(remainingSpace * (def.Value / totalWeightedValue))
+				sizes[i] += int(remainingSpace * (def.Value / totalWeightedValue))
 			}
 		}
 	}

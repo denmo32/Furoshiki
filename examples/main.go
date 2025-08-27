@@ -10,6 +10,7 @@ import (
 	"furoshiki/theme"
 	"furoshiki/ui"
 	"furoshiki/widget"
+	"image"
 	"image/color"
 	"log"
 	"strconv"
@@ -152,9 +153,39 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.root.Draw(screen)
 }
 
-// Layout はEbitenにゲームの画面サイズを伝えます。
+// Layout はEbitenにゲームの画面サイズを伝え、UIのレイアウトを計算します。
+// この関数はEbitenによって毎フレーム呼び出されます。
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return screenWidth, screenHeight
+	w, h := screenWidth, screenHeight
+
+	// UIの再レイアウトが必要な場合のみ、Measure/Arrangeパスを実行します。
+	if g.root.NeedsRelayout() {
+		// 1. Measure Pass: UI全体の要求サイズを計算します。
+		// ルートコンテナの場合、利用可能なサイズは画面全体です。
+		g.root.Measure(image.Point{X: w, Y: h})
+
+		// 2. Arrange Pass: 計算された情報に基づき、全ウィジェットを配置します。
+		// ルートコンテナは画面全体を占有します。
+		bounds := image.Rect(0, 0, w, h)
+		g.root.SetPosition(bounds.Min.X, bounds.Min.Y)
+		g.root.SetSize(bounds.Dx(), bounds.Dy())
+		g.root.Arrange(bounds)
+
+		// 3. Dirty Flag Cleanup: レイアウトが完了したので、ダーティフラグをクリアします。
+		clearDirty(g.root)
+	}
+
+	return w, h
+}
+
+// clearDirty は、指定されたウィジェットとそのすべての子孫のダーティフラグを再帰的にクリアします。
+func clearDirty(w component.Widget) {
+	w.ClearDirty()
+	if c, ok := w.(component.Container); ok {
+		for _, child := range c.GetChildren() {
+			clearDirty(child)
+		}
+	}
 }
 
 func main() {
@@ -196,6 +227,8 @@ func (g *Game) createFlexLayoutDemo() (component.Widget, error) {
 		// --- VStackのデモ ---
 		b.Label(func(l *widget.LabelBuilder) { l.Text("VStack (AlignItems: AlignStretch)") })
 		b.VStack(func(b *ui.FlexBuilder) {
+			// [修正] .Flex(1) を追加して、このVStackが親コンテナ内で利用可能な垂直スペースを
+			// すべて使用するようにします。これにより、AlignStretchの効果が正しく表示されます。
 			b.Flex(1).Padding(5).Gap(5).Border(1, color.Gray{Y: 150}).
 				AlignItems(layout.AlignStretch) // 子要素の幅がコンテナに合わせられる
 
