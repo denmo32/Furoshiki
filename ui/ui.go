@@ -307,9 +307,9 @@ func add[W component.Widget, WB interface {
 		// エラーがあっても不完全なウィジェットを追加することで、レイアウトの崩れを確認しやすくします
 	}
 
-	// ジェネリック型Wの変数は直接nilと比較できないため、reflectを使用してnilチェックを行います。
-	// widgetはインターフェース(component.Widget)を満たすポインタ型(*widget.Buttonなど)であるため、
-	// この方法で安全にチェックできます。
+	// NOTE: Goでは、型を持つnilインターフェースは `nil` との比較で `false` を返します。
+	// (例: `var w component.Widget = (*widget.Button)(nil)` は `w != nil` がtrueになる)
+	// これを避けるため、リフレクションで値が本当にnilかを検査します。
 	v := reflect.ValueOf(widget)
 	isNil := !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil())
 

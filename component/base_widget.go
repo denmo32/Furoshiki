@@ -3,6 +3,7 @@ package component
 import (
 	"errors"
 	"furoshiki/event"
+	"furoshiki/style"
 )
 
 // LayoutableWidgetは、Widgetインターフェースの基本的な実装を提供する構造体です。
@@ -21,7 +22,9 @@ type LayoutableWidget struct {
 
 	// --- Layout & Style ---
 	layout       layoutProperties
-	StyleManager *StyleManager // NOTE: フィールドをエクスポートするために大文字に変更 (styleManager -> StyleManager)
+	// NOTE: 内部実装を隠蔽し、コンポーネントのカプセル化を強化するために非公開に戻しました。
+	//       スタイル操作は `SetStyle`, `SetStyleForState` などの公開メソッド経由で行います。
+	styleManager *StyleManager // NOTE: フィールドを非公開に (StyleManager -> styleManager)
 
 	// --- State ---
 	state widgetState
@@ -91,8 +94,8 @@ func NewLayoutableWidget() *LayoutableWidget {
 		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: levelClean},
 		eventHandlers: make(map[event.EventType][]event.EventHandler),
 	}
-	// NOTE: [FIX] エクスポートされたフィールドに設定します。
-	w.StyleManager = NewStyleManager(w)
+	// NOTE: 非公開になったstyleManagerフィールドに設定します。
+	w.styleManager = NewStyleManager(w)
 	return w
 }
 
@@ -117,4 +120,17 @@ func (w *LayoutableWidget) Init(self Widget) error {
 	}
 	w.self = self
 	return nil
+}
+
+// SetStyleForState は、特定のインタラクティブ状態に対応するスタイルを設定します。
+// 具象ウィジェット（例: Button）が、テーマやユーザー設定に基づいて状態ごとのスタイルを
+// 登録するために使用します。
+func (w *LayoutableWidget) SetStyleForState(state WidgetState, s style.Style) {
+	w.styleManager.SetStyleForState(state, s)
+}
+
+// GetStyleForState は、指定された状態に適用すべき最終的なスタイルを計算して返します。
+// このメソッドは内部でキャッシュを利用するため、描画ループ内で効率的にスタイルを取得できます。
+func (w *LayoutableWidget) GetStyleForState(state WidgetState) style.Style {
+	return w.styleManager.GetStyleForState(state)
 }

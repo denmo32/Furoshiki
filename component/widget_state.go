@@ -29,8 +29,9 @@ func (w *LayoutableWidget) Draw(info DrawInfo) {
 	if !w.state.isVisible || !w.state.hasBeenLaidOut {
 		return
 	}
-	// NOTE: [FIX] 削除された w.style の代わりに、StyleManagerから現在の状態に合ったスタイルを取得します。
-	styleToUse := w.StyleManager.GetStyleForState(w.CurrentState())
+	// NOTE: StyleManagerから現在の状態に合ったスタイルを取得します。
+	//       カプセル化のために、LayoutableWidgetに新設したラッパーメソッドを経由します。
+	styleToUse := w.GetStyleForState(w.CurrentState())
 
 	// UPDATE: 親から渡されたオフセットを描画座標に適用
 	// これにより、クリッピング描画などで座標を一時的に書き換える必要がなくなります。

@@ -53,9 +53,12 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 		measuredContentHeight = hw.GetHeightForWidth(potentialContentWidth)
 	} else if c, ok := content.(Container); ok {
 		// ケース2: コンテナウィジェット (例: VStack, HStack)
-		// 実際にレイアウトを実行させて、子要素の配置から最終的な高さを割り出します。
-		const veryLargeHeight = 1_000_000 // 計測用に十分大きな高さを設定
-		c.SetSize(potentialContentWidth, veryLargeHeight)
+		// 描画せずにコンテンツの本来の高さを知るため、十分な高さを与えて
+		// 一時的にレイアウトを計算させ、子の配置から最大高さを割り出す。
+		// NOTE: このマジックナンバー的なアプローチは、コンテンツの高さが子の配置に依存し、
+		//       かつそれを事前に計算する簡単な方法がない場合に有効な手法です。
+		const layoutMeasureHeight = 1_000_000 // 計測用に十分大きな高さを設定
+		c.SetSize(potentialContentWidth, layoutMeasureHeight)
 		c.SetPosition(0, 0) // レイアウト計算のために一時的に原点に配置
 		c.MarkDirty(true)
 		c.Update() // content のレイアウトを強制的に実行
@@ -104,8 +107,9 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 		if hw, ok := content.(component.HeightForWider); ok {
 			measuredContentHeight = hw.GetHeightForWidth(finalContentWidth)
 		} else if c, ok := content.(Container); ok {
-			const veryLargeHeight = 1_000_000
-			c.SetSize(finalContentWidth, veryLargeHeight)
+			// NOTE: 幅が変わったため、コンテナの高さも再計測します。
+			const layoutMeasureHeight = 1_000_000
+			c.SetSize(finalContentWidth, layoutMeasureHeight)
 			c.SetPosition(0, 0)
 			c.MarkDirty(true)
 			c.Update()

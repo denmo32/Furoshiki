@@ -30,10 +30,10 @@ func newButton(text string) (*Button, error) {
 	button.SetStyle(t.Button.Normal)
 	// 2. 他の状態のスタイルを、状態固有のスタイルとして設定します。
 	//    これらは描画時に基本スタイルとマージされます。
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	button.StyleManager.SetStyleForState(component.StateHovered, t.Button.Hovered)
-	button.StyleManager.SetStyleForState(component.StatePressed, t.Button.Pressed)
-	button.StyleManager.SetStyleForState(component.StateDisabled, t.Button.Disabled)
+	// NOTE: LayoutableWidgetに新設されたラッパーメソッドを経由して設定します。
+	button.SetStyleForState(component.StateHovered, t.Button.Hovered)
+	button.SetStyleForState(component.StatePressed, t.Button.Pressed)
+	button.SetStyleForState(component.StateDisabled, t.Button.Disabled)
 
 	button.SetSize(100, 40)
 
@@ -54,8 +54,8 @@ func (b *Button) Draw(info component.DrawInfo) {
 	currentState := b.LayoutableWidget.CurrentState()
 	// StyleManagerから、現在の状態に基づいて適用すべきスタイルを取得します。
 	// このメソッドは内部でキャッシュを利用するため、毎フレームの不要なスタイルコピーを回避できます。
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	styleToUse := b.StyleManager.GetStyleForState(currentState)
+	// NOTE: カプセル化されたLayoutableWidgetのラッパーメソッドを経由します。
+	styleToUse := b.LayoutableWidget.GetStyleForState(currentState)
 	// 取得したスタイルでウィジェットを描画します。
 	// UPDATE: DrawWithStyleにinfoを渡すように変更
 	b.TextWidget.DrawWithStyle(info, styleToUse)
@@ -63,19 +63,19 @@ func (b *Button) Draw(info component.DrawInfo) {
 
 // SetStyleForState は、指定された単一の状態のスタイルを、既存のスタイルにマージします。
 func (b *Button) SetStyleForState(state component.WidgetState, s style.Style) {
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	b.StyleManager.SetStyleForState(state, s)
+	// NOTE: カプセル化のため、LayoutableWidgetのラッパーメソッドを経由します。
+	b.LayoutableWidget.SetStyleForState(state, s)
 }
 
 // StyleAllStates は、ボタンの全てのインタラクティブな状態に共通のスタイル変更を適用します。
 func (b *Button) StyleAllStates(s style.Style) {
 	// NOTE: このメソッドは、各状態スタイルにsをマージします。
 	// 基本スタイルを変更したい場合はビルダーの .Style() を使用してください。
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	b.StyleManager.SetStyleForState(component.StateNormal, s)
-	b.StyleManager.SetStyleForState(component.StateHovered, s)
-	b.StyleManager.SetStyleForState(component.StatePressed, s)
-	b.StyleManager.SetStyleForState(component.StateDisabled, s)
+	// NOTE: カプセル化のため、LayoutableWidgetのラッパーメソッドを経由します。
+	b.SetStyleForState(component.StateNormal, s)
+	b.SetStyleForState(component.StateHovered, s)
+	b.SetStyleForState(component.StatePressed, s)
+	b.SetStyleForState(component.StateDisabled, s)
 }
 
 // --- ButtonBuilder ---

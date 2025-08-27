@@ -47,6 +47,9 @@ func (w *LayoutableWidget) HandleEvent(e *event.Event) {
 						log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
 					}
 				}()
+				// NOTE: このハンドラ呼び出しを個別に保護することで、特定のハンドラがパニックを起こしても、
+				//       同じイベントに登録された他のハンドラの実行が継続されます。
+				//       これは、UIの堅牢性を高めるための意図的な設計です。
 				handler(e)
 			}()
 		}

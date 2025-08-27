@@ -92,24 +92,24 @@ func (w *LayoutableWidget) GetRequestedPosition() (int, int) {
 // NOTE: 内部のStyleManagerを介してスタイルが管理され、変更が検知された場合にのみ
 // ダーティフラグが自動的に設定されます。
 func (w *LayoutableWidget) SetStyle(s style.Style) {
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	w.StyleManager.SetBaseStyle(s)
+	// NOTE: カプセル化されたstyleManagerのメソッドを呼び出します。
+	w.styleManager.SetBaseStyle(s)
 }
 
 // GetStyle はウィジェットの現在の基本スタイルの安全なコピーを返します。
 // NOTE: このメソッドはStyleManagerを介して、意図しない変更から保護された
 // スタイルのディープコピーを返します。
 func (w *LayoutableWidget) GetStyle() style.Style {
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	return w.StyleManager.GetBaseStyle()
+	// NOTE: カプセル化されたstyleManagerのメソッドを呼び出します。
+	return w.styleManager.GetBaseStyle()
 }
 
 // ReadOnlyStyle は、ウィジェットの現在の基本スタイルをコピーせずに返します。
 // NOTE: このメソッドはパフォーマンスが重要な描画ループなどでの使用を想定しています。
 // 返されるスタイルは変更しないでください。
 func (w *LayoutableWidget) ReadOnlyStyle() style.Style {
-	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
-	return w.StyleManager.ReadOnlyBaseStyle()
+	// NOTE: カプセル化されたstyleManagerのメソッドを呼び出します。
+	return w.styleManager.ReadOnlyBaseStyle()
 }
 
 // SetFlex はFlexLayoutにおけるウィジェットの伸縮係数を設定します。
