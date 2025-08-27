@@ -19,15 +19,15 @@ type ScrollBar struct {
 
 var _ component.ScrollBarWidget = (*ScrollBar)(nil)
 
-// NewScrollBarは、スクロールバーウィジェットの新しいインスタンスを生成し、初期化します。
-// NOTE: 内部のInit呼び出しが失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
-func NewScrollBar() (*ScrollBar, error) {
+// newScrollBarは、スクロールバーウィジェットの新しいインスタンスを生成し、初期化します。
+// NOTE: このコンストラクタは非公開になりました。ウィジェットの生成には
+//       常にNewScrollBarBuilder()を使用してください。これにより、初期化漏れを防ぎます。
+func newScrollBar() (*ScrollBar, error) {
 	s := &ScrollBar{
 		trackColor: color.RGBA{220, 220, 220, 255},
 		thumbColor: color.RGBA{180, 180, 180, 255},
 	}
 	s.LayoutableWidget = component.NewLayoutableWidget()
-	// NOTE: Initがエラーを返すようになったため、エラーをチェックし、呼び出し元に伝播させます。
 	if err := s.Init(s); err != nil {
 		return nil, err
 	}
@@ -78,10 +78,9 @@ type ScrollBarBuilder struct {
 }
 
 func NewScrollBarBuilder() *ScrollBarBuilder {
-	s, err := NewScrollBar()
+	s, err := newScrollBar()
 	b := &ScrollBarBuilder{}
 	b.Init(b, s)
-	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
 	b.AddError(err)
 	return b
 }

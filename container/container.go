@@ -34,6 +34,9 @@ var _ layout.Container = (*Container)(nil)
 
 // NewContainer は、ビルダーを使わずに新しいContainerインスタンスを生成します。
 // NOTE: 内部のInit呼び出しが失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
+// NOTE: アプリケーション開発では、型安全で流暢なUI構築のために、
+//       このコンストラクタを直接呼び出すのではなく、`ui.VStack`や`ui.HStack`、
+//       または`container.NewContainerBuilder()`の使用を強く推奨します。
 func NewContainer() (*Container, error) {
 	c := &Container{
 		children: make([]component.Widget, 0),
@@ -127,7 +130,8 @@ func (c *Container) Draw(screen *ebiten.Image) {
 func (c *Container) drawWithoutClipping(screen *ebiten.Image) {
 	x, y := c.GetPosition()
 	width, height := c.GetSize()
-	component.DrawStyledBackground(screen, x, y, width, height, c.GetStyle())
+	// NOTE: パフォーマンス向上のためReadOnlyStyle()を使用します。
+	component.DrawStyledBackground(screen, x, y, width, height, c.ReadOnlyStyle())
 
 	for _, child := range c.children {
 		child.Draw(screen)
@@ -153,7 +157,8 @@ func (c *Container) drawWithClipping(screen *ebiten.Image) {
 	c.offscreenImage.Clear()
 
 	// コンテナ自身の背景をオフスクリーン画像に描画
-	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.GetStyle())
+	// NOTE: パフォーマンス向上のためReadOnlyStyle()を使用します。
+	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.ReadOnlyStyle())
 
 	// コンテナ自身がScrollerインターフェースを実装しているかチェック
 	var scrollOffsetX, scrollOffsetY int
@@ -286,7 +291,8 @@ func (c *Container) GetChildren() []component.Widget {
 
 // GetPadding はレイアウト計算のためにパディング情報を返します。
 func (c *Container) GetPadding() layout.Insets {
-	style := c.GetStyle()
+	// NOTE: パフォーマンス向上のためReadOnlyStyle()を使用します。
+	style := c.ReadOnlyStyle()
 	if style.Padding != nil {
 		return layout.Insets{
 			Top:    style.Padding.Top,

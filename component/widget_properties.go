@@ -109,6 +109,14 @@ func (w *LayoutableWidget) GetStyle() style.Style {
 	return w.style.DeepCopy()
 }
 
+// ReadOnlyStyle は、ウィジェットの現在のスタイルをコピーせずに返します。
+// NOTE: このメソッドはパフォーマンスが重要な描画ループなどでの使用を想定しています。
+// 返されるスタイルはシャローコピーであり、ポインタ先の値を変更すると予期せぬ副作用を
+// 引き起こす可能性があるため、読み取り専用として扱ってください。
+func (w *LayoutableWidget) ReadOnlyStyle() style.Style {
+	return w.style
+}
+
 // SetFlex はFlexLayoutにおけるウィジェットの伸縮係数を設定します。
 func (w *LayoutableWidget) SetFlex(flex int) {
 	if flex < 0 {

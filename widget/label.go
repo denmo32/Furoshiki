@@ -10,12 +10,12 @@ type Label struct {
 	*component.TextWidget
 }
 
-// NewLabelは、ラベルウィジェットの新しいインスタンスを生成し、初期化します。
-// NOTE: 内部のInit呼び出しが失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
-func NewLabel(text string) (*Label, error) {
+// newLabelは、ラベルウィジェットの新しいインスタンスを生成し、初期化します。
+// NOTE: このコンストラクタは非公開になりました。ウィジェットの生成には
+//       常にNewLabelBuilder()を使用してください。これにより、初期化漏れを防ぎます。
+func newLabel(text string) (*Label, error) {
 	label := &Label{}
 	label.TextWidget = component.NewTextWidget(text)
-	// NOTE: Initがエラーを返すようになったため、エラーをチェックし、呼び出し元に伝播させます。
 	if err := label.Init(label); err != nil {
 		return nil, err
 	}
@@ -34,10 +34,9 @@ type LabelBuilder struct {
 
 // NewLabelBuilder は新しいLabelBuilderを生成します。
 func NewLabelBuilder() *LabelBuilder {
-	label, err := NewLabel("")
+	label, err := newLabel("")
 	b := &LabelBuilder{}
 	b.Builder.Init(b, label)
-	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
 	b.AddError(err)
 	return b
 }

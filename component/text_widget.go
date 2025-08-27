@@ -69,7 +69,7 @@ func (t *TextWidget) GetHeightForWidth(width int) int {
 		return h
 	}
 
-	s := t.GetStyle()
+	s := t.ReadOnlyStyle()
 	if t.text == "" || s.Font == nil || *s.Font == nil {
 		return 0
 	}
@@ -112,13 +112,15 @@ func (t *TextWidget) DrawWithStyle(screen *ebiten.Image, styleToUse style.Style)
 // Draw はTextWidgetを描画します。
 // このメソッドは、ウィジェット自身の現在のスタイルを使用して、共通の描画ロジック(DrawWithStyle)を呼び出します。
 func (t *TextWidget) Draw(screen *ebiten.Image) {
-	currentStyle := t.GetStyle()
+	// NOTE: パフォーマンス向上のため、ディープコピーを行うGetStyle()の代わりに
+	//       シャローコピーを行うReadOnlyStyle()を使用します。
+	currentStyle := t.ReadOnlyStyle()
 	t.DrawWithStyle(screen, currentStyle)
 }
 
 // calculateContentMinSize は、現在のテキストとスタイルに基づいてコンテンツが表示されるべき最小サイズを計算します。
 func (t *TextWidget) calculateContentMinSize() (int, int) {
-	s := t.GetStyle()
+	s := t.ReadOnlyStyle()
 	if t.text == "" || s.Font == nil || *s.Font == nil {
 		// テキストがない場合は、コンテンツの最小サイズは0です。
 		return 0, 0

@@ -31,14 +31,16 @@ var _ component.Container = (*ScrollView)(nil)
 var _ layout.ScrollViewer = (*ScrollView)(nil)
 var _ container.Scroller = (*ScrollView)(nil)
 
-// NewScrollView はScrollViewのインスタンスを生成します。
-// NOTE: 内部のInit呼び出し等が失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
-func NewScrollView() (*ScrollView, error) {
+// newScrollView はScrollViewのインスタンスを生成します。
+// NOTE: このコンストラクタは非公開になりました。ウィジェットの生成には
+//       常にNewScrollViewBuilder()を使用してください。これにより、初期化漏れを防ぎます。
+func newScrollView() (*ScrollView, error) {
 	sv := &ScrollView{
 		ScrollSensitivity: 20.0,
 	}
 	sv.LayoutableWidget = component.NewLayoutableWidget()
 
+	// NOTE: ScrollViewの依存コンポーネントを、それぞれの公開コンストラクタ/ビルダー経由で生成します。
 	internalContainer, err := container.NewContainer()
 	if err != nil {
 		return nil, err
@@ -46,19 +48,19 @@ func NewScrollView() (*ScrollView, error) {
 	sv.container = internalContainer
 	sv.container.SetClipsChildren(true)
 
-	// NOTE: Initがエラーを返すようになったため、エラーをチェックし、呼び出し元に伝播させます。
 	if err := sv.Init(sv); err != nil {
 		return nil, err
 	}
-	sv.container.SetParent(sv)             // 内部コンテナの親をScrollView自身に設定
-	sv.layout = &layout.ScrollViewLayout{} // ScrollView専用のレイアウトを設定
+	sv.container.SetParent(sv)
+	sv.layout = &layout.ScrollViewLayout{}
 
-	vScrollBar, err := NewScrollBar()
+	// NOTE: ScrollBarの生成にビルダーを使用することで、安全な初期化を保証します。
+	vScrollBar, err := NewScrollBarBuilder().Build()
 	if err != nil {
 		return nil, err
 	}
 	sv.vScrollBar = vScrollBar
-	sv.AddChild(vScrollBar) // 子要素は内部コンテナに追加される
+	sv.AddChild(vScrollBar)
 
 	return sv, nil
 }
@@ -101,7 +103,6 @@ func (sv *ScrollView) Update() {
 	// ScrollView自身が再レイアウトを要求されている場合のみ、専用のレイアウトを実行します。
 	if sv.NeedsRelayout() {
 		if sv.layout != nil {
-			// NOTE: レイアウト計算がエラーを返すようになったため、エラーをログに出力します。
 			if err := sv.layout.Layout(sv); err != nil {
 				// TODO: エラーハンドリング
 			}

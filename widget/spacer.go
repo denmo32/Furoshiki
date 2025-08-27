@@ -10,12 +10,12 @@ type Spacer struct {
 	*component.LayoutableWidget
 }
 
-// NewSpacerは、Spacerウィジェットの新しいインスタンスを生成し、初期化します。
-// NOTE: 内部のInit呼び出しが失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
-func NewSpacer() (*Spacer, error) {
+// newSpacerは、Spacerウィジェットの新しいインスタンスを生成し、初期化します。
+// NOTE: このコンストラクタは非公開になりました。ウィジェットの生成には
+//       常にNewSpacerBuilder()を使用してください。これにより、初期化漏れを防ぎます。
+func newSpacer() (*Spacer, error) {
 	s := &Spacer{}
 	s.LayoutableWidget = component.NewLayoutableWidget()
-	// NOTE: Initがエラーを返すようになったため、エラーをチェックし、呼び出し元に伝播させます。
 	if err := s.Init(s); err != nil {
 		return nil, err
 	}
@@ -32,10 +32,9 @@ type SpacerBuilder struct {
 
 // NewSpacerBuilder は新しいSpacerBuilderを作成します。
 func NewSpacerBuilder() *SpacerBuilder {
-	s, err := NewSpacer()
+	s, err := newSpacer()
 	b := &SpacerBuilder{}
 	b.Init(b, s)
-	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
 	b.AddError(err)
 	return b
 }

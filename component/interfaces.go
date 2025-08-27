@@ -88,6 +88,10 @@ type MinSizeSetter interface {
 type StyleGetterSetter interface {
 	SetStyle(style style.Style)
 	GetStyle() style.Style
+	// NOTE: パフォーマンスが重要な読み取り専用の場面のために、
+	// スタイルのディープコピーを生成しないメソッドを追加しました。
+	// 返されたスタイルは変更してはいけません。
+	ReadOnlyStyle() style.Style
 }
 
 // LayoutProperties はレイアウトプロパティを管理するためのインターフェースです
