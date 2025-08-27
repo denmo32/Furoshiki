@@ -164,47 +164,47 @@ func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 }
 
 // --- 汎用イベントハンドラ設定メソッド ---
-// これにより、どのウィジェットビルダーからでも一貫したAPIでイベントハンドラを設定できます。
-// 例えば、Labelにクリックイベントを追加するなども容易になります。
+// NOTE: メソッド名を On... から AddOn... に変更し、ハンドラが上書きではなく
+//       追加される挙動であることを明確にしました。
 
-// OnClick は、ウィジェットがクリックされたときに実行されるイベントハンドラを設定します。
-func (b *Builder[T, W]) OnClick(handler event.EventHandler) T {
+// AddOnClick は、ウィジェットがクリックされたときに実行されるイベントハンドラを追加します。
+func (b *Builder[T, W]) AddOnClick(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.EventClick, handler)
 	return b.Self
 }
 
-// OnMouseEnter は、マウスカーソルがウィジェット上に入ったときに実行されるハンドラを設定します。
-func (b *Builder[T, W]) OnMouseEnter(handler event.EventHandler) T {
+// AddOnMouseEnter は、マウスカーソルがウィジェット上に入ったときに実行されるハンドラを追加します。
+func (b *Builder[T, W]) AddOnMouseEnter(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.MouseEnter, handler)
 	return b.Self
 }
 
-// OnMouseLeave は、マウスカーソルがウィジェットから離れたときに実行されるハンドラを設定します。
-func (b *Builder[T, W]) OnMouseLeave(handler event.EventHandler) T {
+// AddOnMouseLeave は、マウスカーソルがウィジェットから離れたときに実行されるハンドラを追加します。
+func (b *Builder[T, W]) AddOnMouseLeave(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.MouseLeave, handler)
 	return b.Self
 }
 
-// OnMouseMove は、マウスカーソルがウィジェット上で移動したときに実行されるハンドラを設定します。
-func (b *Builder[T, W]) OnMouseMove(handler event.EventHandler) T {
+// AddOnMouseMove は、マウスカーソルがウィジェット上で移動したときに実行されるハンドラを追加します。
+func (b *Builder[T, W]) AddOnMouseMove(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.MouseMove, handler)
 	return b.Self
 }
 
-// OnMouseDown は、マウスボタンがウィジェット上で押されたときに実行されるハンドラを設定します。
-func (b *Builder[T, W]) OnMouseDown(handler event.EventHandler) T {
+// AddOnMouseDown は、マウスボタンがウィジェット上で押されたときに実行されるハンドラを追加します。
+func (b *Builder[T, W]) AddOnMouseDown(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.MouseDown, handler)
 	return b.Self
 }
 
-// OnMouseUp は、マウスボタンがウィジェット上で解放されたときに実行されるハンドラを設定します。
-func (b *Builder[T, W]) OnMouseUp(handler event.EventHandler) T {
+// AddOnMouseUp は、マウスボタンがウィジェット上で解放されたときに実行されるハンドラを追加します。
+func (b *Builder[T, W]) AddOnMouseUp(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.MouseUp, handler)
 	return b.Self
 }
 
-// OnMouseScroll は、マウスホイールがウィジェット上でスクロールされたときに実行されるハンドラを設定します。
-func (b *Builder[T, W]) OnMouseScroll(handler event.EventHandler) T {
+// AddOnMouseScroll は、マウスホイールがウィジェット上でスクロールされたときに実行されるハンドラを追加します。
+func (b *Builder[T, W]) AddOnMouseScroll(handler event.EventHandler) T {
 	b.Widget.AddEventHandler(event.MouseScroll, handler)
 	return b.Self
 }

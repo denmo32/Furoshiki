@@ -16,7 +16,7 @@ type LayoutableWidget struct {
 	minSize      size
 	requestedPos position
 	// contentMinSizeFunc は、コンテンツ（テキストなど）が要求する最小サイズを計算する関数です。
-	// これにより、最小サイズ決定ロジック（コンテンツ固有サイズ vs ユーザー設定サイズ）を
+	// これにより、最小サイズ決定ロ-ジック（コンテンツ固有サイズ vs ユーザー設定サイズ）を
 	// LayoutableWidgetに集約し、TextWidgetのような具象ウィジェットでのコード重複を避けます。
 	contentMinSizeFunc func() (width, height int)
 
@@ -29,7 +29,8 @@ type LayoutableWidget struct {
 
 	// --- Hierarchy & Events ---
 	hierarchy     hierarchy
-	eventHandlers map[event.EventType]event.EventHandler
+	// NOTE: イベントハンドラを複数登録できるよう、型をハンドラのスライスに変更しました。
+	eventHandlers map[event.EventType][]event.EventHandler
 	// self は、このLayoutableWidgetを埋め込んでいる具象ウィジェット自身への参照です。
 	// これにより、HitTestのようなメソッドが、具体的な型（*Button, *Labelなど）を返すことができます。
 	self Widget
@@ -87,7 +88,7 @@ type hierarchy struct {
 func NewLayoutableWidget() *LayoutableWidget {
 	return &LayoutableWidget{
 		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: levelClean},
-		eventHandlers: make(map[event.EventType]event.EventHandler),
+		eventHandlers: make(map[event.EventType][]event.EventHandler),
 	}
 }
 

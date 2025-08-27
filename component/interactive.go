@@ -39,8 +39,10 @@ func (im *InteractiveMixin) SetStyleForState(state WidgetState, s style.Style) {
 // SetAllStyles はすべての状態に新しいスタイルをマージします。
 // このメソッドは InteractiveMixin 内部のスタイルマップのみを更新し、
 // ウィジェットの基本スタイルへの反映は呼び出し元の責務です。
+// NOTE: 内部でSetStyleForStateを呼び出すようにリファクタリングし、
+//       マージロジックの重複を解消しました。
 func (im *InteractiveMixin) SetAllStyles(s style.Style) {
-	for state, baseStyle := range im.StateStyles {
-		im.StateStyles[state] = style.Merge(baseStyle, s)
+	for state := range im.StateStyles {
+		im.SetStyleForState(state, s)
 	}
 }

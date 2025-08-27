@@ -54,37 +54,37 @@ func NewGame() *Game {
 
 			// 各デモへの切り替えボタン
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Flex Layout").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("Flex Layout").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createFlexLayoutDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Flex Wrap").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("Flex Wrap").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createFlexWrapDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Text Wrap").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("Text Wrap").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createWrapTextDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Grid Layout").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("Grid Layout").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createGridLayoutDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("Advanced Grid").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("Advanced Grid").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createAdvancedGridLayoutDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("ZStack Layout").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("ZStack Layout").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createZStackDemo)
 				})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text("ScrollView").Flex(1).OnClick(func(e *event.Event) {
+				btn.Text("ScrollView").Flex(1).AddOnClick(func(e *event.Event) {
 					g.switchToDemo(g.createScrollViewDemo)
 				})
 			})
@@ -285,7 +285,7 @@ func (g *Game) createGridLayoutDemo() (component.Widget, error) {
 		for i := 1; i <= 20; i++ {
 			itemNum := i
 			b.Button(func(btn *widget.ButtonBuilder) {
-				btn.Text(strconv.Itoa(itemNum)).OnClick(func(e *event.Event) {
+				btn.Text(strconv.Itoa(itemNum)).AddOnClick(func(e *event.Event) {
 					log.Printf("Grid item %d clicked", itemNum)
 				})
 			})
@@ -330,7 +330,7 @@ func (g *Game) createAdvancedGridLayoutDemo() (component.Widget, error) {
 		// フッター (2行目、0列目から3列にまたがる)
 		b.ButtonAt(2, 0, 1, 3, func(btn *widget.ButtonBuilder) {
 			btn.Text("Footer Button (Spans 3 Columns, 30px Fixed Height)").
-				OnClick(func(e *event.Event) {
+				AddOnClick(func(e *event.Event) {
 					log.Println("Advanced Grid Footer clicked!")
 				})
 		})
@@ -366,7 +366,7 @@ func (g *Game) createZStackDemo() (component.Widget, error) {
 			btn.Text("Foreground Button").
 				Size(150, 50).
 				AbsolutePosition(175, 175).
-				OnClick(func(e *event.Event) { log.Println("Foreground button clicked!") }).
+				AddOnClick(func(e *event.Event) { log.Println("Foreground button clicked!") }).
 				WrapText(true) // Buttonでも有効
 		})
 
@@ -400,7 +400,7 @@ func (g *Game) createScrollViewDemo() (component.Widget, error) {
 					b.Button(func(btn *widget.ButtonBuilder) {
 						btn.Text(fmt.Sprintf("Item %d", itemNumber)).
 							Size(0, 30). // 幅は親に合わせる
-							OnClick(func(e *event.Event) {
+							AddOnClick(func(e *event.Event) {
 								log.Printf("Clicked: Item %d", itemNumber)
 								if detailTitleLabel != nil {
 									detailTitleLabel.SetText(fmt.Sprintf("Details for Item %d", itemNumber))

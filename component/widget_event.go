@@ -8,14 +8,19 @@ import (
 )
 
 // AddEventHandler は、指定されたイベントタイプに対応するイベントハンドラを登録します。
+// NOTE: 複数のハンドラを登録できるように、内部実装がスライスベースに変更されました。
+// 同じイベントタイプに対して複数回呼び出すと、ハンドラが順に追加されます。
 func (w *LayoutableWidget) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
 	if w.eventHandlers == nil {
-		w.eventHandlers = make(map[event.EventType]event.EventHandler)
+		// NOTE: eventHandlersの型が map[event.EventType]event.EventHandler から
+		//       map[event.EventType][]event.EventHandler に変更されました。
+		w.eventHandlers = make(map[event.EventType][]event.EventHandler)
 	}
-	w.eventHandlers[eventType] = handler
+	// 指定されたイベントタイプのハンドラスライスに、新しいハンドラを追加します。
+	w.eventHandlers[eventType] = append(w.eventHandlers[eventType], handler)
 }
 
-// RemoveEventHandler は、指定されたイベントタイプのイベントハンドラを削除します。
+// RemoveEventHandler は、指定されたイベントタイプのイベントハンドラをすべて削除します。
 func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
 	if w.eventHandlers != nil {
 		delete(w.eventHandlers, eventType)
@@ -27,14 +32,24 @@ func (w *LayoutableWidget) RemoveEventHandler(eventType event.EventType) {
 // イベントがまだ処理されていない（e.Handled == false）場合、親ウィジェットの
 // HandleEventメソッドを再帰的に呼び出します。
 func (w *LayoutableWidget) HandleEvent(e *event.Event) {
-	if handler, exists := w.eventHandlers[e.Type]; exists {
-		// イベントハンドラ内でパニックが発生してもアプリケーションがクラッシュしないように保護します。
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
+	// NOTE: 複数のハンドラを順に実行するようにロジックが更新されました。
+	if handlers, exists := w.eventHandlers[e.Type]; exists {
+		// 登録されているすべてのハンドラをループ処理します。
+		for _, handler := range handlers {
+			// イベントが既に処理済みの場合、後続のハンドラの実行をスキップします。
+			if e.Handled {
+				break
 			}
-		}()
-		handler(e)
+			// イベントハンドラ内でパニックが発生してもアプリケーションがクラッシュしないように保護します。
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
+					}
+				}()
+				handler(e)
+			}()
+		}
 	}
 
 	// イベントがこのウィジェットで処理されておらず（Handledがfalse）、
