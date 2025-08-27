@@ -35,16 +35,17 @@ type flexLine struct {
 }
 
 // Layout は FlexLayout のレイアウトロジックを実装します。
-func (l *FlexLayout) Layout(container Container) {
+// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
+func (l *FlexLayout) Layout(container Container) error {
 	children := getVisibleChildren(container)
 	if len(children) == 0 {
-		return
+		return nil
 	}
 
 	padding := container.GetPadding()
 	containerWidth, containerHeight := container.GetSize()
 	if containerWidth <= 0 || containerHeight <= 0 {
-		return
+		return nil
 	}
 
 	availableWidth := max(0, containerWidth-padding.Left-padding.Right)
@@ -65,6 +66,7 @@ func (l *FlexLayout) Layout(container Container) {
 	} else {
 		l.layoutSingleLine(items, container, mainSize, crossSize, isRow)
 	}
+	return nil
 }
 
 // layoutSingleLine は、折り返しなしのレイアウト計算を実行します。

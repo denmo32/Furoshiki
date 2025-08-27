@@ -1,6 +1,7 @@
 package component
 
 import (
+	"errors"
 	"furoshiki/event"
 	"furoshiki/style"
 )
@@ -94,16 +95,20 @@ func NewLayoutableWidget() *LayoutableWidget {
 // 安全に設定するためのメソッドです。Goではコンストラクタ内で自分自身へのポインタを
 // 取得することが難しいため、この2段階の初期化プロセスを採用しています。
 // これにより、コンストラクタのシグネチャがシンプルになり、ウィジェットの初期化手順が統一されます。
-func (w *LayoutableWidget) Init(self Widget) {
+// NOTE: 以前はpanicを使用していましたが、Goのエラーハンドリング慣習に従い、
+//       errorを返すように変更しました。これにより、呼び出し側が適切に
+//       エラーを処理できるようになります。
+func (w *LayoutableWidget) Init(self Widget) error {
 	if self == nil {
-		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、パニックを発生させます。
+		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、エラーを返します。
 		// これは、ウィジェットのコンストラクタが常に正しいインスタンスを渡すことを強制する設計上の決定です。
-		panic("LayoutableWidget.Init: self cannot be nil")
+		return errors.New("LayoutableWidget.Init: self cannot be nil")
 	}
 	if w.self != nil {
 		// 既に初期化されている場合に再度Initを呼び出すのは、意図しない使われ方である可能性が高いため、
-		// 安全のためにパニックさせます。
-		panic("LayoutableWidget.Init: widget has already been initialized")
+		// 安全のためにエラーを返します。
+		return errors.New("LayoutableWidget.Init: widget has already been initialized")
 	}
 	w.self = self
+	return nil
 }

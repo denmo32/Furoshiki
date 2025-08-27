@@ -6,7 +6,8 @@ import "furoshiki/component"
 type AbsoluteLayout struct{}
 
 // Layout は AbsoluteLayout のレイアウトロジックを実装します。
-func (l *AbsoluteLayout) Layout(container Container) {
+// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
+func (l *AbsoluteLayout) Layout(container Container) error {
 	containerX, containerY := container.GetPosition()
 	padding := container.GetPadding()
 
@@ -25,4 +26,5 @@ func (l *AbsoluteLayout) Layout(container Container) {
 		finalY := containerY + padding.Top + requestedY
 		child.SetPosition(finalX, finalY)
 	}
+	return nil
 }

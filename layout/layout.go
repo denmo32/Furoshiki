@@ -5,8 +5,10 @@ import (
 )
 
 // Layout は、コンテナ内の子要素をどのように配置するかを決定するロジックのインターフェースです。
+// NOTE: Layoutメソッドがerrorを返すようにシグネチャが変更されました。
+//       これにより、レイアウト計算中の問題をpanicさせることなく、安全に呼び出し元へ伝えることができます。
 type Layout interface {
-	Layout(container Container)
+	Layout(container Container) error
 }
 
 // Insets はパディングやマージンの四方の値を表します。

@@ -16,10 +16,14 @@ type Button struct {
 }
 
 // NewButtonは、ボタンウィジェットの新しいインスタンスを生成し、初期化します。
-func NewButton(text string) *Button {
+// NOTE: 内部のInit呼び出しが失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
+func NewButton(text string) (*Button, error) {
 	button := &Button{}
 	button.TextWidget = component.NewTextWidget(text)
-	button.Init(button) // LayoutableWidgetの初期化
+	// NOTE: Initがエラーを返すようになったため、エラーをチェックし、呼び出し元に伝播させます。
+	if err := button.Init(button); err != nil {
+		return nil, err // 初期化に失敗した場合は、nilとエラーを返します。
+	}
 
 	// テーマから各種状態のスタイルを取得し、InteractiveMixinを初期化します。
 	t := theme.GetCurrent()
@@ -35,7 +39,7 @@ func NewButton(text string) *Button {
 	button.SetStyle(styles[component.StateNormal])
 	button.SetSize(100, 40)
 
-	return button
+	return button, nil
 }
 
 // SetStyle はウィジェットの基本スタイルを設定します。
@@ -103,10 +107,12 @@ type ButtonBuilder struct {
 
 // NewButtonBuilder は新しいButtonBuilderを生成します。
 func NewButtonBuilder() *ButtonBuilder {
-	button := NewButton("")
+	button, err := NewButton("")
 	b := &ButtonBuilder{}
 	// 自身(b)と構築対象のウィジェット(button)を渡して、埋め込んだビルダーを初期化します。
 	b.Init(b, button)
+	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
+	b.AddError(err)
 	return b
 }
 

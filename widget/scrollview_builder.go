@@ -12,9 +12,11 @@ type ScrollViewBuilder struct {
 
 // NewScrollViewBuilder は新しいScrollViewBuilderを生成します。
 func NewScrollViewBuilder() *ScrollViewBuilder {
-	sv := NewScrollView()
+	sv, err := NewScrollView()
 	b := &ScrollViewBuilder{}
 	b.Init(b, sv)
+	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
+	b.AddError(err)
 	return b
 }
 

@@ -13,9 +13,11 @@ type ContainerBuilder struct {
 
 // NewContainerBuilder creates a new builder for a container.
 func NewContainerBuilder() *ContainerBuilder {
-	c := NewContainer() // コンストラクタを呼び出す
+	c, err := NewContainer() // コンストラクタがエラーを返すように変更
 	b := &ContainerBuilder{}
 	b.Init(b, c)
+	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
+	b.AddError(err)
 	return b
 }
 

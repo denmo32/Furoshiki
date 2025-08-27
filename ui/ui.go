@@ -33,21 +33,27 @@ func HStack(buildFunc func(*FlexBuilder)) *FlexBuilder {
 
 // buildFlexContainer はFlexBuilderのインスタンスを生成する内部ヘルパーです。
 func buildFlexContainer(l *layout.FlexLayout, buildFunc func(*FlexBuilder)) *FlexBuilder {
-	c := container.NewContainer()
-	c.SetLayout(l)
+	c, err := container.NewContainer()
 
 	b := &FlexBuilder{
 		BaseContainerBuilder: &BaseContainerBuilder[*FlexBuilder]{},
 	}
 	b.Init(b, c) // BaseContainerBuilderのInitを呼び出す
+	// NOTE: コンストラクタで発生した初期化エラーをビルダーに追加します。
+	b.AddError(err)
 
-	if buildFunc != nil {
-		buildFunc(b)
+	// エラーがない場合のみレイアウト設定とビルド関数を実行します。
+	// これにより、nilポインタへのアクセスを防ぎます。
+	if err == nil {
+		c.SetLayout(l)
+		if buildFunc != nil {
+			buildFunc(b)
+		}
 	}
 	return b
 }
 
-// Wrap は、アイテムが一行に収まらない場合に折り返すかどうかを設定します。
+// Wrap は、アイテムが一行に収らない場合に折り返すかどうかを設定します。
 func (b *FlexBuilder) Wrap(wrap bool) *FlexBuilder {
 	if flexLayout, ok := b.Widget.GetLayout().(*layout.FlexLayout); ok {
 		if flexLayout.Wrap != wrap {
@@ -116,16 +122,19 @@ type GridBuilder struct {
 // Grid は子要素を格子状に配置するコンテナを構築します。
 func Grid(buildFunc func(*GridBuilder)) *GridBuilder {
 	gridLayout := &layout.GridLayout{Columns: 1} // デフォルトは1列
-	c := container.NewContainer()
-	c.SetLayout(gridLayout)
+	c, err := container.NewContainer()
 
 	b := &GridBuilder{
 		BaseContainerBuilder: &BaseContainerBuilder[*GridBuilder]{},
 	}
 	b.Init(b, c)
+	b.AddError(err)
 
-	if buildFunc != nil {
-		buildFunc(b)
+	if err == nil {
+		c.SetLayout(gridLayout)
+		if buildFunc != nil {
+			buildFunc(b)
+		}
 	}
 	return b
 }
@@ -186,16 +195,19 @@ type ZStackBuilder struct {
 
 // ZStack は子要素を重ねて配置するコンテナを構築します。
 func ZStack(buildFunc func(*ZStackBuilder)) *ZStackBuilder {
-	c := container.NewContainer()
-	c.SetLayout(&layout.AbsoluteLayout{})
+	c, err := container.NewContainer()
 
 	b := &ZStackBuilder{
 		BaseContainerBuilder: &BaseContainerBuilder[*ZStackBuilder]{},
 	}
 	b.Init(b, c)
+	b.AddError(err)
 
-	if buildFunc != nil {
-		buildFunc(b)
+	if err == nil {
+		c.SetLayout(&layout.AbsoluteLayout{})
+		if buildFunc != nil {
+			buildFunc(b)
+		}
 	}
 	return b
 }
@@ -213,16 +225,19 @@ type AdvancedGridBuilder struct {
 // AdvancedGrid は、セル結合や可変サイズの列・行を持つ高度なグリッドコンテナを構築します。
 func AdvancedGrid(buildFunc func(*AdvancedGridBuilder)) *AdvancedGridBuilder {
 	gridLayout := &layout.AdvancedGridLayout{}
-	c := container.NewContainer()
-	c.SetLayout(gridLayout)
+	c, err := container.NewContainer()
 
 	b := &AdvancedGridBuilder{
 		BaseContainerBuilder: &BaseContainerBuilder[*AdvancedGridBuilder]{},
 	}
 	b.Init(b, c)
+	b.AddError(err)
 
-	if buildFunc != nil {
-		buildFunc(b)
+	if err == nil {
+		c.SetLayout(gridLayout)
+		if buildFunc != nil {
+			buildFunc(b)
+		}
 	}
 	return b
 }

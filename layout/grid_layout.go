@@ -11,11 +11,12 @@ type GridLayout struct {
 }
 
 // Layout は GridLayout のレイアウトロジックを実装します。
-func (l *GridLayout) Layout(container Container) {
+// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
+func (l *GridLayout) Layout(container Container) error {
 	children := getVisibleChildren(container)
 	childCount := len(children)
 	if childCount == 0 {
-		return
+		return nil
 	}
 
 	columns := l.Columns
@@ -28,7 +29,7 @@ func (l *GridLayout) Layout(container Container) {
 		rows = int(math.Ceil(float64(childCount) / float64(columns)))
 	}
 	if rows == 0 {
-		return
+		return nil
 	}
 
 	padding := container.GetPadding()
@@ -54,4 +55,5 @@ func (l *GridLayout) Layout(container Container) {
 		child.SetPosition(cellX, cellY)
 		child.SetSize(cellWidth, cellHeight)
 	}
+	return nil
 }

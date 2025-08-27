@@ -33,14 +33,19 @@ var _ component.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
 
 // NewContainer は、ビルダーを使わずに新しいContainerインスタンスを生成します。
-func NewContainer() *Container {
+// NOTE: 内部のInit呼び出しが失敗する可能性があるため、コンストラクタはerrorを返すように変更されました。
+func NewContainer() (*Container, error) {
 	c := &Container{
 		children: make([]component.Widget, 0),
 	}
 	c.LayoutableWidget = component.NewLayoutableWidget()
-	c.Init(c)
+	// NOTE: Initがエラーを返すようになったため、コンストラクタもエラーを返すように変更。
+	// これにより、初期化の失敗を呼び出し元に安全に伝えることができます。
+	if err := c.Init(c); err != nil {
+		return nil, fmt.Errorf("failed to initialize container: %w", err)
+	}
 	c.layout = &layout.FlexLayout{} // デフォルトはFlexLayout
-	return c
+	return c, nil
 }
 
 // SetClipsChildren はコンテナのクリッピング動作を設定します。
@@ -74,13 +79,13 @@ func (c *Container) Update() {
 	if c.IsDirty() {
 		if c.NeedsRelayout() {
 			if c.layout != nil {
-				// レイアウト計算は複雑なため、パニックから保護します。
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("Recovered from panic during layout calculation: %v\n%s", r, debug.Stack())
-					}
-				}()
-				c.layout.Layout(c)
+				// NOTE: レイアウト計算がエラーを返すように変更されたため、ここでハンドリングします。
+				//       以前のpanic/recoverモデルから移行し、より予測可能なエラー処理を実現します。
+				if err := c.layout.Layout(c); err != nil {
+					// レイアウト計算中にエラーが発生した場合、ログに出力します。
+					// これにより、開発者はレイアウトに関する問題を早期に発見できます。
+					log.Printf("Error during layout calculation: %v\n%s", err, debug.Stack())
+				}
 			}
 		}
 		c.ClearDirty()

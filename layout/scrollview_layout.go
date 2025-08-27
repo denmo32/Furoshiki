@@ -7,10 +7,11 @@ type ScrollViewLayout struct{}
 
 // Layout は、ScrollViewのレイアウトロジックを実行します。
 // 2パスレイアウト（計測→配置）のアプローチを取ります。
-func (l *ScrollViewLayout) Layout(container Container) {
+// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
+func (l *ScrollViewLayout) Layout(container Container) error {
 	scroller, ok := container.(ScrollViewer)
 	if !ok {
-		return
+		return nil
 	}
 	content := scroller.GetContentContainer()
 	vScrollBar := scroller.GetVScrollBar()
@@ -19,7 +20,7 @@ func (l *ScrollViewLayout) Layout(container Container) {
 		if vScrollBar != nil {
 			vScrollBar.SetVisible(false)
 		}
-		return
+		return nil
 	}
 
 	viewX, viewY := scroller.GetPosition()
@@ -141,4 +142,5 @@ func (l *ScrollViewLayout) Layout(container Container) {
 		}
 		vScrollBar.SetRatios(contentRatio, scrollRatio)
 	}
+	return nil
 }

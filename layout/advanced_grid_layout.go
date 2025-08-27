@@ -38,10 +38,11 @@ type AdvancedGridLayout struct {
 }
 
 // Layout は AdvancedGridLayout のレイアウトロジックを実装します。
-func (l *AdvancedGridLayout) Layout(container Container) {
+// NOTE: Layoutインターフェースの変更に伴い、errorを返すようにシグネチャが更新されました。
+func (l *AdvancedGridLayout) Layout(container Container) error {
 	children := getVisibleChildren(container)
 	if len(children) == 0 {
-		return
+		return nil
 	}
 
 	padding := container.GetPadding()
@@ -54,7 +55,7 @@ func (l *AdvancedGridLayout) Layout(container Container) {
 	numCols := len(l.ColumnDefinitions)
 	numRows := len(l.RowDefinitions)
 	if numCols == 0 || numRows == 0 {
-		return
+		return nil
 	}
 
 	// 1. ギャップを考慮に入れた利用可能スペースを計算
@@ -94,6 +95,7 @@ func (l *AdvancedGridLayout) Layout(container Container) {
 		child.SetPosition(x, y)
 		child.SetSize(width, height)
 	}
+	return nil
 }
 
 // calculateTrackSizes は、定義に基づいて各トラック（列または行）の最終的なサイズを計算します。
