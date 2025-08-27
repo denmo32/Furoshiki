@@ -32,7 +32,9 @@ func (w *LayoutableWidget) Draw(screen *ebiten.Image) {
 	if !w.state.isVisible || !w.state.hasBeenLaidOut {
 		return
 	}
-	DrawStyledBackground(screen, w.position.x, w.position.y, w.size.width, w.size.height, w.style)
+	// NOTE: [FIX] 削除された w.style の代わりに、StyleManagerから現在の状態に合ったスタイルを取得します。
+	styleToUse := w.StyleManager.GetStyleForState(w.CurrentState())
+	DrawStyledBackground(screen, w.position.x, w.position.y, w.size.width, w.size.height, styleToUse)
 }
 
 // MarkDirty はウィジェットの状態が変更されたことをマークします。

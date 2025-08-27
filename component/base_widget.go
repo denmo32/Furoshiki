@@ -3,7 +3,6 @@ package component
 import (
 	"errors"
 	"furoshiki/event"
-	"furoshiki/style"
 )
 
 // LayoutableWidgetは、Widgetインターフェースの基本的な実装を提供する構造体です。
@@ -21,14 +20,14 @@ type LayoutableWidget struct {
 	contentMinSizeFunc func() (width, height int)
 
 	// --- Layout & Style ---
-	layout layoutProperties
-	style  style.Style
+	layout       layoutProperties
+	StyleManager *StyleManager // NOTE: フィールドをエクスポートするために大文字に変更 (styleManager -> StyleManager)
 
 	// --- State ---
 	state widgetState
 
 	// --- Hierarchy & Events ---
-	hierarchy     hierarchy
+	hierarchy hierarchy
 	// NOTE: イベントハンドラを複数登録できるよう、型をハンドラのスライスに変更しました。
 	eventHandlers map[event.EventType][]event.EventHandler
 	// self は、このLayoutableWidgetを埋め込んでいる具象ウィジェット自身への参照です。
@@ -86,10 +85,15 @@ type hierarchy struct {
 // NewLayoutableWidget は、LayoutableWidget を初期化します。
 // この時点ではself参照は未設定です。
 func NewLayoutableWidget() *LayoutableWidget {
-	return &LayoutableWidget{
+	// NOTE: コンストラクタ内でStyleManagerを初期化し、自身への参照を渡します。
+	// これにより、StyleManagerはスタイル変更時にこのウィジェットのMarkDirtyを呼び出せます。
+	w := &LayoutableWidget{
 		state:         widgetState{isVisible: true, hasBeenLaidOut: false, dirtyLevel: levelClean},
 		eventHandlers: make(map[event.EventType][]event.EventHandler),
 	}
+	// NOTE: [FIX] エクスポートされたフィールドに設定します。
+	w.StyleManager = NewStyleManager(w)
+	return w
 }
 
 // Initは、LayoutableWidgetが埋め込まれる具象ウィジェットへの参照(self)を
@@ -97,8 +101,9 @@ func NewLayoutableWidget() *LayoutableWidget {
 // 取得することが難しいため、この2段階の初期化プロセスを採用しています。
 // これにより、コンストラクタのシグネチャがシンプルになり、ウィジェットの初期化手順が統一されます。
 // NOTE: 以前はpanicを使用していましたが、Goのエラーハンドリング慣習に従い、
-//       errorを返すように変更しました。これにより、呼び出し側が適切に
-//       エラーを処理できるようになります。
+//
+//	errorを返すように変更しました。これにより、呼び出し側が適切に
+//	エラーを処理できるようになります。
 func (w *LayoutableWidget) Init(self Widget) error {
 	if self == nil {
 		// selfがnilの場合、プログラムが予期せぬ動作をする可能性があるため、エラーを返します。

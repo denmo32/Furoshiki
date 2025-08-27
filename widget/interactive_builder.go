@@ -6,8 +6,11 @@ import (
 )
 
 // interactiveTextWidget defines the behavior for widgets using the InteractiveTextBuilder.
+// NOTE: StyleManagerの導入に伴い、ウィジェットは状態ごとのスタイルを設定する
+// SetStyleForStateと、全ての状態に一括でスタイルをマージするStyleAllStatesを実装します。
 type interactiveTextWidget interface {
 	textWidget // From widget/builder.go
+	SetStyle(s style.Style)
 	SetStyleForState(state component.WidgetState, s style.Style)
 	StyleAllStates(s style.Style)
 }
@@ -44,7 +47,11 @@ func (b *InteractiveTextBuilder[T, W]) DisabledStyle(s style.Style) T {
 	return b.SetStyleForState(component.StateDisabled, s)
 }
 
-// Style overrides the base Style method to set the style for the Normal state.
+// Style overrides the base Style method to set the base style for the widget.
+// NOTE: このメソッドはウィジェットの基本スタイル（Normal状態の基礎）を設定します。
+// 以前はNormal状態のスタイルのみを設定していましたが、StyleManagerの導入に伴い、
+// 全状態のベースとなるスタイルを設定するよう責務が変更されました。
 func (b *InteractiveTextBuilder[T, W]) Style(s style.Style) T {
-	return b.SetStyleForState(component.StateNormal, s)
+	b.Widget.SetStyle(s)
+	return b.Self
 }

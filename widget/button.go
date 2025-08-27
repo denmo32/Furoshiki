@@ -9,10 +9,11 @@ import (
 )
 
 // Button は、クリック可能なUI要素です。
-// component.InteractiveMixin を埋め込むことで、状態に基づいたスタイル管理を共通化します。
+// NOTE: component.InteractiveMixinの埋め込みは廃止され、状態ベースのスタイル管理は
+// LayoutableWidgetが持つStyleManagerに完全に委譲されます。
 type Button struct {
 	*component.TextWidget
-	component.InteractiveMixin
+	// component.InteractiveMixin // 廃止
 }
 
 // newButtonは、ボタンウィジェットの新しいインスタンスを生成し、初期化します。
@@ -25,74 +26,56 @@ func newButton(text string) (*Button, error) {
 		return nil, err
 	}
 
-	// テーマから各種状態のスタイルを取得し、InteractiveMixinを初期化します。
+	// NOTE: テーマから各種状態のスタイルを取得し、StyleManagerに設定します。
 	t := theme.GetCurrent()
-	styles := map[component.WidgetState]style.Style{
-		component.StateNormal:   t.Button.Normal.DeepCopy(),
-		component.StateHovered:  t.Button.Hovered.DeepCopy(),
-		component.StatePressed:  t.Button.Pressed.DeepCopy(),
-		component.StateDisabled: t.Button.Disabled.DeepCopy(),
-	}
-	button.InitStyles(styles)
+	// 1. Normal状態のスタイルを、ウィジェットの「基本スタイル」として設定します。
+	button.SetStyle(t.Button.Normal)
+	// 2. 他の状態のスタイルを、状態固有のスタイルとして設定します。
+	//    これらは描画時に基本スタイルとマージされます。
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	button.StyleManager.SetStyleForState(component.StateHovered, t.Button.Hovered)
+	button.StyleManager.SetStyleForState(component.StatePressed, t.Button.Pressed)
+	button.StyleManager.SetStyleForState(component.StateDisabled, t.Button.Disabled)
 
-	// 通常時のスタイルをウィジェットの基本スタイルとして設定します。
-	button.SetStyle(styles[component.StateNormal])
 	button.SetSize(100, 40)
 
 	return button, nil
 }
 
-// SetStyle はウィジェットの基本スタイルを設定します。
-// インタラクティブウィジェットとして、基本スタイル(w.style)と
-// InteractiveMixinが保持するNormal状態のスタイル(StateStyles[StateNormal])の両方を更新します。
-// これにより、ビルダー等からSetStyleが呼ばれた際にスタイルの一貫性が保たれます。
+// SetStyle はウィジェットの基本スタイル(Normal状態の基礎)を設定します。
+// このメソッドはLayoutableWidgetのStyleManagerのSetBaseStyleを呼び出します。
 func (b *Button) SetStyle(s style.Style) {
-	// 1. 基底ウィジェットのスタイルを設定します。
-	//    基底のSetStyleは変更検知を行い、不要な場合はダーティフラグを立てません。
 	b.LayoutableWidget.SetStyle(s)
-
-	// 2. InteractiveMixinの状態マップ内のNormalスタイルも更新します。
-	//    これにより、GetActiveStyleが常に最新のNormalスタイルを参照できるようになります。
-	//    DeepCopyを行い、b.styleとb.InteractiveMixin.StateStyles[component.StateNormal]が
-	//    異なるメモリ領域を参照するようにし、意図しない副作用を防ぎます。
-	b.InteractiveMixin.StateStyles[component.StateNormal] = s.DeepCopy()
 }
 
 // Draw はButtonを描画します。現在の状態に応じたスタイルを選択し、描画を委譲します。
-// InteractiveMixinのGetActiveStyleを利用して、現在の状態に最適なスタイルを取得します。
+// NOTE: StyleManagerを利用して、現在の状態に最適なスタイルを効率的に取得します。
 func (b *Button) Draw(screen *ebiten.Image) {
 	// 現在の状態（Normal, Hoveredなど）を取得します。
 	currentState := b.LayoutableWidget.CurrentState()
-	// Mixinから、現在の状態に基づいて適用すべきスタイルを取得します。
-	// このメソッドは、該当する状態のスタイルがなければNormal状態のスタイルにフォールバックするため、
-	// 毎フレームの不要なスタイルコピーを回避できます。
-	styleToUse := b.GetActiveStyle(currentState)
+	// StyleManagerから、現在の状態に基づいて適用すべきスタイルを取得します。
+	// このメソッドは内部でキャッシュを利用するため、毎フレームの不要なスタイルコピーを回避できます。
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	styleToUse := b.StyleManager.GetStyleForState(currentState)
 	// 取得したスタイルでウィジェットを描画します。
 	b.TextWidget.DrawWithStyle(screen, styleToUse)
 }
 
-// SetStyleForState は、指定された単一の状態のスタイルを設定します。
-// InteractiveMixinの責務が状態マップの管理のみになったため、このメソッド内で
-// スタイルのマージと、必要に応じた基本スタイルの更新を行います。
+// SetStyleForState は、指定された単一の状態のスタイルを、既存のスタイルにマージします。
 func (b *Button) SetStyleForState(state component.WidgetState, s style.Style) {
-	// 1. Mixinに保存されている現在の状態のスタイルに、新しいスタイルをマージします。
-	b.InteractiveMixin.SetStyleForState(state, s)
-
-	// 2. もしNormal状態のスタイルが変更された場合は、ウィジェットの基本スタイルも同期させます。
-	if state == component.StateNormal {
-		// LayoutableWidget.SetStyleを直接呼ぶことで、このメソッド内で再度
-		// StateStyles[StateNormal]を更新する冗長な処理を避けます。
-		b.LayoutableWidget.SetStyle(b.InteractiveMixin.StateStyles[component.StateNormal])
-	}
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	b.StyleManager.SetStyleForState(state, s)
 }
 
 // StyleAllStates は、ボタンの全てのインタラクティブな状態に共通のスタイル変更を適用します。
-// ここでも、Mixinの更新後に基本スタイルとの同期をこのメソッド内で行います。
 func (b *Button) StyleAllStates(s style.Style) {
-	// 1. Mixinが管理する全ての状態のスタイルを更新します。
-	b.InteractiveMixin.SetAllStyles(s)
-	// 2. 更新後の新しいNormalスタイルをウィジェットの基本スタイルとして設定します。
-	b.LayoutableWidget.SetStyle(b.InteractiveMixin.StateStyles[component.StateNormal])
+	// NOTE: このメソッドは、各状態スタイルにsをマージします。
+	// 基本スタイルを変更したい場合はビルダーの .Style() を使用してください。
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	b.StyleManager.SetStyleForState(component.StateNormal, s)
+	b.StyleManager.SetStyleForState(component.StateHovered, s)
+	b.StyleManager.SetStyleForState(component.StatePressed, s)
+	b.StyleManager.SetStyleForState(component.StateDisabled, s)
 }
 
 // --- ButtonBuilder ---

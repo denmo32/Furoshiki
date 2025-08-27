@@ -88,34 +88,28 @@ func (w *LayoutableWidget) GetRequestedPosition() (int, int) {
 	return w.requestedPos.x, w.requestedPos.y
 }
 
-// SetStyle はウィジェットのスタイルを設定します。
-// スタイルの変更はパディングやフォントサイズに影響し、レイアウトが変わる可能性があるため、
-// 安全策として再レイアウトを要求します。
-// 変更検知を行い、不要な再レイアウトをスキップするように最適化されています。
+// SetStyle はウィジェットの基本スタイルを設定します。
+// NOTE: 内部のStyleManagerを介してスタイルが管理され、変更が検知された場合にのみ
+// ダーティフラグが自動的に設定されます。
 func (w *LayoutableWidget) SetStyle(s style.Style) {
-	// スタイルが実際に変更された場合のみダーティフラグを設定します。
-	// これにより不要な再レイアウトを防ぎます。
-	if w.style.Equals(s) {
-		return
-	}
-	w.style = s
-	w.MarkDirty(true)
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	w.StyleManager.SetBaseStyle(s)
 }
 
-// GetStyle はウィジェットの現在のスタイルの安全なコピーを返します。
-// 注意: このメソッドは呼び出されるたびにスタイルのディープコピーを生成します。
-// パフォーマンスが重要な場面で頻繁に呼び出すとオーバーヘッドになる可能性があります。
-// しかし、これにより外部からの意図しないスタイルの変更を防ぎ、安全性を保証します。
+// GetStyle はウィジェットの現在の基本スタイルの安全なコピーを返します。
+// NOTE: このメソッドはStyleManagerを介して、意図しない変更から保護された
+// スタイルのディープコピーを返します。
 func (w *LayoutableWidget) GetStyle() style.Style {
-	return w.style.DeepCopy()
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	return w.StyleManager.GetBaseStyle()
 }
 
-// ReadOnlyStyle は、ウィジェットの現在のスタイルをコピーせずに返します。
+// ReadOnlyStyle は、ウィジェットの現在の基本スタイルをコピーせずに返します。
 // NOTE: このメソッドはパフォーマンスが重要な描画ループなどでの使用を想定しています。
-// 返されるスタイルはシャローコピーであり、ポインタ先の値を変更すると予期せぬ副作用を
-// 引き起こす可能性があるため、読み取り専用として扱ってください。
+// 返されるスタイルは変更しないでください。
 func (w *LayoutableWidget) ReadOnlyStyle() style.Style {
-	return w.style
+	// NOTE: [FIX] エクスポートされた StyleManager フィールドを使用します。
+	return w.StyleManager.ReadOnlyBaseStyle()
 }
 
 // SetFlex はFlexLayoutにおけるウィジェットの伸縮係数を設定します。
