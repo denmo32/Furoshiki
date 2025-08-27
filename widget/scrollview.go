@@ -60,7 +60,7 @@ func newScrollView() (*ScrollView, error) {
 	sv.vScrollBar = vScrollBar
 	sv.AddChild(vScrollBar)
 
-	// 【提案2対応】HandleEventをオーバーライドする代わりに、専用のイベントハンドラを登録します。
+	// 【提案1対応】HandleEventをオーバーライドする代わりに、専用のイベントハンドラを登録します。
 	// これにより、イベント処理ロジックが一貫した方法で管理されます。
 	sv.AddEventHandler(event.MouseScroll, sv.onMouseScroll)
 
@@ -68,6 +68,7 @@ func newScrollView() (*ScrollView, error) {
 }
 
 // onMouseScroll は、MouseScrollイベントに応答してコンテンツをスクロールします。
+// 【提案1対応】HandleEventのオーバーライドから移行した新しいイベントハンドラです。
 func (sv *ScrollView) onMouseScroll(e *event.Event) event.Propagation {
 	scrollAmount := e.ScrollY * sv.ScrollSensitivity
 	sv.scrollY -= scrollAmount
@@ -98,16 +99,14 @@ func (sv *ScrollView) SetStyle(s style.Style) {
 	}
 }
 
-// UPDATE: Updateメソッドから冗長な同期処理を削除
 // Update はScrollViewの状態を更新します。
 // 汎用コンテナのUpdateとは異なり、ScrollView専用のレイアウト計算を制御します。
+// 【提案2対応】毎フレーム実行していた冗長な同期処理を削除しました。
+// 同期はSetPositionとSetSizeが責務を担うように変更されています。
 func (sv *ScrollView) Update() {
 	if !sv.IsVisible() {
 		return
 	}
-
-	// UPDATE: 毎フレーム実行していた冗長な同期処理を削除。
-	// 同期はSetPositionとSetSizeが責務を担うように変更されました。
 
 	// ScrollView自身が再レイアウトを要求されている場合のみ、専用のレイアウトを実行します。
 	if sv.NeedsRelayout() {
@@ -134,13 +133,13 @@ func (sv *ScrollView) Draw(info component.DrawInfo) {
 	if !sv.IsVisible() {
 		return
 	}
-	// UPDATE: 内部コンテナの描画にもDrawInfoを渡します。
+	// 内部コンテナの描画にもDrawInfoを渡します。
 	sv.container.Draw(info)
 }
 
-// UPDATE: SetPositionメソッドを新規追加 (オーバーライド)
 // SetPosition は自身の位置を設定し、その変更を内部コンテナにも伝播させます。
-// これにより、Updateメソッドから状態同期ロジックを分離し、責務を明確化します。
+// 【提案2対応】Updateメソッドから状態同期ロジックを分離し、責務を明確化するために
+// このオーバーライドメソッドが追加されました。
 func (sv *ScrollView) SetPosition(x, y int) {
 	// 1. 基底ウィジェット(自身)の位置を設定
 	sv.LayoutableWidget.SetPosition(x, y)
@@ -151,8 +150,9 @@ func (sv *ScrollView) SetPosition(x, y int) {
 	}
 }
 
-// UPDATE: SetSizeメソッドを新規追加 (オーバーライド)
 // SetSize は自身のサイズを設定し、その変更を内部コンテナにも伝播させます。
+// 【提案2対応】Updateメソッドから状態同期ロジックを分離し、責務を明確化するために
+// このオーバーライドメソッドが追加されました。
 func (sv *ScrollView) SetSize(width, height int) {
 	// 1. 基底ウィジェット(自身)のサイズを設定
 	sv.LayoutableWidget.SetSize(width, height)
@@ -163,18 +163,9 @@ func (sv *ScrollView) SetSize(width, height int) {
 	}
 }
 
-// 【提案2対応】HandleEventのオーバーライドを削除。
-// イベント処理はLayoutableWidgetのHandleEventに完全に委譲されます。
-//
-// func (sv *ScrollView) HandleEvent(e *event.Event) {
-// 	if !e.Handled && e.Type == event.MouseScroll {
-// 		scrollAmount := e.ScrollY * sv.ScrollSensitivity
-// 		sv.scrollY -= scrollAmount
-// 		sv.MarkDirty(true)
-// 		e.Handled = true
-// 	}
-// 	sv.LayoutableWidget.HandleEvent(e)
-// }
+// 【提案1対応】HandleEventのオーバーライドを削除。
+// イベント処理はLayoutableWidgetのHandleEventに完全に委譲され、
+// スクロール処理はコンストラクタで登録された専用ハンドラ(onMouseScroll)が担います。
 
 // HitTest は、指定された座標がヒットするウィジェットを探します。
 func (sv *ScrollView) HitTest(x, y int) component.Widget {

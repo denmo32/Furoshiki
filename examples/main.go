@@ -53,6 +53,7 @@ func NewGame() *Game {
 			b.Size(0, 30).Gap(5) // 幅は自動、高さ30
 
 			// 各デモへの切り替えボタン
+			// 【提案1対応】イベントハンドラのシグネチャを event.Propagation を返すように変更
 			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("Flex Layout").Flex(1).AddOnClick(func(e *event.Event) event.Propagation {
 					g.switchToDemo(g.createFlexLayoutDemo)

@@ -239,7 +239,7 @@ func PTextAlignType(t TextAlignType) *TextAlignType             { return &t }
 func PVerticalAlignType(v VerticalAlignType) *VerticalAlignType { return &v }
 
 // --- Style Options (Functional) ---
-// 【提案3】オプション関数パターンを導入します。
+// 【提案3対応】オプション関数パターンを導入します。
 // これにより、ビルダー側で複数のスタイルプロパティを流暢かつ拡張性の高い方法で設定できます。
 // 例: builder.ApplyStyles(WithBackgroundColor(c), WithPadding(p))
 
