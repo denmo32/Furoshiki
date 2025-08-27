@@ -114,6 +114,18 @@ func (b *Builder[T, W]) Flex(flex int) T {
 
 // --- スタイルヘルパーメソッド ---
 
+// 【提案3】スタイルオプション関数を用いてウィジェットのスタイルを柔軟に設定するメソッドを追加します。
+// 既存のスタイルに対して変更を適用します。
+func (b *Builder[T, W]) ApplyStyles(opts ...style.StyleOption) T {
+	// GetStyleはディープコピーを返すため、安全に変更できます。
+	newStyle := b.Widget.GetStyle()
+	for _, opt := range opts {
+		opt(&newStyle)
+	}
+	b.Widget.SetStyle(newStyle)
+	return b.Self
+}
+
 // applyStyleProperty はスタイルプロパティを設定するための共通ヘルパー関数です
 func (b *Builder[T, W]) applyStyleProperty(setter func(style.Style) style.Style) T {
 	// 【提案1対応】WはStyleGetterSetterを実装していることが保証されています。

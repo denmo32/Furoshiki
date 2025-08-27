@@ -237,3 +237,45 @@ func PInsets(i Insets) *Insets                                  { return &i }
 func PFont(f font.Face) *font.Face                              { return &f }
 func PTextAlignType(t TextAlignType) *TextAlignType             { return &t }
 func PVerticalAlignType(v VerticalAlignType) *VerticalAlignType { return &v }
+
+// --- Style Options (Functional) ---
+// 【提案3】オプション関数パターンを導入します。
+// これにより、ビルダー側で複数のスタイルプロパティを流暢かつ拡張性の高い方法で設定できます。
+// 例: builder.ApplyStyles(WithBackgroundColor(c), WithPadding(p))
+
+// StyleOption はStyle構造体を変更するための関数型です。
+type StyleOption func(*Style)
+
+func WithBackgroundColor(c color.Color) StyleOption {
+	return func(s *Style) { s.Background = PColor(c) }
+}
+func WithBorderColor(c color.Color) StyleOption {
+	return func(s *Style) { s.BorderColor = PColor(c) }
+}
+func WithBorderWidth(w float32) StyleOption {
+	return func(s *Style) { s.BorderWidth = PFloat32(w) }
+}
+func WithMargin(i Insets) StyleOption {
+	return func(s *Style) { s.Margin = PInsets(i) }
+}
+func WithPadding(i Insets) StyleOption {
+	return func(s *Style) { s.Padding = PInsets(i) }
+}
+func WithFont(f font.Face) StyleOption {
+	return func(s *Style) { s.Font = PFont(f) }
+}
+func WithTextColor(c color.Color) StyleOption {
+	return func(s *Style) { s.TextColor = PColor(c) }
+}
+func WithBorderRadius(r float32) StyleOption {
+	return func(s *Style) { s.BorderRadius = PFloat32(r) }
+}
+func WithOpacity(o float64) StyleOption {
+	return func(s *Style) { s.Opacity = PFloat64(o) }
+}
+func WithTextAlign(t TextAlignType) StyleOption {
+	return func(s *Style) { s.TextAlign = PTextAlignType(t) }
+}
+func WithVerticalAlign(v VerticalAlignType) StyleOption {
+	return func(s *Style) { s.VerticalAlign = PVerticalAlignType(v) }
+}
