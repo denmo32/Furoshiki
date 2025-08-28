@@ -1,7 +1,6 @@
 package layout
 
 import (
-	"furoshiki/component"
 	"furoshiki/utils"
 	"math"
 )
@@ -77,16 +76,11 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 
 	// 4. 子要素を配置
 	for _, child := range children {
-		var data any
-		var ok bool
 		var placementData GridPlacementData
+		var ok bool
 
-		// 【提案1】型アサーションの追加: GetLayoutDataはLayoutPropertiesインターフェースが持つため、
-		// 型アサーションを行い、実装しているウィジェットからデータを取得します。
-		if lp, okGet := child.(component.LayoutPropertiesOwner); okGet {
-				data = lp.GetLayoutProperties().GetLayoutData()
-			}
-
+		// UPDATE: 型アサーションをGetLayoutDataヘルパー関数に置き換え
+		data := GetLayoutData(child)
 		if placementData, ok = data.(GridPlacementData); !ok {
 			// 配置情報がないウィジェットはレイアウト対象外とします。
 			continue
@@ -105,14 +99,9 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 		width := colPositions[endCol-1] + colWidths[endCol-1] - x
 		height := rowPositions[endRow-1] + rowHeights[endRow-1] - y
 
-		// 【提案1】型アサーションの追加: 位置とサイズの設定はそれぞれ
-		// PositionSetterとSizeSetterインターフェースが持つため、型アサーションを行います。
-		if ps, okSetPos := child.(component.PositionSetter); okSetPos {
-			ps.SetPosition(x, y)
-		}
-		if ss, okSetSize := child.(component.SizeSetter); okSetSize {
-			ss.SetSize(width, height)
-		}
+		// UPDATE: 型アサーションをヘルパー関数に置き換え
+		SetPosition(child, x, y)
+		SetSize(child, width, height)
 	}
 	return nil
 }

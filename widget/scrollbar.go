@@ -1,7 +1,6 @@
 package widget
 
 import (
-	"errors"
 	"furoshiki/component"
 	"furoshiki/event"
 	"furoshiki/style"
@@ -36,6 +35,7 @@ var _ component.DirtyManager = (*ScrollBar)(nil)
 var _ component.AbsolutePositioner = (*ScrollBar)(nil)
 var _ event.EventTarget = (*ScrollBar)(nil)
 var _ component.EventProcessor = (*ScrollBar)(nil)
+var _ component.StyleGetterSetter = (*ScrollBar)(nil) // For ScrollBarBuilder
 
 // newScrollBar creates a new component-based ScrollBar.
 func newScrollBar() (*ScrollBar, error) {
@@ -60,10 +60,10 @@ func newScrollBar() (*ScrollBar, error) {
 
 // --- Interface implementations ---
 
-func (s *ScrollBar) GetNode() *component.Node                   { return s.Node }
+func (s *ScrollBar) GetNode() *component.Node                         { return s.Node }
 func (s *ScrollBar) GetLayoutProperties() *component.LayoutProperties { return s.LayoutProperties }
-func (s *ScrollBar) Update()                                    {}
-func (s *ScrollBar) Cleanup()                                   { s.SetParent(nil) }
+func (s *ScrollBar) Update()                                          {}
+func (s *ScrollBar) Cleanup()                                         { s.SetParent(nil) }
 
 // UPDATE: HasBeenLaidOutの実装をVisibilityコンポーネントへの委譲に変更しました。
 func (s *ScrollBar) HasBeenLaidOut() bool { return s.Visibility.HasBeenLaidOut() }
@@ -143,6 +143,7 @@ func (s *ScrollBar) SetSize(width, height int) {
 	}
 }
 
+func (s *ScrollBar) SetMinSize(width, height int) {}
 func (s *ScrollBar) GetMinSize() (int, int) {
 	return 0, 0
 }
@@ -153,6 +154,8 @@ func (s *ScrollBar) HitTest(x, y int) component.Widget {
 }
 
 func (s *ScrollBar) HandleEvent(e *event.Event) {
+	// UPDATE: イベント処理の責務をInteractionコンポーネントに委譲
+	s.Interaction.TriggerHandlers(e)
 	// TODO: Implement event handling for thumb dragging
 }
 
@@ -175,44 +178,37 @@ func (s *ScrollBar) GetRequestedPosition() (int, int) {
 }
 
 // --- ScrollBarBuilder ---
+// UPDATE: 汎用のcomponent.Builderを埋め込むように変更
 type ScrollBarBuilder struct {
-	scrollBar *ScrollBar
-	errors    []error
+	component.Builder[*ScrollBarBuilder, *ScrollBar]
 }
 
+// NewScrollBarBuilderは新しいScrollBarBuilderを生成します。
 func NewScrollBarBuilder() *ScrollBarBuilder {
-	s, err := newScrollBar()
-	b := &ScrollBarBuilder{scrollBar: s}
-	if err != nil {
-		b.errors = append(b.errors, err)
-	}
+	sb, err := newScrollBar()
+	b := &ScrollBarBuilder{}
+	b.Init(b, sb)
+	b.AddError(err)
 	return b
 }
 
+// Build は、最終的なScrollBarを構築して返します。
 func (b *ScrollBarBuilder) Build() (*ScrollBar, error) {
-	if len(b.errors) > 0 {
-		return nil, errors.Join(b.errors...)
-	}
-	b.scrollBar.MarkDirty(true)
-	return b.scrollBar, nil
+	// UPDATE: 処理を基底のBuilder.Buildに完全に委譲
+	return b.Builder.Build()
 }
 
-func (b *ScrollBarBuilder) AddError(err error) {
-	if err != nil {
-		b.errors = append(b.errors, err)
-	}
-}
-
+// TrackColor はスクロールバーのトラック（背景）の色を設定します。
 func (b *ScrollBarBuilder) TrackColor(c color.Color) *ScrollBarBuilder {
-	st := b.scrollBar.GetStyle()
-	st.Background = style.PColor(c)
-	b.scrollBar.SetStyle(st)
-	return b
+	// 汎用Builderのスタイルヘルパーを利用
+	return b.BackgroundColor(c)
 }
 
+// ThumbColor はスクロールバーのつまみ（前景）の色を設定します。
 func (b *ScrollBarBuilder) ThumbColor(c color.Color) *ScrollBarBuilder {
-	st := b.scrollBar.GetStyle()
-	st.BorderColor = style.PColor(c) // Using BorderColor for the thumb
-	b.scrollBar.SetStyle(st)
+	// Thumbの色としてBorderColorを利用する
+	st := b.Widget.GetStyle()
+	st.BorderColor = style.PColor(c)
+	b.Widget.SetStyle(st)
 	return b
 }

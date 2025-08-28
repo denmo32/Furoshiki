@@ -8,7 +8,6 @@ import (
 	"furoshiki/style"
 	"image"
 	"log"
-	"runtime/debug"
 )
 
 // ScrollView is a container widget that allows scrolling its content.
@@ -209,27 +208,12 @@ func (sv *ScrollView) HitTest(x, y int) component.Widget {
 	return nil
 }
 
-// HandleEvent processes events, similar to the Button's implementation.
+// HandleEvent processes events.
 func (sv *ScrollView) HandleEvent(e *event.Event) {
-	if handlers, exists := sv.GetEventHandlers()[e.Type]; exists {
-		for _, handler := range handlers {
-			if e.Handled {
-				break
-			}
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf(`Recovered from panic in event handler: %v
-%s`, r, debug.Stack())
-					}
-				}()
-				if handler(e) == event.StopPropagation {
-					e.Handled = true
-				}
-			}()
-		}
-	}
+	// UPDATE: イベントハンドラの安全な実行をInteractionコンポーネントに委譲
+	sv.Interaction.TriggerHandlers(e)
 
+	// 親ウィジェットへのイベント伝播
 	if e != nil && !e.Handled && sv.GetParent() != nil {
 		if processor, ok := sv.GetParent().(component.EventProcessor); ok {
 			processor.HandleEvent(e)

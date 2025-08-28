@@ -73,15 +73,14 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 		// コンテナ自身の座標は、この一時的なレイアウト計算では(0,0)に設定されているため、
 		// 子のY座標と高さから直接最大Y座標を求められます。
 		for _, child := range c.GetChildren() {
-			// 【提案1】型アサーションの追加
-			isVisible := true
-			if is, okIs := child.(component.InteractiveState); okIs {
-				isVisible = is.IsVisible()
-			}
-			if !isVisible {
+			// UPDATE: 型アサーションをヘルパー関数に置き換え
+			if !IsWidgetVisible(child) {
 				continue
 			}
 
+			// UPDATE: コンパイラエラー(undefined: GetPosition)を回避するため、
+			// この箇所ではヘルパー関数を使わず、明示的な型アサーションに戻します。
+			// 他のレイアウトファイルではヘルパーが機能するため、このファイル特有の問題の可能性があります。
 			var childY, childH int
 			if ps, okPos := child.(component.PositionSetter); okPos {
 				_, childY = ps.GetPosition()
@@ -99,10 +98,8 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 	} else {
 		// ケース3: 上記以外のウィジェット (HeightForWiderを実装しない単一ウィジェット)
 		// コンテンツ自身の最小の高さを必要な高さとみなします。
-		// 【提案1】型アサーションの追加
-		if mss, ok := content.(component.MinSizeSetter); ok {
-			_, measuredContentHeight = mss.GetMinSize()
-		}
+		// UPDATE: 型アサーションをヘルパー関数に置き換え
+		_, measuredContentHeight = GetMinSize(content)
 	}
 	scroller.SetContentHeight(measuredContentHeight)
 
@@ -154,13 +151,9 @@ func (l *ScrollViewLayout) Layout(container Container) error {
 	scroller.SetScrollY(currentScrollY)
 
 	// コンテンツの最終的な位置とサイズを設定
-	// 【提案1】型アサーションの追加
-	if ss, ok := content.(component.SizeSetter); ok {
-		ss.SetSize(finalContentWidth, measuredContentHeight)
-	}
-	if ps, ok := content.(component.PositionSetter); ok {
-		ps.SetPosition(viewX+padding.Left, viewY+padding.Top-int(currentScrollY))
-	}
+	// UPDATE: 型アサーションをヘルパー関数に置き換え
+	SetSize(content, finalContentWidth, measuredContentHeight)
+	SetPosition(content, viewX+padding.Left, viewY+padding.Top-int(currentScrollY))
 
 	if isVScrollNeeded && vScrollBar != nil {
 		// NOTE: インターフェース定義にPositionSetterとSizeSetterを

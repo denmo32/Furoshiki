@@ -330,16 +330,10 @@ func (c *Container) GetMinSize() (int, int) {
 }
 
 func (c *Container) HandleEvent(e *event.Event) {
-	if handlers, exists := c.GetEventHandlers()[e.Type]; exists {
-		for _, handler := range handlers {
-			if e.Handled {
-				break
-			}
-			if handler(e) == event.StopPropagation {
-				e.Handled = true
-			}
-		}
-	}
+	// UPDATE: イベントハンドラの安全な実行をInteractionコンポーネントに委譲
+	c.Interaction.TriggerHandlers(e)
+
+	// 親ウィジェットへのイベント伝播
 	if e != nil && !e.Handled && c.GetParent() != nil {
 		if processor, ok := c.GetParent().(component.EventProcessor); ok {
 			processor.HandleEvent(e)

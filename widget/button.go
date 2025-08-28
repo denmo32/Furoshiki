@@ -7,8 +7,6 @@ import (
 	"furoshiki/theme"
 	"furoshiki/utils"
 	"image"
-	"log"
-	"runtime/debug"
 
 	"github.com/hajimehoshi/ebiten/v2/text"
 )
@@ -31,8 +29,6 @@ type Button struct {
 
 // --- Interface implementation verification ---
 var _ component.Widget = (*Button)(nil)
-// NOTE: Buttonがcomponent.Builderで利用可能になるために、Buildableインターフェースを満たす必要があります。
-var _ component.Buildable = (*Button)(nil)
 var _ component.NodeOwner = (*Button)(nil)
 var _ component.AppearanceOwner = (*Button)(nil)
 var _ component.InteractionOwner = (*Button)(nil)
@@ -44,6 +40,8 @@ var _ component.HeightForWider = (*Button)(nil)
 var _ event.EventTarget = (*Button)(nil)
 var _ component.EventProcessor = (*Button)(nil)
 var _ component.AbsolutePositioner = (*Button)(nil)
+// UPDATE: Buildableインターフェースが削除されたため、実装検証も削除
+// var _ component.Buildable = (*Button)(nil)
 
 // newButton creates a new component-based Button.
 func newButton(text string) (*Button, error) {
@@ -204,25 +202,10 @@ func (b *Button) HitTest(x, y int) component.Widget {
 
 // --- EventTarget and EventProcessor Implementation ---
 func (b *Button) HandleEvent(e *event.Event) {
-	if handlers, exists := b.GetEventHandlers()[e.Type]; exists {
-		for _, handler := range handlers {
-			if e.Handled {
-				break
-			}
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf(`Recovered from panic in event handler: %v
-%s`, r, debug.Stack())
-					}
-				}()
-				if handler(e) == event.StopPropagation {
-					e.Handled = true
-				}
-			}()
-		}
-	}
+	// UPDATE: イベントハンドラの安全な実行をInteractionコンポーネントに委譲
+	b.Interaction.TriggerHandlers(e)
 
+	// 親ウィジェットへのイベント伝播
 	if e != nil && !e.Handled && b.GetParent() != nil {
 		if processor, ok := b.GetParent().(component.EventProcessor); ok {
 			processor.HandleEvent(e)
@@ -230,7 +213,10 @@ func (b *Button) HandleEvent(e *event.Event) {
 	}
 }
 
-// --- AbsolutePositioner and other Buildable interface implementations ---
+// --- AbsolutePositioner and other interface implementations required by Builder ---
+// NOTE: 以下のメソッドは、Builderが型アサーションで動的にチェックするインターフェースを
+// 満たすために実装されています。
+
 func (b *Button) SetRequestedPosition(x, y int) {
 	b.Transform.SetRequestedPosition(x, y)
 	b.MarkDirty(true)
@@ -239,15 +225,6 @@ func (b *Button) SetRequestedPosition(x, y int) {
 func (b *Button) GetRequestedPosition() (int, int) {
 	return b.Transform.GetRequestedPosition()
 }
-
-// NOTE: 以下のメソッドは component.Buildable インターフェースを満たすために実装されています。
-//       実際の処理は内部のコンポーネントに移譲されます。
-
-func (b *Button) SetFlex(flex int)                { b.LayoutProperties.SetFlex(flex) }
-func (b *Button) GetFlex() int                    { return b.LayoutProperties.GetFlex() }
-func (b *Button) SetLayoutBoundary(isBoundary bool) { b.LayoutProperties.SetLayoutBoundary(isBoundary) }
-func (b *Button) SetLayoutData(data any)          { b.LayoutProperties.SetLayoutData(data) }
-func (b *Button) GetLayoutData() any              { return b.LayoutProperties.GetLayoutData() }
 
 // --- ButtonBuilder ---
 

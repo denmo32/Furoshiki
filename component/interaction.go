@@ -1,6 +1,10 @@
 package component
 
-import "furoshiki/event"
+import (
+	"furoshiki/event"
+	"log"
+	"runtime/debug"
+)
 
 // InteractionOwnerは、Interactionコンポーネントを所有するオブジェクトが
 // 満たすべきインターフェースを定義します。
@@ -39,8 +43,33 @@ func (i *Interaction) RemoveEventHandler(eventType event.EventType) {
 }
 
 // GetEventHandlersは、イベントハンドラのマップを返します。
+// UPDATE: このメソッドは外部には不要になるため、非公開(getEventHandlers)に変更も検討できますが、
+//         デバッグや特殊なケースのために公開のままにしておきます。
 func (i *Interaction) GetEventHandlers() map[event.EventType][]event.EventHandler {
 	return i.eventHandlers
+}
+
+// UPDATE: イベントハンドラを安全に実行するためのメソッドを追加
+// TriggerHandlersは、指定されたイベントに対応するハンドラをpanicから保護しつつ実行します。
+func (i *Interaction) TriggerHandlers(e *event.Event) {
+	if handlers, exists := i.eventHandlers[e.Type]; exists {
+		for _, handler := range handlers {
+			if e.Handled {
+				break
+			}
+			// 各ハンドラをクロージャでラップし、panicをrecoverします
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from panic in event handler: %v\n%s", r, debug.Stack())
+					}
+				}()
+				if handler(e) == event.StopPropagation {
+					e.Handled = true
+				}
+			}()
+		}
+	}
 }
 
 // SetHoveredはホバー状態を設定し、必要であれば再描画を要求します。

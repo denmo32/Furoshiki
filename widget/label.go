@@ -30,8 +30,6 @@ type Label struct {
 
 // --- インターフェース実装の検証 ---
 var _ component.Widget = (*Label)(nil)
-// NOTE: Labelがcomponent.Builderで利用可能になるために、Buildableインターフェースを満たす必要があります。
-var _ component.Buildable = (*Label)(nil)
 var _ component.NodeOwner = (*Label)(nil)
 var _ component.AppearanceOwner = (*Label)(nil)
 var _ component.InteractionOwner = (*Label)(nil)
@@ -41,8 +39,11 @@ var _ component.VisibilityOwner = (*Label)(nil)
 var _ component.DirtyManager = (*Label)(nil)
 var _ component.HeightForWider = (*Label)(nil)
 var _ component.AbsolutePositioner = (*Label)(nil)
-// NOTE: Label is not interactive, but it must implement EventProcessor to satisfy Buildable.
+// NOTE: Label is not interactive, but it must implement EventProcessor for event propagation.
 var _ component.EventProcessor = (*Label)(nil)
+// UPDATE: Buildableインターフェースが削除されたため、実装検証も削除
+// var _ component.Buildable = (*Label)(nil)
+
 
 // newLabelは、新しいコンポーネントベースのLabelを生成します。
 func newLabel(text string) (*Label, error) {
@@ -197,7 +198,7 @@ func (l *Label) HandleEvent(e *event.Event) {
 	}
 }
 
-// --- AbsolutePositioner and other Buildable interface implementations ---
+// --- AbsolutePositioner and other interface implementations required by Builder ---
 func (l *Label) SetRequestedPosition(x, y int) {
 	l.Transform.SetRequestedPosition(x, y)
 	l.MarkDirty(true)
@@ -207,18 +208,15 @@ func (l *Label) GetRequestedPosition() (int, int) {
 	return l.Transform.GetRequestedPosition()
 }
 
-// NOTE: 以下のメソッドは component.Buildable インターフェースを満たすために実装されています。
-func (l *Label) SetFlex(flex int)                { l.LayoutProperties.SetFlex(flex) }
-func (l *Label) GetFlex() int                    { return l.LayoutProperties.GetFlex() }
-func (l *Label) SetLayoutBoundary(isBoundary bool) { l.LayoutProperties.SetLayoutBoundary(isBoundary) }
-func (l *Label) SetLayoutData(data any)          { l.LayoutProperties.SetLayoutData(data) }
-func (l *Label) GetLayoutData() any              { return l.LayoutProperties.GetLayoutData() }
+// NOTE: AddEventHandler/RemoveEventHandler は、EventProcessorインターフェースを満たすために必要です。
+// Label自体はイベントを発行しませんが、イベントがツリーを伝播できるようにするために実装します。
 func (l *Label) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
 	l.Interaction.AddEventHandler(eventType, handler)
 }
 func (l *Label) RemoveEventHandler(eventType event.EventType) {
 	l.Interaction.RemoveEventHandler(eventType)
 }
+
 
 // --- LabelBuilder ---
 
