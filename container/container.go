@@ -18,56 +18,40 @@ type Scroller interface {
 
 // Container is a component that holds child Widgets and manages their layout.
 type Container struct {
-	// Component-based fields
-	*component.Node
-	*component.Transform
-	*component.LayoutProperties
+	*component.WidgetCore
 	*component.Appearance
 	*component.Interaction
-	*component.Visibility
-	*component.Dirty
 
-	// Container-specific fields
-	children       []component.Widget
+	// UPDATE: childrenフィールドを削除。子要素の管理はWidgetCore.Nodeに一本化されました。
+	// これにより、データの一貫性が保証され、AddChildのバグが解消されます。
+
 	layout         layout.Layout
 	warned         bool
 	clipsChildren  bool
 	offscreenImage *ebiten.Image
-	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
-	// hasBeenLaidOut bool
-	minSize component.Size
 }
 
 // --- Interface implementation verification ---
-var _ component.Widget = (*Container)(nil)
+var _ component.StandardWidget = (*Container)(nil)
 var _ component.Container = (*Container)(nil)
 var _ layout.Container = (*Container)(nil)
 var _ event.EventTarget = (*Container)(nil)
-var _ component.EventProcessor = (*Container)(nil)
 
 // NewContainer creates a new Container instance without using a builder.
 func NewContainer() (*Container, error) {
 	c := &Container{
-		children: make([]component.Widget, 0),
+		// UPDATE: childrenフィールドがなくなったため、初期化も不要
 	}
 
-	// Initialize components
-	c.Node = component.NewNode(c)
-	c.Transform = component.NewTransform()
-	c.LayoutProperties = component.NewLayoutProperties()
+	c.WidgetCore = component.NewWidgetCore(c)
 	c.Appearance = component.NewAppearance(c)
 	c.Interaction = component.NewInteraction(c)
-	c.Visibility = component.NewVisibility(c)
-	c.Dirty = component.NewDirty()
 
 	c.layout = &layout.FlexLayout{} // Default to FlexLayout
 	return c, nil
 }
 
 // --- Method implementations ---
-
-func (c *Container) GetNode() *component.Node                   { return c.Node }
-func (c *Container) GetLayoutProperties() *component.LayoutProperties { return c.LayoutProperties }
 
 func (c *Container) SetClipsChildren(clips bool) {
 	if c.clipsChildren != clips {
@@ -86,12 +70,9 @@ func (c *Container) SetLayout(layout layout.Layout) {
 }
 
 func (c *Container) Update() {
-	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
 	if c.GetParent() == nil && !c.HasBeenLaidOut() {
-		// UPDATE: 初回レイアウトをトリガーするためにSetLaidOutを呼び出します。
-		// これにより、Visibilityコンポーネント内でダーティフラグが設定され、初回描画が保証されます。
 		c.SetLaidOut(true)
-		c.MarkDirty(true) // Mark dirty to trigger initial layout
+		c.MarkDirty(true)
 	}
 
 	if !c.IsVisible() {
@@ -108,7 +89,8 @@ func (c *Container) Update() {
 		}
 	}
 
-	for _, child := range c.children {
+	// UPDATE: Nodeから子を取得するように変更
+	for _, child := range c.GetChildren() {
 		child.Update()
 	}
 
@@ -131,7 +113,6 @@ func (c *Container) checkSizeWarning() {
 }
 
 func (c *Container) Draw(info component.DrawInfo) {
-	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
 	if !c.IsVisible() || !c.HasBeenLaidOut() {
 		return
 	}
@@ -150,7 +131,7 @@ func (c *Container) drawWithoutClipping(info component.DrawInfo) {
 	finalY := y + info.OffsetY
 	component.DrawStyledBackground(info.Screen, finalX, finalY, width, height, c.ReadOnlyStyle())
 
-	for _, child := range c.children {
+	for _, child := range c.GetChildren() {
 		child.Draw(info)
 	}
 }
@@ -184,7 +165,7 @@ func (c *Container) drawWithClipping(info component.DrawInfo) {
 		OffsetY: -(containerY - scrollOffsetY),
 	}
 
-	for _, child := range c.children {
+	for _, child := range c.GetChildren() {
 		child.Draw(childDrawInfo)
 	}
 
@@ -200,8 +181,9 @@ func (c *Container) HitTest(x, y int) component.Widget {
 		return nil
 	}
 
-	for i := len(c.children) - 1; i >= 0; i-- {
-		child := c.children[i]
+	children := c.GetChildren()
+	for i := len(children) - 1; i >= 0; i-- {
+		child := children[i]
 		isVisible := true
 		if is, ok := child.(component.InteractiveState); ok {
 			isVisible = is.IsVisible()
@@ -225,56 +207,54 @@ func (c *Container) HitTest(x, y int) component.Widget {
 }
 
 func (c *Container) Cleanup() {
-	for _, child := range c.children {
+	// 1. 再帰的にすべての子のCleanupを呼び出す
+	for _, child := range c.GetChildren() {
 		child.Cleanup()
 	}
-	c.children = nil
+	// 2. Nodeの子リストをクリアする
+	c.GetNode().ClearChildren()
 
+	// 3. このコンテナ自身のリソースを解放
 	if c.offscreenImage != nil {
 		c.offscreenImage.Deallocate()
 		c.offscreenImage = nil
 	}
 
+	// 4. 親への参照を断つ
 	c.SetParent(nil)
 }
 
-func (c *Container) detachChild(child component.Widget) bool {
-	if child == nil {
-		return false
-	}
-	for i, currentChild := range c.children {
-		if currentChild == child {
-			c.children = append(c.children[:i], c.children[i+1:]...)
-			child.SetParent(nil)
-			return true
-		}
-	}
-	return false
-}
-
+// UPDATE: 子要素の管理をWidgetCore.Nodeに委譲
 func (c *Container) AddChild(child component.Widget) {
 	if child == nil {
 		return
 	}
-	if oldParent := child.GetParent(); oldParent != nil {
-		if container, ok := oldParent.(*Container); ok {
-			container.detachChild(child)
-		}
-	}
-	child.SetParent(c)
-	c.children = append(c.children, child)
+	// NodeのAddChildは、古い親からのデタッチ処理も自動的に行うため、
+	// ここでのロジックがシンプルかつ安全になります。
+	c.WidgetCore.Node.AddChild(child)
 	c.MarkDirty(true)
 }
 
+// UPDATE: 子要素の管理をWidgetCore.Nodeに委譲
 func (c *Container) RemoveChild(child component.Widget) {
-	if c.detachChild(child) {
-		child.Cleanup()
-		c.MarkDirty(true)
-	}
+	// NodeのRemoveChildは子の親ポインタをnilにするだけです。
+	// ウィジェットの完全な破棄（リソース解放など）を行うのはコンテナの責務なので、
+	// ここでCleanupを呼び出します。
+	c.WidgetCore.Node.RemoveChild(child)
+	child.Cleanup()
+	c.MarkDirty(true)
 }
 
+// UPDATE: 子要素の管理をWidgetCore.Nodeに委譲
 func (c *Container) GetChildren() []component.Widget {
-	return c.children
+	// Nodeは[]NodeOwnerを返すため、Containerインターフェースが要求する[]Widgetに変換します。
+	nodeOwners := c.WidgetCore.Node.GetChildren()
+	widgets := make([]component.Widget, len(nodeOwners))
+	for i, owner := range nodeOwners {
+		// AddChildでWidget型しか受け付けないため、この型アサーションは常に成功するはずです。
+		widgets[i] = owner.(component.Widget)
+	}
+	return widgets
 }
 
 func (c *Container) GetPadding() layout.Insets {
@@ -290,50 +270,9 @@ func (c *Container) GetPadding() layout.Insets {
 	return layout.Insets{}
 }
 
-func (c *Container) MarkDirty(relayout bool) {
-	c.Dirty.MarkDirty(relayout)
-	if relayout && !c.IsLayoutBoundary() {
-		if parent := c.GetParent(); parent != nil {
-			if dm, ok := parent.(component.DirtyManager); ok {
-				dm.MarkDirty(true)
-			}
-		}
-	}
-}
-
-func (c *Container) SetPosition(x, y int) {
-	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
-	if !c.HasBeenLaidOut() {
-		c.SetLaidOut(true)
-	}
-	if currX, currY := c.GetPosition(); currX != x || currY != y {
-		c.Transform.SetPosition(x, y)
-		c.MarkDirty(false)
-	}
-}
-
-func (c *Container) SetSize(width, height int) {
-	if w, h := c.GetSize(); w != width || h != height {
-		c.Transform.SetSize(width, height)
-		c.MarkDirty(true)
-	}
-}
-
-func (c *Container) SetMinSize(width, height int) {
-	c.minSize.Width = width
-	c.minSize.Height = height
-	c.MarkDirty(true)
-}
-
-func (c *Container) GetMinSize() (int, int) {
-	return c.minSize.Width, c.minSize.Height
-}
-
 func (c *Container) HandleEvent(e *event.Event) {
-	// UPDATE: イベントハンドラの安全な実行をInteractionコンポーネントに委譲
 	c.Interaction.TriggerHandlers(e)
 
-	// 親ウィジェットへのイベント伝播
 	if e != nil && !e.Handled && c.GetParent() != nil {
 		if processor, ok := c.GetParent().(component.EventProcessor); ok {
 			processor.HandleEvent(e)

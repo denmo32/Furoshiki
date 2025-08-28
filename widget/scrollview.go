@@ -11,18 +11,11 @@ import (
 )
 
 // ScrollView is a container widget that allows scrolling its content.
-// It has been refactored to use a component-based architecture.
 type ScrollView struct {
-	// Component-based fields
-	*component.Node
-	*component.Transform
-	*component.LayoutProperties
+	*component.WidgetCore
 	*component.Appearance
 	*component.Interaction
-	*component.Visibility
-	*component.Dirty
 
-	// ScrollView specific fields
 	container         *container.Container
 	layout            layout.Layout
 	contentContainer  component.Widget
@@ -30,17 +23,14 @@ type ScrollView struct {
 	scrollY           float64
 	contentHeight     int
 	ScrollSensitivity float64
-	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
-	// hasBeenLaidOut    bool
 }
 
 // --- Interface implementation verification ---
-var _ component.Widget = (*ScrollView)(nil)
+var _ component.StandardWidget = (*ScrollView)(nil)
 var _ component.Container = (*ScrollView)(nil)
 var _ layout.ScrollViewer = (*ScrollView)(nil)
 var _ container.Scroller = (*ScrollView)(nil)
 var _ event.EventTarget = (*ScrollView)(nil)
-var _ component.EventProcessor = (*ScrollView)(nil)
 
 // newScrollView creates a new component-based ScrollView.
 func newScrollView() (*ScrollView, error) {
@@ -48,14 +38,9 @@ func newScrollView() (*ScrollView, error) {
 		ScrollSensitivity: 20.0,
 	}
 
-	// Initialize components
-	sv.Node = component.NewNode(sv)
-	sv.Transform = component.NewTransform()
-	sv.LayoutProperties = component.NewLayoutProperties()
+	sv.WidgetCore = component.NewWidgetCore(sv)
 	sv.Appearance = component.NewAppearance(sv)
 	sv.Interaction = component.NewInteraction(sv)
-	sv.Visibility = component.NewVisibility(sv)
-	sv.Dirty = component.NewDirty()
 
 	internalContainer, err := container.NewContainer()
 	if err != nil {
@@ -63,7 +48,7 @@ func newScrollView() (*ScrollView, error) {
 	}
 	sv.container = internalContainer
 	sv.container.SetClipsChildren(true)
-	sv.container.SetParent(sv)
+	sv.AddChild(sv.container) // 内部コンテナを子として追加
 
 	sv.layout = &layout.ScrollViewLayout{}
 
@@ -72,14 +57,13 @@ func newScrollView() (*ScrollView, error) {
 		return nil, err
 	}
 	sv.vScrollBar = vScrollBar
-	sv.AddChild(vScrollBar)
+	sv.AddChild(vScrollBar) // スクロールバーも子として追加
 
 	sv.AddEventHandler(event.MouseScroll, sv.onMouseScroll)
 
 	return sv, nil
 }
 
-// onMouseScroll handles the mouse scroll event to scroll the content.
 func (sv *ScrollView) onMouseScroll(e *event.Event) event.Propagation {
 	scrollAmount := e.ScrollY * sv.ScrollSensitivity
 	sv.scrollY -= scrollAmount
@@ -88,27 +72,28 @@ func (sv *ScrollView) onMouseScroll(e *event.Event) event.Propagation {
 }
 
 // SetContent sets the scrollable content container.
+// The content is added to the internal clipped container, not the ScrollView itself.
 func (sv *ScrollView) SetContent(content component.Widget) {
 	if sv.contentContainer != nil {
-		sv.RemoveChild(sv.contentContainer)
+		// 古いコンテンツを内部コンテナから削除
+		sv.container.RemoveChild(sv.contentContainer)
 	}
 	sv.contentContainer = content
 	if content != nil {
-		sv.AddChild(content)
-		sv.AddChild(sv.vScrollBar) // Re-add scrollbar to keep it on top
+		// 新しいコンテンツを内部コンテナに追加
+		sv.container.AddChild(content)
 	}
 	sv.MarkDirty(true)
 }
 
-// SetStyle sets the style for both the ScrollView and its internal container.
 func (sv *ScrollView) SetStyle(s style.Style) {
 	sv.Appearance.SetStyle(s)
 	if sv.container != nil {
+		// 内部コンテナのスタイルも同期させる
 		sv.container.SetStyle(s)
 	}
 }
 
-// Update controls the specialized layout calculation for the ScrollView.
 func (sv *ScrollView) Update() {
 	if !sv.IsVisible() {
 		return
@@ -122,7 +107,8 @@ func (sv *ScrollView) Update() {
 		}
 	}
 
-	for _, child := range sv.container.GetChildren() {
+	// ScrollView自身の子（内部コンテナとスクロールバー）のUpdateを呼び出す
+	for _, child := range sv.GetChildren() {
 		child.Update()
 	}
 
@@ -131,18 +117,22 @@ func (sv *ScrollView) Update() {
 	}
 }
 
-// Draw delegates the drawing to the internal container which handles clipping.
 func (sv *ScrollView) Draw(info component.DrawInfo) {
-	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
 	if !sv.IsVisible() || !sv.HasBeenLaidOut() {
 		return
 	}
-	sv.container.Draw(info)
+	// ScrollView自体は何も描画せず、子要素（内部コンテナとスクロールバー）の描画に任せます。
+	// これにより、クリッピングが正しく機能します。
+	for _, child := range sv.GetChildren() {
+		child.Draw(info)
+	}
 }
 
-// Cleanup releases resources used by the ScrollView and its children.
 func (sv *ScrollView) Cleanup() {
-	sv.container.Cleanup()
+	for _, child := range sv.GetChildren() {
+		child.Cleanup()
+	}
+	sv.GetNode().ClearChildren()
 	sv.SetParent(nil)
 }
 
@@ -152,25 +142,26 @@ func (sv *ScrollView) MarkDirty(relayout bool) {
 	sv.Dirty.MarkDirty(relayout)
 }
 
-// SetPosition sets the position for the ScrollView and its internal container.
+// SetPosition sets the position for the ScrollView. Its children's positions
+// will be updated by the layout system.
 func (sv *ScrollView) SetPosition(x, y int) {
-	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
 	if !sv.HasBeenLaidOut() {
 		sv.SetLaidOut(true)
 	}
 	if currX, currY := sv.GetPosition(); currX != x || currY != y {
 		sv.Transform.SetPosition(x, y)
-		if sv.container != nil {
-			sv.container.SetPosition(x, y)
-		}
-		sv.MarkDirty(false)
+		// 子要素の位置はレイアウトシステムによって管理されるため、
+		// ここで子の位置を直接更新する代わりに再レイアウトを要求します。
+		sv.MarkDirty(true)
 	}
 }
 
-// SetSize sets the size for the ScrollView and its internal container.
+// SetSize sets the size for the ScrollView. The internal container's size
+// will be updated as well.
 func (sv *ScrollView) SetSize(width, height int) {
 	if w, h := sv.GetSize(); w != width || h != height {
 		sv.Transform.SetSize(width, height)
+		// ScrollViewのサイズが変わると、内部コンテナのサイズも追従する必要があります。
 		if sv.container != nil {
 			sv.container.SetSize(width, height)
 		}
@@ -178,20 +169,6 @@ func (sv *ScrollView) SetSize(width, height int) {
 	}
 }
 
-// SetMinSize sets the minimum size for the ScrollView.
-// This is a no-op for ScrollView as its size is determined by its container.
-func (sv *ScrollView) SetMinSize(width, height int) {
-	// No-op
-}
-
-// GetMinSize returns the minimum size for the ScrollView.
-func (sv *ScrollView) GetMinSize() (int, int) {
-	// ScrollView itself doesn't have an intrinsic minimum size.
-	// It's determined by its container and layout.
-	return 0, 0
-}
-
-// HitTest checks for hits first on the ScrollView itself, then on its internal container.
 func (sv *ScrollView) HitTest(x, y int) component.Widget {
 	if !sv.IsVisible() || sv.IsDisabled() {
 		return nil
@@ -200,20 +177,28 @@ func (sv *ScrollView) HitTest(x, y int) component.Widget {
 	wwidth, wheight := sv.GetSize()
 	rect := image.Rect(wx, wy, wx+wwidth, wy+wheight)
 	if !rect.Empty() && (image.Point{X: x, Y: y}.In(rect)) {
-		if target := sv.container.HitTest(x, y); target != nil {
-			return target
+		// ヒットテストは描画順と逆（手前が先）に行うのが一般的なので、
+		// スクロールバーを先にテストします。
+		if sv.vScrollBar != nil {
+			if target := sv.vScrollBar.HitTest(x, y); target != nil {
+				return target
+			}
 		}
+		// 次に内部コンテナをテストします。
+		if sv.container != nil {
+			if target := sv.container.HitTest(x, y); target != nil {
+				return target
+			}
+		}
+		// どこにもヒットしなければ、ScrollView自身を返します（スクロールイベントのため）。
 		return sv
 	}
 	return nil
 }
 
-// HandleEvent processes events.
 func (sv *ScrollView) HandleEvent(e *event.Event) {
-	// UPDATE: イベントハンドラの安全な実行をInteractionコンポーネントに委譲
 	sv.Interaction.TriggerHandlers(e)
 
-	// 親ウィジェットへのイベント伝播
 	if e != nil && !e.Handled && sv.GetParent() != nil {
 		if processor, ok := sv.GetParent().(component.EventProcessor); ok {
 			processor.HandleEvent(e)
@@ -221,14 +206,26 @@ func (sv *ScrollView) HandleEvent(e *event.Event) {
 	}
 }
 
-// --- Method delegation to internal container ---
-func (sv *ScrollView) AddChild(child component.Widget)    { sv.container.AddChild(child) }
-func (sv *ScrollView) RemoveChild(child component.Widget) { sv.container.RemoveChild(child) }
-func (sv *ScrollView) GetChildren() []component.Widget    { return sv.container.GetChildren() }
+// --- Container interface implementation ---
+// ScrollViewは特殊なコンテナです。AddChild/RemoveChild/GetChildrenは
+// ScrollView自身の直接の子（内部コンテナとスクロールバー）を操作します。
+// スクロールされるコンテンツはSetContent経由で内部コンテナに追加されます。
+func (sv *ScrollView) AddChild(child component.Widget)    { sv.Node.AddChild(child) }
+func (sv *ScrollView) RemoveChild(child component.Widget) { sv.Node.RemoveChild(child); child.Cleanup() }
+// UPDATE: コンパイルエラーを修正。Nodeが返す[]NodeOwnerを[]Widgetに変換します。
+func (sv *ScrollView) GetChildren() []component.Widget {
+	nodeOwners := sv.Node.GetChildren()
+	widgets := make([]component.Widget, len(nodeOwners))
+	for i, owner := range nodeOwners {
+		// AddChildでWidgetしか受け付けないため、このアサーションは安全です。
+		widgets[i] = owner.(component.Widget)
+	}
+	return widgets
+}
 
 // --- layout.ScrollViewer interface ---
-func (sv *ScrollView) GetLayout() layout.Layout           { return sv.layout }
-func (sv *ScrollView) SetLayout(l layout.Layout)          { sv.layout = l }
+func (sv *ScrollView) GetLayout() layout.Layout { return sv.layout }
+func (sv *ScrollView) SetLayout(l layout.Layout) { sv.layout = l }
 func (sv *ScrollView) GetPadding() layout.Insets {
 	style := sv.ReadOnlyStyle()
 	if style.Padding != nil {

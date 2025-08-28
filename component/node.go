@@ -1,7 +1,5 @@
 package component
 
-
-
 // Nodeは、UIツリー内の階層構造（親子関係）を管理します。
 // データ保持に専念し、ロジックは最小限に留めます。
 type Node struct {
@@ -51,18 +49,34 @@ func (n *Node) AddChild(child NodeOwner) {
 	}
 
 	if oldParent := child.GetNode().GetParent(); oldParent != nil {
-		oldParent.GetNode().removeChild(child)
+		// UPDATE: 非公開メソッドの代わりに公開されたDetachメソッドを使用します。
+		// これにより、子を移動させる際に、古い親から安全にデタッチできます。
+		oldParent.GetNode().Detach(child)
 	}
 
 	child.GetNode().SetParent(n.self)
 	n.children = append(n.children, child)
 }
 
-// RemoveChildは、子ノードを削除します。
+// RemoveChildは、子ノードを削除し、親ポインタをnilに設定します。
 func (n *Node) RemoveChild(child NodeOwner) {
 	if n.removeChild(child) {
 		child.GetNode().SetParent(nil)
 	}
+}
+
+// UPDATE: Detachは、子を親の管理下から外しますが、子の親ポインタは変更しません。
+// これは、ウィジェットをツリーの別の場所に「移動」する際に使用されます。
+// AddChildが内部的に呼び出します。
+func (n *Node) Detach(child NodeOwner) bool {
+	return n.removeChild(child)
+}
+
+// UPDATE: ClearChildrenは、すべての子要素をリストから削除します。
+// これは、コンテナがクリーンアップされる際に、安全に子リストを空にするために使用されます。
+func (n *Node) ClearChildren() {
+	// 参照を解放するためにスライスをnilにします。
+	n.children = nil
 }
 
 // removeChildは、子リストから指定された子を削除する内部ヘルパーです。

@@ -6,20 +6,13 @@ import (
 
 // Spacer is a non-drawing widget used to fill space in a FlexLayout.
 type Spacer struct {
-	*component.Node
-	*component.Transform
-	*component.LayoutProperties
-	// UPDATE: Spacerはスタイルやインタラクションを持たないため、関連コンポーネントを削除
-	// *component.Appearance
-	// *component.Interaction
-	*component.Visibility
-	*component.Dirty
-
-	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
-	// hasBeenLaidOut bool
+	// UPDATE: Spacerが必要とする最小限の共通コンポーネントをWidgetCoreから取得
+	*component.WidgetCore
 }
 
 // --- Interface implementation verification ---
+// UPDATE: Spacerはスタイルやインタラクションを持たないため、StandardWidgetは実装しません。
+//         Widgetインターフェースと、レイアウトに必要な基本的なインターフェースのみを実装します。
 var _ component.Widget = (*Spacer)(nil)
 var _ component.NodeOwner = (*Spacer)(nil)
 var _ component.LayoutPropertiesOwner = (*Spacer)(nil)
@@ -27,96 +20,31 @@ var _ component.VisibilityOwner = (*Spacer)(nil)
 var _ component.DirtyManager = (*Spacer)(nil)
 var _ component.AbsolutePositioner = (*Spacer)(nil)
 
-// UPDATE: Buildableインターフェースが削除されたため、実装検証も削除
-// var _ component.Buildable = (*Spacer)(nil)
-// var _ component.EventProcessor = (*Spacer)(nil)
-
 // newSpacer creates a new component-based Spacer.
 func newSpacer() (*Spacer, error) {
 	s := &Spacer{}
-	s.Node = component.NewNode(s)
-	s.Transform = component.NewTransform()
-	s.LayoutProperties = component.NewLayoutProperties()
-	// UPDATE: 不要なコンポーネントの初期化を削除
-	// s.Appearance = component.NewAppearance(s)
-	// s.Interaction = component.NewInteraction(s)
-	s.Visibility = component.NewVisibility(s)
-	s.Dirty = component.NewDirty()
+	// UPDATE: WidgetCoreのみを初期化
+	s.WidgetCore = component.NewWidgetCore(s)
 	return s, nil
 }
 
 // --- Interface implementations ---
 
-func (s *Spacer) GetNode() *component.Node                         { return s.Node }
-func (s *Spacer) GetLayoutProperties() *component.LayoutProperties { return s.LayoutProperties }
-func (s *Spacer) Update()                                          {}
-func (s *Spacer) Cleanup()                                         { s.SetParent(nil) }
-func (s *Spacer) Draw(info component.DrawInfo)                     {} // Spacer is not drawn
+// GetNode, GetLayoutProperties are now inherited from WidgetCore.
+func (s *Spacer) Update()                {}
+func (s *Spacer) Cleanup()               { s.SetParent(nil) }
+func (s *Spacer) Draw(info component.DrawInfo) {} // Spacer is not drawn
 
-func (s *Spacer) MarkDirty(relayout bool) {
-	s.Dirty.MarkDirty(relayout)
-	if relayout && !s.IsLayoutBoundary() {
-		if parent := s.GetParent(); parent != nil {
-			if dm, ok := parent.(component.DirtyManager); ok {
-				dm.MarkDirty(true)
-			}
-		}
-	}
-}
-
-func (s *Spacer) SetPosition(x, y int) {
-	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
-	if !s.HasBeenLaidOut() {
-		s.SetLaidOut(true)
-	}
-	if posX, posY := s.GetPosition(); posX != x || posY != y {
-		s.Transform.SetPosition(x, y)
-		s.MarkDirty(false)
-	}
-}
-
-func (s *Spacer) SetSize(width, height int) {
-	if w, h := s.GetSize(); w != width || h != height {
-		s.Transform.SetSize(width, height)
-		s.MarkDirty(true)
-	}
-}
-
-func (s *Spacer) SetMinSize(width, height int) {} // Spacer has no min size
-func (s *Spacer) GetMinSize() (int, int) {
-	return 0, 0
-}
+// UPDATE: MarkDirty, SetPosition, SetSize, SetMinSize, GetMinSize, SetRequestedPosition,
+// GetRequestedPositionはすべてWidgetCoreに実装されているため、このファイルからは削除されました。
+// Spacerはコンテンツを持たないため、GetMinSizeはWidgetCoreのデフォルト実装(0,0)で十分です。
 
 func (s *Spacer) HitTest(x, y int) component.Widget {
 	return nil // Spacer is not interactive
 }
 
-// UPDATE: EventProcessorを実装する必要がなくなったためHandleEventを削除
-// func (s *Spacer) HandleEvent(e *event.Event) {}
-
-// --- AbsolutePositioner and other interface implementations required by Builder ---
-func (s *Spacer) SetRequestedPosition(x, y int) {
-	s.Transform.SetRequestedPosition(x, y)
-	s.MarkDirty(true)
-}
-
-func (s *Spacer) GetRequestedPosition() (int, int) {
-	return s.Transform.GetRequestedPosition()
-}
-
-// UPDATE: Buildableインターフェースがなくなったため、以下のダミーメソッドは不要になり削除
-// func (s *Spacer) SetFlex(flex int)                  { s.LayoutProperties.SetFlex(flex) }
-// func (s *Spacer) GetFlex() int                      { return s.LayoutProperties.GetFlex() }
-// func (s *Spacer) SetLayoutBoundary(isBoundary bool) { s.LayoutProperties.SetLayoutBoundary(isBoundary) }
-// func (s *Spacer) SetLayoutData(data any)            { s.LayoutProperties.SetLayoutData(data) }
-// func (s *Spacer) GetLayoutData() any                { return s.LayoutProperties.GetLayoutData() }
-// func (s *Spacer) SetStyle(style style.Style) {}
-// func (s *Spacer) GetStyle() style.Style      { return style.Style{} }
-// func (s *Spacer) ReadOnlyStyle() style.Style { return style.Style{} }
-
 // --- SpacerBuilder ---
 
-// UPDATE: SpacerBuilderは汎用のcomponent.Builderを埋め込むように変更
 type SpacerBuilder struct {
 	component.Builder[*SpacerBuilder, *Spacer]
 }
@@ -130,10 +58,6 @@ func NewSpacerBuilder() *SpacerBuilder {
 	return b
 }
 
-// Build は、最終的なSpacerを構築して返します。
 func (b *SpacerBuilder) Build() (*Spacer, error) {
 	return b.Builder.Build()
 }
-
-// NOTE: Size, Flex, AssignTo などの共通メソッドは component.Builder に
-//       実装されているため、ここからは削除されました。

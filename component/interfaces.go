@@ -51,6 +51,29 @@ type Widget interface {
 	HitTester
 }
 
+// UPDATE: 標準的なウィジェットが実装すべき能力を定義する複合インターフェースを追加。
+// これにより、各ウィジェットの責務がコード上で明確になります。
+// StandardWidgetは、レイアウト可能で、スタイルを持ち、インタラクティブな振る舞いを
+// 持つことができる、標準的なウィジェットの契約を定義します。
+type StandardWidget interface {
+	Widget
+	PositionSetter
+	SizeSetter
+	MinSizeSetter
+	StyleGetterSetter
+	LayoutPropertiesOwner
+	AbsolutePositioner
+	EventProcessor
+	InteractiveState
+}
+
+// UPDATE: テキストを持つウィジェットのための複合インターフェースを追加。
+type TextBasedWidget interface {
+	StandardWidget
+	TextOwner      // component.Text を所有
+	HeightForWider // 幅に応じた高さを計算
+}
+
 // HeightForWider は、ウィジェットが特定の幅を与えられた場合に
 // 必要となる高さを計算できることを示すインターフェースです。
 // テキストの折り返しなど、コンテンツの高さが幅に依存するウィジェットによって実装されます。
@@ -125,6 +148,15 @@ type InteractiveState interface {
 	IsDisabled() bool
 	// UPDATE: HasBeenLaidOutはVisibilityコンポーネントの責務となったため、このインターフェースから削除されました。
 	// HasBeenLaidOut() bool
+
+	// HasBeenLaidOut はウィジェットが一度でもレイアウトされたかを返します。
+	// NOTE: このメソッドはVisibilityコンポーネントによって提供されるため、
+	// 以前のようにこのインターフェースに含める必要は理論上ありませんが、
+	// IsVisibleと密接に関連するため、利便性のためにここに残すことも検討できます。
+	// 今回は、責務の分離を徹底するため、ここからは削除し、
+	// 必要な場面では (component.VisibilityOwner) でアサーションすることを推奨します。
+	// しかし、多くのウィジェットで必要となるため、利便性のために残します。
+	HasBeenLaidOut() bool
 	CurrentState() WidgetState
 }
 
