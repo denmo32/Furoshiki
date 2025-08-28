@@ -1,14 +1,12 @@
 package widget
 
 import (
-	"errors"
 	"furoshiki/component"
 	"furoshiki/event"
 	"furoshiki/style"
 	"furoshiki/theme"
 	"furoshiki/utils"
 	"image"
-	"image/color"
 	"log"
 	"runtime/debug"
 
@@ -32,6 +30,8 @@ type Button struct {
 
 // --- Interface implementation verification ---
 var _ component.Widget = (*Button)(nil)
+// NOTE: Buttonがcomponent.Builderで利用可能になるために、Buildableインターフェースを満たす必要があります。
+var _ component.Buildable = (*Button)(nil)
 var _ component.NodeOwner = (*Button)(nil)
 var _ component.AppearanceOwner = (*Button)(nil)
 var _ component.InteractionOwner = (*Button)(nil)
@@ -62,6 +62,7 @@ func newButton(text string) (*Button, error) {
 	b.SetStyleForState(component.StatePressed, t.Button.Pressed)
 	b.SetStyleForState(component.StateDisabled, t.Button.Disabled)
 
+	// NOTE: デフォルトサイズの指定は、具象ウィジェットの責任として残します。
 	b.SetSize(100, 40)
 	return b, nil
 }
@@ -226,7 +227,7 @@ func (b *Button) HandleEvent(e *event.Event) {
 	}
 }
 
-// --- AbsolutePositioner Implementation ---
+// --- AbsolutePositioner and other Buildable interface implementations ---
 func (b *Button) SetRequestedPosition(x, y int) {
 	b.Transform.SetRequestedPosition(x, y)
 	b.MarkDirty(true)
@@ -236,109 +237,53 @@ func (b *Button) GetRequestedPosition() (int, int) {
 	return b.Transform.GetRequestedPosition()
 }
 
+// NOTE: 以下のメソッドは component.Buildable インターフェースを満たすために実装されています。
+//       実際の処理は内部のコンポーネントに移譲されます。
+
+func (b *Button) SetFlex(flex int)                { b.LayoutProperties.SetFlex(flex) }
+func (b *Button) GetFlex() int                    { return b.LayoutProperties.GetFlex() }
+func (b *Button) SetLayoutBoundary(isBoundary bool) { b.LayoutProperties.SetLayoutBoundary(isBoundary) }
+func (b *Button) SetLayoutData(data any)          { b.LayoutProperties.SetLayoutData(data) }
+func (b *Button) GetLayoutData() any              { return b.LayoutProperties.GetLayoutData() }
+
 // --- ButtonBuilder ---
+
+// 【提案3対応】ButtonBuilderは汎用のcomponent.Builderを埋め込むように変更されました。
+// これにより、Size, Flex, Padding, AssignToなどの共通メソッドは基底クラスに集約され、
+// ButtonBuilderはButton固有のメソッド（Text, AddOnClickなど）のみを定義します。
 type ButtonBuilder struct {
-	button *Button
-	errors []error
+	component.Builder[*ButtonBuilder, *Button]
 }
 
+// NewButtonBuilderは新しいButtonBuilderを生成します。
 func NewButtonBuilder() *ButtonBuilder {
 	button, err := newButton("")
-	b := &ButtonBuilder{button: button}
-	if err != nil {
-		b.errors = append(b.errors, err)
-	}
+	b := &ButtonBuilder{}
+	// 基底のビルダーを初期化します。
+	b.Init(b, button)
+	b.AddError(err)
 	return b
 }
 
+// Build は、最終的なButtonを構築して返します。
+// 実際のロジックは基底のBuilder.Buildに移譲されます。
 func (b *ButtonBuilder) Build() (*Button, error) {
-	if len(b.errors) > 0 {
-		return nil, errors.Join(b.errors...)
-	}
-	b.button.MarkDirty(true)
-	return b.button, nil
+	return b.Builder.Build()
 }
 
-func (b *ButtonBuilder) AddError(err error) {
-	if err != nil {
-		b.errors = append(b.errors, err)
-	}
-}
+// --- Button-specific Builder Methods ---
 
-// --- Builder Methods ---
-
+// Text はボタンに表示されるテキストを設定します。
 func (b *ButtonBuilder) Text(text string) *ButtonBuilder {
-	b.button.SetText(text)
+	b.Widget.SetText(text)
 	return b
 }
 
+// WrapText はボタンのテキストを折り返すかどうかを設定します。
 func (b *ButtonBuilder) WrapText(wrap bool) *ButtonBuilder {
-	b.button.SetWrapText(wrap)
+	b.Widget.SetWrapText(wrap)
 	return b
 }
 
-func (b *ButtonBuilder) Size(width, height int) *ButtonBuilder {
-	b.button.SetSize(width, height)
-	return b
-}
-
-func (b *ButtonBuilder) MinSize(width, height int) *ButtonBuilder {
-	b.button.SetMinSize(width, height)
-	return b
-}
-
-func (b *ButtonBuilder) Flex(flex int) *ButtonBuilder {
-	b.button.SetFlex(flex)
-	return b
-}
-
-func (b *ButtonBuilder) AbsolutePosition(x, y int) *ButtonBuilder {
-	b.button.SetRequestedPosition(x, y)
-	return b
-}
-
-func (b *ButtonBuilder) AssignTo(target **Button) *ButtonBuilder {
-	if target == nil {
-		b.errors = append(b.errors, errors.New("AssignTo target cannot be nil"))
-		return b
-	}
-	*target = b.button
-	return b
-}
-
-func (b *ButtonBuilder) AddOnClick(handler event.EventHandler) *ButtonBuilder {
-	b.button.AddEventHandler(event.EventClick, handler)
-	return b
-}
-
-// --- Style Helper Methods ---
-
-func (b *ButtonBuilder) applyStyle(s style.Style) *ButtonBuilder {
-	existingStyle := b.button.GetStyle()
-	b.button.SetStyle(style.Merge(existingStyle, s))
-	return b
-}
-
-func (b *ButtonBuilder) TextColor(c color.Color) *ButtonBuilder {
-	return b.applyStyle(style.Style{TextColor: style.PColor(c)})
-}
-
-func (b *ButtonBuilder) BackgroundColor(c color.Color) *ButtonBuilder {
-	return b.applyStyle(style.Style{Background: style.PColor(c)})
-}
-
-func (b *ButtonBuilder) Padding(p int) *ButtonBuilder {
-	return b.applyStyle(style.Style{Padding: style.PInsets(style.Insets{Top: p, Right: p, Bottom: p, Left: p})})
-}
-
-func (b *ButtonBuilder) Border(width float32, c color.Color) *ButtonBuilder {
-	return b.applyStyle(style.Style{BorderWidth: style.PFloat32(width), BorderColor: style.PColor(c)})
-}
-
-func (b *ButtonBuilder) TextAlign(align style.TextAlignType) *ButtonBuilder {
-	return b.applyStyle(style.Style{TextAlign: style.PTextAlignType(align)})
-}
-
-func (b *ButtonBuilder) VerticalAlign(align style.VerticalAlignType) *ButtonBuilder {
-	return b.applyStyle(style.Style{VerticalAlign: style.PVerticalAlignType(align)})
-}
+// NOTE: Size, Flex, AbsolutePosition, AssignTo, BackgroundColor, Padding, Border, AddOnClick
+// などの共通メソッドはすべて component.Builder に実装されているため、ここからは完全に削除されました。

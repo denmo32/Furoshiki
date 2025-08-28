@@ -18,16 +18,13 @@ var (
 	ErrInvalidBorderWidth   = errors.New("border width must be non-negative")
 )
 
-// 【提案1対応】ジェネリクス型Wの制約を強化します。
-// Builderが操作するウィジェットは、基本的なWidgetの振る舞いに加え、
-// サイズ、スタイル、レイアウト、イベント処理に関するインターフェースを実装している必要があります。
+// Buildableは、汎用のcomponent.Builderが操作するウィジェットが満たすべき能力を定義するインターフェースです。
+// これにより、ビルダーは型安全にウィジェットのプロパティを操作できます。
 type Buildable interface {
 	Widget
 	SizeSetter
 	MinSizeSetter
 	StyleGetterSetter
-	// NOTE: LayoutPropertiesインターフェースは削除されましたが、
-	//       既存のビルダーとの互換性のためにメソッドを直接定義します。
 	SetFlex(flex int)
 	GetFlex() int
 	SetLayoutBoundary(isBoundary bool)
@@ -63,8 +60,6 @@ func (b *Builder[T, W]) AddError(err error) {
 // AbsolutePosition は、親コンテナ内でのウィジェットの希望相対位置を設定します。
 // これは、親コンテナがAbsoluteLayout（例: ZStack）を使用している場合にのみ有効です。
 func (b *Builder[T, W]) AbsolutePosition(x, y int) T {
-	// 【提案1対応】WはAbsolutePositionerを実装していることが保証されているため、
-	// 以前の型アサーションは不要になりました。
 	b.Widget.SetRequestedPosition(x, y)
 	return b.Self
 }
@@ -74,7 +69,6 @@ func (b *Builder[T, W]) Size(width, height int) T {
 	if err := validateSize(width, height); err != nil {
 		b.AddError(err)
 	} else {
-		// 【提案1対応】WはSizeSetterを実装していることが保証されています。
 		b.Widget.SetSize(width, height)
 	}
 	return b.Self
@@ -85,7 +79,6 @@ func (b *Builder[T, W]) MinSize(width, height int) T {
 	if err := validateSize(width, height); err != nil {
 		b.AddError(err)
 	} else {
-		// 【提案1対応】WはMinSizeSetterを実装していることが保証されています。
 		b.Widget.SetMinSize(width, height)
 	}
 	return b.Self
@@ -101,7 +94,6 @@ func validateSize(width, height int) error {
 
 // Style は指定されたスタイルをウィジェットの既存のスタイルとマージします。
 func (b *Builder[T, W]) Style(s style.Style) T {
-	// 【提案1対応】WはStyleGetterSetterを実装していることが保証されています。
 	existingStyle := b.Widget.GetStyle()
 	b.Widget.SetStyle(style.Merge(existingStyle, s))
 	return b.Self
@@ -112,7 +104,6 @@ func (b *Builder[T, W]) Flex(flex int) T {
 	if flex < 0 {
 		b.AddError(fmt.Errorf("%w, got %d", ErrInvalidFlex, flex))
 	} else {
-		// 【提案1対応】WはLayoutPropertiesを実装していることが保証されています。
 		b.Widget.SetFlex(flex)
 	}
 	return b.Self
@@ -122,16 +113,13 @@ func (b *Builder[T, W]) Flex(flex int) T {
 
 // applyStyleProperty はスタイルプロパティを設定するための共通ヘルパー関数です
 func (b *Builder[T, W]) applyStyleProperty(setter func(style.Style) style.Style) T {
-	// 【提案1対応】WはStyleGetterSetterを実装していることが保証されています。
 	newStyle := setter(b.Widget.GetStyle())
 	b.Widget.SetStyle(newStyle)
 	return b.Self
 }
 
-// 【提案3対応】スタイルオプション関数を用いてウィジェットのスタイルを柔軟に設定するメソッドを追加します。
-// 既存のスタイルに対して変更を適用します。
+// ApplyStyles はスタイルオプション関数を用いてウィジェットのスタイルを柔軟に設定します。
 func (b *Builder[T, W]) ApplyStyles(opts ...style.StyleOption) T {
-	// GetStyleはディープコピーを返すため、安全に変更できます。
 	newStyle := b.Widget.GetStyle()
 	for _, opt := range opts {
 		opt(&newStyle)
@@ -144,6 +132,14 @@ func (b *Builder[T, W]) ApplyStyles(opts ...style.StyleOption) T {
 func (b *Builder[T, W]) BackgroundColor(c color.Color) T {
 	return b.applyStyleProperty(func(s style.Style) style.Style {
 		s.Background = style.PColor(c)
+		return s
+	})
+}
+
+// TextColor はウィジェットのテキスト色を設定します。
+func (b *Builder[T, W]) TextColor(c color.Color) T {
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.TextColor = style.PColor(c)
 		return s
 	})
 }
@@ -195,13 +191,25 @@ func (b *Builder[T, W]) Border(width float32, c color.Color) T {
 	})
 }
 
-// --- 汎用イベントハンドラ設定メソッド ---
-// NOTE: メソッド名を On... から AddOn... に変更し、ハンドラが上書きではなく
-//       追加される挙動であることを明確にしました。
+// TextAlign はテキストの水平方向の揃え位置を設定します。
+func (b *Builder[T, W]) TextAlign(align style.TextAlignType) T {
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.TextAlign = style.PTextAlignType(align)
+		return s
+	})
+}
 
+// VerticalAlign はテキストの垂直方向の揃え位置を設定します。
+func (b *Builder[T, W]) VerticalAlign(align style.VerticalAlignType) T {
+	return b.applyStyleProperty(func(s style.Style) style.Style {
+		s.VerticalAlign = style.PVerticalAlignType(align)
+		return s
+	})
+}
+
+// --- 汎用イベントハンドラ設定メソッド ---
 // AddOnClick は、ウィジェットがクリックされたときに実行されるイベントハンドラを追加します。
 func (b *Builder[T, W]) AddOnClick(handler event.EventHandler) T {
-	// 【提案1対応】WはEventProcessorを実装していることが保証されています。
 	b.Widget.AddEventHandler(event.EventClick, handler)
 	return b.Self
 }
@@ -243,34 +251,25 @@ func (b *Builder[T, W]) AddOnMouseScroll(handler event.EventHandler) T {
 }
 
 // AssignTo は、ビルド中のウィジェットインスタンスへのポインタを変数に代入します。
-// UIの宣言的な構築フローを中断することなく、後から操作したいウィジェットへの参照を
-// 安全に取得するために使用します。
-// 例: .AssignTo(&myButton) (myButton は *widget.Button 型の変数)
 func (b *Builder[T, W]) AssignTo(target any) T {
 	if target == nil {
 		b.AddError(errors.New("AssignTo target cannot be nil"))
 		return b.Self
 	}
 
-	// targetが代入先のポインタ（例: **Button）であることをリフレクションで検証します。
 	targetVal := reflect.ValueOf(target)
 	if targetVal.Kind() != reflect.Ptr || targetVal.IsNil() {
 		b.AddError(fmt.Errorf("AssignTo target must be a non-nil pointer, got %T", target))
 		return b.Self
 	}
 
-	// ポインタが指す先の要素（例: *Button）を取得します。
 	targetElem := targetVal.Elem()
-
-	// ビルド中のウィジェットの型と、代入先の型に互換性があるか確認します。
 	widgetVal := reflect.ValueOf(b.Widget)
 	if !widgetVal.Type().AssignableTo(targetElem.Type()) {
-		// エラーメッセージをより分かりやすくするために、型名を出力します。
 		b.AddError(fmt.Errorf("cannot assign widget of type %s to target of type %s", widgetVal.Type(), targetElem.Type()))
 		return b.Self
 	}
 
-	// 代入可能であることを確認してから、実際に値を設定します。
 	if !targetElem.CanSet() {
 		b.AddError(fmt.Errorf("AssignTo target cannot be set"))
 		return b.Self
@@ -284,8 +283,12 @@ func (b *Builder[T, W]) AssignTo(target any) T {
 func (b *Builder[T, W]) Build() (W, error) {
 	if len(b.errors) > 0 {
 		var zero W
-		typeName := reflect.TypeOf(b.Widget).Elem().Name()
-		return zero, fmt.Errorf("%s build errors: %w", typeName, errors.Join(b.errors...))
+		// エラー時にどのウィジェットで問題が起きたか分かりやすいように型名を含める
+		typeName := reflect.TypeOf(b.Widget)
+		if typeName.Kind() == reflect.Ptr {
+			typeName = typeName.Elem()
+		}
+		return zero, fmt.Errorf("%s build errors: %w", typeName.Name(), errors.Join(b.errors...))
 	}
 	b.Widget.MarkDirty(true)
 	return b.Widget, nil

@@ -1,13 +1,12 @@
 package widget
 
 import (
-	"errors"
 	"furoshiki/component"
+	"furoshiki/event"
 	"furoshiki/style"
 	"furoshiki/theme"
 	"furoshiki/utils"
 	"image"
-	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2/text"
 )
@@ -19,6 +18,7 @@ type Label struct {
 	*component.Transform
 	*component.LayoutProperties
 	*component.Appearance
+	*component.Interaction
 	*component.Text
 	*component.Visibility
 	*component.Dirty
@@ -29,15 +29,19 @@ type Label struct {
 
 // --- インターフェース実装の検証 ---
 var _ component.Widget = (*Label)(nil)
+// NOTE: Labelがcomponent.Builderで利用可能になるために、Buildableインターフェースを満たす必要があります。
+var _ component.Buildable = (*Label)(nil)
 var _ component.NodeOwner = (*Label)(nil)
 var _ component.AppearanceOwner = (*Label)(nil)
+var _ component.InteractionOwner = (*Label)(nil)
 var _ component.TextOwner = (*Label)(nil)
 var _ component.LayoutPropertiesOwner = (*Label)(nil)
 var _ component.VisibilityOwner = (*Label)(nil)
 var _ component.DirtyManager = (*Label)(nil)
 var _ component.HeightForWider = (*Label)(nil)
-
 var _ component.AbsolutePositioner = (*Label)(nil)
+// NOTE: Label is not interactive, but it must implement EventProcessor to satisfy Buildable.
+var _ component.EventProcessor = (*Label)(nil)
 
 // newLabelは、新しいコンポーネントベースのLabelを生成します。
 func newLabel(text string) (*Label, error) {
@@ -46,21 +50,26 @@ func newLabel(text string) (*Label, error) {
 	l.Transform = component.NewTransform()
 	l.LayoutProperties = component.NewLayoutProperties()
 	l.Appearance = component.NewAppearance(l)
+	// NOTE: Labelはインタラクティブではないが、コンポーネントの枠組みとしてInteractionを持つ
+	l.Interaction = component.NewInteraction(l)
 	l.Text = component.NewText(l, text)
 	l.Visibility = component.NewVisibility(l)
 	l.Dirty = component.NewDirty()
+
 	t := theme.GetCurrent()
 	l.SetStyle(t.Label.Default)
+
+	// NOTE: デフォルトサイズの指定は、具象ウィジェットの責任として残します。
 	l.SetSize(100, 30)
 	return l, nil
 }
 
 // --- インターフェース実装 ---
 
-func (l *Label) GetNode() *component.Node                { return l.Node }
+func (l *Label) GetNode() *component.Node                   { return l.Node }
 func (l *Label) GetLayoutProperties() *component.LayoutProperties { return l.LayoutProperties }
-func (l *Label) Update()                                  {}
-func (l *Label) Cleanup()                                 { l.SetParent(nil) }
+func (l *Label) Update()                                    {}
+func (l *Label) Cleanup()                                   { l.SetParent(nil) }
 
 func (l *Label) Draw(info component.DrawInfo) {
 	if !l.IsVisible() || !l.hasBeenLaidOut {
@@ -70,7 +79,9 @@ func (l *Label) Draw(info component.DrawInfo) {
 	width, height := l.GetSize()
 	finalX := x + info.OffsetX
 	finalY := y + info.OffsetY
+
 	styleToUse := l.GetStyle()
+
 	component.DrawStyledBackground(info.Screen, finalX, finalY, width, height, styleToUse)
 	finalRect := image.Rect(finalX, finalY, finalX+width, finalY+height)
 	component.DrawAlignedText(info.Screen, l.Text.Text(), finalRect, styleToUse, l.WrapText())
@@ -88,9 +99,13 @@ func (l *Label) MarkDirty(relayout bool) {
 }
 
 func (l *Label) SetPosition(x, y int) {
-	l.Transform.SetPosition(x, y)
-	l.hasBeenLaidOut = true
-	l.MarkDirty(false)
+	if !l.hasBeenLaidOut {
+		l.hasBeenLaidOut = true
+	}
+	if posX, posY := l.GetPosition(); posX != x || posY != y {
+		l.Transform.SetPosition(x, y)
+		l.MarkDirty(false)
+	}
 }
 
 func (l *Label) SetSize(width, height int) {
@@ -165,11 +180,21 @@ func (l *Label) calculateContentMinSize() (int, int) {
 }
 
 func (l *Label) HitTest(x, y int) component.Widget {
+	// Label is not interactive by default.
 	return nil
 }
 
-// --- AbsolutePositioner Implementation ---
+// HandleEvent is a dummy implementation to satisfy the EventProcessor interface.
+func (l *Label) HandleEvent(e *event.Event) {
+	// Propagate event to parent by default
+	if e != nil && !e.Handled && l.GetParent() != nil {
+		if processor, ok := l.GetParent().(component.EventProcessor); ok {
+			processor.HandleEvent(e)
+		}
+	}
+}
 
+// --- AbsolutePositioner and other Buildable interface implementations ---
 func (l *Label) SetRequestedPosition(x, y int) {
 	l.Transform.SetRequestedPosition(x, y)
 	l.MarkDirty(true)
@@ -179,108 +204,57 @@ func (l *Label) GetRequestedPosition() (int, int) {
 	return l.Transform.GetRequestedPosition()
 }
 
+// NOTE: 以下のメソッドは component.Buildable インターフェースを満たすために実装されています。
+func (l *Label) SetFlex(flex int)                { l.LayoutProperties.SetFlex(flex) }
+func (l *Label) GetFlex() int                    { return l.LayoutProperties.GetFlex() }
+func (l *Label) SetLayoutBoundary(isBoundary bool) { l.LayoutProperties.SetLayoutBoundary(isBoundary) }
+func (l *Label) SetLayoutData(data any)          { l.LayoutProperties.SetLayoutData(data) }
+func (l *Label) GetLayoutData() any              { return l.LayoutProperties.GetLayoutData() }
+func (l *Label) AddEventHandler(eventType event.EventType, handler event.EventHandler) {
+	l.Interaction.AddEventHandler(eventType, handler)
+}
+func (l *Label) RemoveEventHandler(eventType event.EventType) {
+	l.Interaction.RemoveEventHandler(eventType)
+}
+
 // --- LabelBuilder ---
 
-// LabelBuilderは、新しいコンポーネントベースのLabelウィジェットを構築します。
-// 以前の汎用ビルダーとは異なり、Label専用のビルダーとして実装されています。
+// 【提案3対応】LabelBuilderは汎用のcomponent.Builderを埋め込むように変更されました。
+// これにより、Size, Flex, Paddingなどの共通メソッドは基底クラスに集約され、
+// LabelBuilderはLabel固有のメソッド（Textなど）のみを定義します。
 type LabelBuilder struct {
-	label  *Label
-	errors []error
+	component.Builder[*LabelBuilder, *Label]
 }
 
 // NewLabelBuilderは新しいLabelBuilderを生成します。
 func NewLabelBuilder() *LabelBuilder {
 	label, err := newLabel("")
-	b := &LabelBuilder{label: label}
-	if err != nil {
-		b.errors = append(b.errors, err)
-	}
+	b := &LabelBuilder{}
+	// 基底のビルダーを初期化します。
+	b.Init(b, label)
+	b.AddError(err)
 	return b
 }
 
 // Buildは、最終的なLabelを構築して返します。
+// 実際のロジックは基底のBuilder.Buildに移譲されます。
 func (b *LabelBuilder) Build() (*Label, error) {
-	if len(b.errors) > 0 {
-		return nil, errors.Join(b.errors...)
-	}
-	return b.label, nil
+	return b.Builder.Build()
 }
 
-func (b *LabelBuilder) AddError(err error) {
-	if err != nil {
-		b.errors = append(b.errors, err)
-	}
-}
+// --- Label-specific Builder Methods ---
 
-// --- Builder Methods ---
-
+// Text はラベルに表示されるテキストを設定します。
 func (b *LabelBuilder) Text(text string) *LabelBuilder {
-	b.label.SetText(text)
+	b.Widget.SetText(text)
 	return b
 }
 
+// WrapText はラベルのテキストを折り返すかどうかを設定します。
 func (b *LabelBuilder) WrapText(wrap bool) *LabelBuilder {
-	b.label.SetWrapText(wrap)
+	b.Widget.SetWrapText(wrap)
 	return b
 }
 
-func (b *LabelBuilder) Size(width, height int) *LabelBuilder {
-	b.label.SetSize(width, height)
-	return b
-}
-
-func (b *LabelBuilder) MinSize(width, height int) *LabelBuilder {
-	b.label.SetMinSize(width, height)
-	return b
-}
-
-func (b *LabelBuilder) Flex(flex int) *LabelBuilder {
-	b.label.SetFlex(flex)
-	return b
-}
-
-func (b *LabelBuilder) AbsolutePosition(x, y int) *LabelBuilder {
-	b.label.SetRequestedPosition(x, y)
-	return b
-}
-
-func (b *LabelBuilder) AssignTo(target **Label) *LabelBuilder {
-	if target == nil {
-		b.errors = append(b.errors, errors.New("AssignTo target cannot be nil"))
-		return b
-	}
-	*target = b.label
-	return b
-}
-
-// --- Style Helper Methods ---
-
-func (b *LabelBuilder) applyStyle(s style.Style) *LabelBuilder {
-	existingStyle := b.label.GetStyle()
-	b.label.SetStyle(style.Merge(existingStyle, s))
-	return b
-}
-
-func (b *LabelBuilder) TextColor(c color.Color) *LabelBuilder {
-	return b.applyStyle(style.Style{TextColor: style.PColor(c)})
-}
-
-func (b *LabelBuilder) BackgroundColor(c color.Color) *LabelBuilder {
-	return b.applyStyle(style.Style{Background: style.PColor(c)})
-}
-
-func (b *LabelBuilder) Padding(p int) *LabelBuilder {
-	return b.applyStyle(style.Style{Padding: style.PInsets(style.Insets{Top: p, Right: p, Bottom: p, Left: p})})
-}
-
-func (b *LabelBuilder) Border(width float32, c color.Color) *LabelBuilder {
-	return b.applyStyle(style.Style{BorderWidth: style.PFloat32(width), BorderColor: style.PColor(c)})
-}
-
-func (b *LabelBuilder) TextAlign(align style.TextAlignType) *LabelBuilder {
-	return b.applyStyle(style.Style{TextAlign: style.PTextAlignType(align)})
-}
-
-func (b *LabelBuilder) VerticalAlign(align style.VerticalAlignType) *LabelBuilder {
-	return b.applyStyle(style.Style{VerticalAlign: style.PVerticalAlignType(align)})
-}
+// NOTE: TextColor, BackgroundColor, Padding, VerticalAlign, TextAlign, Size, Flex, AbsolutePosition, AssignTo
+// などの共通メソッドはすべて component.Builder に実装されているため、ここからは完全に削除されました。
