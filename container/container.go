@@ -155,7 +155,30 @@ func (c *Container) drawWithClipping(info component.DrawInfo) {
 	component.DrawStyledBackground(c.offscreenImage, 0, 0, containerWidth, containerHeight, c.ReadOnlyStyle())
 
 	var scrollOffsetX, scrollOffsetY int
-	if scroller, ok := any(c).(Scroller); ok {
+	// [BUGFIX] スクロールオフセットを取得するために、Scrollerインターフェースを探します。
+	//          クリッピングコンテナ自身がScrollerでない場合（ScrollViewの内部コンテナなど）、
+	//          親を再帰的にたどってScrollerを見つける必要があります。
+	//          これにより、ネストされたコンポーネント構造でもスクロールが正しく描画に反映されます。
+	var scroller Scroller
+	if s, ok := any(c).(Scroller); ok {
+		scroller = s
+	} else {
+		// 見つからない場合は親をたどる
+		var parent component.NodeOwner = c
+		for parent != nil {
+			// [COMPILE FIX] component.NodeOwner には GetParent メソッドがありません。
+			//               GetNode() を介して Node を取得し、その GetParent() を呼び出します。
+			parent = parent.GetNode().GetParent()
+			if parent != nil {
+				if p, ok := parent.(Scroller); ok {
+					scroller = p
+					break
+				}
+			}
+		}
+	}
+
+	if scroller != nil {
 		scrollOffsetX, scrollOffsetY = scroller.GetScrollOffset()
 	}
 

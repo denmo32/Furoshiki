@@ -150,6 +150,12 @@ func (sv *ScrollView) SetPosition(x, y int) {
 	}
 	if currX, currY := sv.GetPosition(); currX != x || currY != y {
 		sv.Transform.SetPosition(x, y)
+		// [BUGFIX] ScrollViewの位置が変更された際に、内部のクリッピング用コンテナの位置も
+		//          同期させる必要があります。これを怠ると、ScrollViewが(0,0)以外の場所に
+		//          配置された場合に、コンテンツの描画位置がずれて見えなくなります。
+		if sv.container != nil {
+			sv.container.SetPosition(x, y)
+		}
 		// 子要素の位置はレイアウトシステムによって管理されるため、
 		// ここで子の位置を直接更新する代わりに再レイアウトを要求します。
 		sv.MarkDirty(true)

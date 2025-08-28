@@ -319,8 +319,12 @@ func add[W component.Widget, WB interface {
 		}
 		// 【提案1対応】ジェネリック型の変数に対して型アサーションを行うため、
 		// 一度any型にキャストしてからアサーションを実行します。
-		if lp, ok := any(widget).(component.LayoutProperties); ok {
-			lp.SetLayoutData(placement)
+		// [BUGFIX] ウィジェットは LayoutProperties 構造体そのものではなく、
+		//          LayoutPropertiesOwner インターフェースを実装しています。
+		//          このインターフェースを経由して LayoutProperties を取得し、
+		//          レイアウトデータを設定する必要があります。
+		if lpo, ok := any(widget).(component.LayoutPropertiesOwner); ok {
+			lpo.GetLayoutProperties().SetLayoutData(placement)
 		}
 		b.AddChild(widget)
 	}
