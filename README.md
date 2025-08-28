@@ -11,6 +11,29 @@ Furoshikiは、以下の設計思想に基づいています。
 -   **関心の分離**: ライブラリは `component`, `container`, `layout`, `style`, `event`, `theme` といった責務が明確なパッケージに分割されています。これにより、ライブラリの各機能が理解しやすくなり、メンテナンス性も向上します。
 -   **直感的なビルダー**: `ui`パッケージの高レベルなビルダーとメソッドチェーンにより、少ないコードで流れるようにUIを構築できます。`BackgroundColor()`, `Padding()`, `Margin()`, `Border()` のようなヘルパーメソッドが、冗長なスタイル定義を不要にします。
 
+## アーキテクチャ (Architecture)
+
+**基本戦略: 「継承より合成」の徹底**
+
+初期開発を経て露呈した密結合とそれに伴うメンテナンス性の問題を解決するため、大規模なリファクタリングを実施しました。
+
+旧来の、多くのウィジェットが巨大な基底コンポーネント(`LayoutableWidget`)を埋め込む（事実上の継承）モデルは完全に廃止されました。現在のアーキテクチャでは、すべてのウィジェットが**責務ごとに独立した小さな部品の集合体（コンポジション）**として再定義されています。これにより、Goの哲学に沿った、より柔軟で疎結合な設計が実現されています。
+
+### コアコンポーネント
+
+ウィジェットは、以下の独立したコンポーネントを組み合わせて構築されます。
+
+-   `Node`: UIツリーの階層構造（親子関係）のみを管理します。
+-   `Transform`: 位置とサイズを管理します。
+-   `LayoutProperties`: レイアウトシステムが必要とするプロパティ（Flex値など）を保持します。
+-   `Appearance`: スタイル情報(`StyleManager`)を管理します。
+-   `Interaction`: ユーザー操作（ホバー、押下）の状態とイベントハンドラを管理します。
+-   `Visibility`: ウィジェットの可視性を管理します。
+-   `Dirty`: ウィジェットの再描画・再レイアウト要求の状態を管理します。
+-   `Text`: テキスト内容とそのプロパティを管理します。
+
+このアプローチにより、各ウィジェットは本当に必要な機能だけを持つようになり、システム全体の見通しが大幅に改善されました。すべての主要ウィジェット（`Container`, `Label`, `Button`, `Spacer`, `ScrollView`, `ScrollBar`など）が、この新しいアーキテクチャに移行済みです。
+
 ## コアコンセプト (Core Concepts)
 
 Furoshikiを理解するための主要な概念です。
@@ -127,12 +150,18 @@ func NewGame() *Game {
 			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("OK").
 					Flex(1). // スペースを均等に分ける
-					AddOnClick(func(e *event.Event) { fmt.Println("OK clicked") })
+					AddOnClick(func(e *event.Event) event.Propagation { 
+						fmt.Println("OK clicked")
+						return event.Propagate
+					})
 			})
 			b.Button(func(btn *widget.ButtonBuilder) {
 				btn.Text("Cancel").
 					Flex(1).
-					AddOnClick(func(e *event.Event) { fmt.Println("Cancel clicked") })
+					AddOnClick(func(e *event.Event) event.Propagation { 
+						fmt.Println("Cancel clicked")
+						return event.Propagate
+					})
 			})
 		})
 
@@ -140,33 +169,11 @@ func NewGame() *Game {
 
 	// (Ebitenゲームループの実行部分は省略)
 }
+```
 
-注意点：レイアウトとAbsolutePosition
+**注意点：レイアウトとAbsolutePosition**
 
-ウィジェットの .AbsolutePosition(x, y) メソッドは、親コンテナが AbsoluteLayout (主に ui.ZStack で作成) の場合にのみ有効です。
+ウィジェットの `.AbsolutePosition(x, y)` メソッドは、親コンテナが `AbsoluteLayout` (主に `ui.ZStack` で作成) の場合にのみ有効です。
 
-FlexLayout (VStack や HStack), GridLayout, AdvancedGridLayout の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で .AbsolutePosition() を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
-今後のロードマップ (Roadmap)
+`FlexLayout` (`VStack` や `HStack`), `GridLayout`, `AdvancedGridLayout` の中では、子の位置はレイアウトシステムによって自動的に計算・管理されます。そのため、これらのレイアウト内で `.AbsolutePosition()` を使用しても設定は無視されるため効果はありません。これは意図された挙動です。
 
-Furoshikiは、より表現力豊かで使いやすいライブラリを目指して、以下の機能開発を計画しています。
-基本的なウィジェットの拡充
-
-現在、基本的なUIを構築するためのウィジェットを提供していますが、より多様なアプリケーションに対応するため、以下のコンポーネントの追加を計画しています。
-
-    TextInput: ユーザーからのテキスト入力を受け付けるフィールド。
-
-    Image: 画像を表示するためのウィジェット。
-
-    Checkbox: オン/オフを切り替えるチェックボックス。
-
-    Slider: 特定の範囲から値を選択するためのスライダー。
-
-    RadioButton: 複数の選択肢から一つを選ぶためのラジオボタン。
-
-高度な機能
-
-    相対的なサイズ指定: 親コンポーネントのサイズに対する割合（例: width: "50%"）でのサイズ指定機能の導入を検討します。これにより、さらに柔軟なレスポンシブデザインが可能になります。
-
-    アニメーション対応: スタイルのプロパティ（色、サイズ、位置など）を時間経過で滑らかに変化させるための基本的な仕組みを導入し、より動的なUI表現を可能にすることを目指します。
-
-    データバインディング: ウィジェットのプロパティ（例: Labelのテキスト）をアプリケーション側のデータモデルと自動的に同期させる仕組みを検討します。これにより、UIの状態管理が簡素化されます。

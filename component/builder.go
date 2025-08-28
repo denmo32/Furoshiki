@@ -26,7 +26,13 @@ type Buildable interface {
 	SizeSetter
 	MinSizeSetter
 	StyleGetterSetter
-	LayoutProperties
+	// NOTE: LayoutPropertiesインターフェースは削除されましたが、
+	//       既存のビルダーとの互換性のためにメソッドを直接定義します。
+	SetFlex(flex int)
+	GetFlex() int
+	SetLayoutBoundary(isBoundary bool)
+	SetLayoutData(data any)
+	GetLayoutData() any
 	EventProcessor
 	AbsolutePositioner
 }

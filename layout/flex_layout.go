@@ -223,8 +223,8 @@ func collectItemInfo(children []component.Widget, isRow bool) []*flexItemInfo {
 		}
 
 		flex := 0
-		if lp, ok := child.(component.LayoutProperties); ok {
-			flex = lp.GetFlex()
+		if lp, ok := child.(component.LayoutPropertiesOwner); ok {
+			flex = lp.GetLayoutProperties().GetFlex()
 		}
 
 		items[i] = &flexItemInfo{

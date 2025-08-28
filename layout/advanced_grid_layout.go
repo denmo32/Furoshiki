@@ -83,9 +83,9 @@ func (l *AdvancedGridLayout) Layout(container Container) error {
 
 		// 【提案1】型アサーションの追加: GetLayoutDataはLayoutPropertiesインターフェースが持つため、
 		// 型アサーションを行い、実装しているウィジェットからデータを取得します。
-		if lp, okGet := child.(component.LayoutProperties); okGet {
-			data = lp.GetLayoutData()
-		}
+		if lp, okGet := child.(component.LayoutPropertiesOwner); okGet {
+				data = lp.GetLayoutProperties().GetLayoutData()
+			}
 
 		if placementData, ok = data.(GridPlacementData); !ok {
 			// 配置情報がないウィジェットはレイアウト対象外とします。

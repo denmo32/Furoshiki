@@ -7,6 +7,14 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// NodeOwnerは、Node構造体を所有し、階層構造の一部となることができる
+// オブジェクトが実装すべきインターフェースです。
+// これにより、具象ウィジェットの型に依存することなく、UIツリーを操作できます。
+type NodeOwner interface {
+	// GetNodeは、オブジェクトが所有するNodeへのポインタを返します。
+	GetNode() *Node
+}
+
 // DrawInfoは、ウィジェットの描画に必要なすべてのコンテキストを保持します。
 // これを導入することで、Drawメソッドに状態変更の副作用（例: SetPositionの呼び出し）を
 // 持ち込む必要がなくなり、描画ロジックが純粋で予測可能になります。
@@ -33,7 +41,8 @@ type Widget interface {
 	Cleanup()
 
 	// --- 階層構造 ---
-	HierarchyManager
+	NodeOwner        // GetNode()を提供します
+	HierarchyManager // SetParent()/GetParent()を提供します
 
 	// --- 状態管理 ---
 	DirtyManager
@@ -64,8 +73,8 @@ type ScrollBarWidget interface {
 
 // HierarchyManager は階層構造を管理するためのインターフェースです
 type HierarchyManager interface {
-	SetParent(parent Container)
-	GetParent() Container
+	SetParent(parent NodeOwner)
+	GetParent() NodeOwner
 }
 
 // PositionSetter はウィジェットの位置を設定・取得するためのインターフェースです
@@ -94,19 +103,6 @@ type StyleGetterSetter interface {
 	// スタイルのディープコピーを生成しないメソッドを追加しました。
 	// 返されたスタイルは変更してはいけません。
 	ReadOnlyStyle() style.Style
-}
-
-// LayoutProperties はレイアウトプロパティを管理するためのインターフェースです
-type LayoutProperties interface {
-	SetFlex(flex int)
-	GetFlex() int
-	SetLayoutBoundary(isBoundary bool)
-	// SetLayoutData は、このウィジェットにレイアウト固有のデータを設定します。
-	// 親コンテナのレイアウトシステム（例: AdvancedGridLayout）がこれを使用して、
-	// ウィジェットごとの配置情報（行、列、スパンなど）を管理します。
-	SetLayoutData(data any)
-	// GetLayoutData は、このウィジェットに設定されたレイアウト固有のデータを返します。
-	GetLayoutData() any
 }
 
 // DirtyManager はウィジェットのダーティ状態を管理するためのインターフェースです
