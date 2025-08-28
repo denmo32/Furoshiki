@@ -24,8 +24,9 @@ type Button struct {
 	*component.Visibility
 	*component.Dirty
 
-	hasBeenLaidOut bool
-	minSize        component.Size
+	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
+	// hasBeenLaidOut bool
+	minSize component.Size
 }
 
 // --- Interface implementation verification ---
@@ -75,7 +76,8 @@ func (b *Button) Update()                                    {}
 func (b *Button) Cleanup()                                   { b.SetParent(nil) }
 
 func (b *Button) Draw(info component.DrawInfo) {
-	if !b.IsVisible() || !b.hasBeenLaidOut {
+	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
+	if !b.IsVisible() || !b.HasBeenLaidOut() {
 		return
 	}
 	x, y := b.GetPosition()
@@ -102,8 +104,9 @@ func (b *Button) MarkDirty(relayout bool) {
 }
 
 func (b *Button) SetPosition(x, y int) {
-	if !b.hasBeenLaidOut {
-		b.hasBeenLaidOut = true
+	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
+	if !b.HasBeenLaidOut() {
+		b.SetLaidOut(true)
 	}
 	if posX, posY := b.GetPosition(); posX != x || posY != y {
 		b.Transform.SetPosition(x, y)

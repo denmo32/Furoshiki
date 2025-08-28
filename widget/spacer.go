@@ -16,7 +16,8 @@ type Spacer struct {
 	*component.Visibility
 	*component.Dirty
 
-	hasBeenLaidOut bool
+	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
+	// hasBeenLaidOut bool
 }
 
 // --- Interface implementation verification ---
@@ -66,8 +67,9 @@ func (s *Spacer) MarkDirty(relayout bool) {
 }
 
 func (s *Spacer) SetPosition(x, y int) {
-	if !s.hasBeenLaidOut {
-		s.hasBeenLaidOut = true
+	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
+	if !s.HasBeenLaidOut() {
+		s.SetLaidOut(true)
 	}
 	if posX, posY := s.GetPosition(); posX != x || posY != y {
 		s.Transform.SetPosition(x, y)

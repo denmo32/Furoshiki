@@ -20,9 +20,10 @@ type ScrollBar struct {
 	*component.Visibility
 	*component.Dirty
 
-	hasBeenLaidOut bool
-	contentRatio   float64
-	scrollRatio    float64
+	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
+	// hasBeenLaidOut bool
+	contentRatio float64
+	scrollRatio  float64
 }
 
 // --- Interface implementation verification ---
@@ -63,10 +64,13 @@ func (s *ScrollBar) GetNode() *component.Node                   { return s.Node 
 func (s *ScrollBar) GetLayoutProperties() *component.LayoutProperties { return s.LayoutProperties }
 func (s *ScrollBar) Update()                                    {}
 func (s *ScrollBar) Cleanup()                                   { s.SetParent(nil) }
-func (s *ScrollBar) HasBeenLaidOut() bool                       { return s.hasBeenLaidOut }
+
+// UPDATE: HasBeenLaidOutの実装をVisibilityコンポーネントへの委譲に変更しました。
+func (s *ScrollBar) HasBeenLaidOut() bool { return s.Visibility.HasBeenLaidOut() }
 
 func (s *ScrollBar) Draw(info component.DrawInfo) {
-	if !s.IsVisible() || !s.hasBeenLaidOut {
+	// UPDATE: hasBeenLaidOutのチェックをHasBeenLaidOut()メソッド呼び出しに置き換えました。
+	if !s.IsVisible() || !s.HasBeenLaidOut() {
 		return
 	}
 	x, y := s.GetPosition()
@@ -122,8 +126,9 @@ func (s *ScrollBar) MarkDirty(relayout bool) {
 }
 
 func (s *ScrollBar) SetPosition(x, y int) {
-	if !s.hasBeenLaidOut {
-		s.hasBeenLaidOut = true
+	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
+	if !s.HasBeenLaidOut() {
+		s.SetLaidOut(true)
 	}
 	if posX, posY := s.GetPosition(); posX != x || posY != y {
 		s.Transform.SetPosition(x, y)

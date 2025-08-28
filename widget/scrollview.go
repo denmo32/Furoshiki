@@ -31,7 +31,8 @@ type ScrollView struct {
 	scrollY           float64
 	contentHeight     int
 	ScrollSensitivity float64
-	hasBeenLaidOut    bool
+	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
+	// hasBeenLaidOut    bool
 }
 
 // --- Interface implementation verification ---
@@ -133,7 +134,8 @@ func (sv *ScrollView) Update() {
 
 // Draw delegates the drawing to the internal container which handles clipping.
 func (sv *ScrollView) Draw(info component.DrawInfo) {
-	if !sv.IsVisible() || !sv.hasBeenLaidOut {
+	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
+	if !sv.IsVisible() || !sv.HasBeenLaidOut() {
 		return
 	}
 	sv.container.Draw(info)
@@ -153,8 +155,9 @@ func (sv *ScrollView) MarkDirty(relayout bool) {
 
 // SetPosition sets the position for the ScrollView and its internal container.
 func (sv *ScrollView) SetPosition(x, y int) {
-	if !sv.hasBeenLaidOut {
-		sv.hasBeenLaidOut = true
+	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
+	if !sv.HasBeenLaidOut() {
+		sv.SetLaidOut(true)
 	}
 	if currX, currY := sv.GetPosition(); currX != x || currY != y {
 		sv.Transform.SetPosition(x, y)

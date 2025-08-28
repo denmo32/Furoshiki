@@ -33,8 +33,9 @@ type Container struct {
 	warned         bool
 	clipsChildren  bool
 	offscreenImage *ebiten.Image
-	hasBeenLaidOut bool
-	minSize        component.Size
+	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
+	// hasBeenLaidOut bool
+	minSize component.Size
 }
 
 // --- Interface implementation verification ---
@@ -85,8 +86,11 @@ func (c *Container) SetLayout(layout layout.Layout) {
 }
 
 func (c *Container) Update() {
-	if c.GetParent() == nil && !c.hasBeenLaidOut {
-		c.hasBeenLaidOut = true
+	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
+	if c.GetParent() == nil && !c.HasBeenLaidOut() {
+		// UPDATE: 初回レイアウトをトリガーするためにSetLaidOutを呼び出します。
+		// これにより、Visibilityコンポーネント内でダーティフラグが設定され、初回描画が保証されます。
+		c.SetLaidOut(true)
 		c.MarkDirty(true) // Mark dirty to trigger initial layout
 	}
 
@@ -127,7 +131,8 @@ func (c *Container) checkSizeWarning() {
 }
 
 func (c *Container) Draw(info component.DrawInfo) {
-	if !c.IsVisible() || !c.hasBeenLaidOut {
+	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
+	if !c.IsVisible() || !c.HasBeenLaidOut() {
 		return
 	}
 
@@ -297,8 +302,9 @@ func (c *Container) MarkDirty(relayout bool) {
 }
 
 func (c *Container) SetPosition(x, y int) {
-	if !c.hasBeenLaidOut {
-		c.hasBeenLaidOut = true
+	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
+	if !c.HasBeenLaidOut() {
+		c.SetLaidOut(true)
 	}
 	if currX, currY := c.GetPosition(); currX != x || currY != y {
 		c.Transform.SetPosition(x, y)

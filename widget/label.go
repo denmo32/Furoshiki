@@ -23,8 +23,9 @@ type Label struct {
 	*component.Visibility
 	*component.Dirty
 
-	hasBeenLaidOut bool
-	minSize        component.Size
+	// UPDATE: hasBeenLaidOutフィールドはVisibilityコンポーネントに統合されたため削除されました。
+	// hasBeenLaidOut bool
+	minSize component.Size
 }
 
 // --- インターフェース実装の検証 ---
@@ -72,7 +73,8 @@ func (l *Label) Update()                                    {}
 func (l *Label) Cleanup()                                   { l.SetParent(nil) }
 
 func (l *Label) Draw(info component.DrawInfo) {
-	if !l.IsVisible() || !l.hasBeenLaidOut {
+	// UPDATE: hasBeenLaidOutのチェックをVisibilityコンポーネントのHasBeenLaidOut()に置き換えました。
+	if !l.IsVisible() || !l.HasBeenLaidOut() {
 		return
 	}
 	x, y := l.GetPosition()
@@ -99,8 +101,9 @@ func (l *Label) MarkDirty(relayout bool) {
 }
 
 func (l *Label) SetPosition(x, y int) {
-	if !l.hasBeenLaidOut {
-		l.hasBeenLaidOut = true
+	// UPDATE: レイアウト済み状態の管理をVisibilityコンポーネントに委譲します。
+	if !l.HasBeenLaidOut() {
+		l.SetLaidOut(true)
 	}
 	if posX, posY := l.GetPosition(); posX != x || posY != y {
 		l.Transform.SetPosition(x, y)

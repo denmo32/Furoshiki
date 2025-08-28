@@ -123,7 +123,8 @@ type InteractiveState interface {
 	IsVisible() bool
 	SetDisabled(disabled bool)
 	IsDisabled() bool
-	HasBeenLaidOut() bool // ウィジェットが一度でもレイアウトされたかを返します
+	// UPDATE: HasBeenLaidOutはVisibilityコンポーネントの責務となったため、このインターフェースから削除されました。
+	// HasBeenLaidOut() bool
 	CurrentState() WidgetState
 }
 
